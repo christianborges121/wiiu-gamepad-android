@@ -8,18 +8,20 @@ import org.junit.Test
 class AppSettingsCodecTest {
 
     @Test
-    fun `missing values default to overlay off help on aspect fit and native resolution`() {
+    fun `missing values default to overlay off help on fps cap on aspect fit and native resolution`() {
         val settings = AppSettingsCodec.decode(
             fitModeName = null,
             resolutionName = null,
             diagnosticsOverlayEnabled = null,
-            connectionHelpVisible = null
+            connectionHelpVisible = null,
+            limitTo30Fps = null
         )
 
         assertEquals(DisplayFitMode.ASPECT_FIT, settings.fitMode)
         assertEquals(DisplayResolutionPreset.NATIVE_854x480, settings.resolutionPreset)
         assertFalse(settings.diagnosticsOverlayEnabled)
         assertTrue(settings.showConnectionHelp)
+        assertTrue(settings.limitTo30Fps)
     }
 
     @Test
@@ -28,22 +30,25 @@ class AppSettingsCodecTest {
             fitModeName = "ORIGINAL_WII_U",
             resolutionName = "4K",
             diagnosticsOverlayEnabled = true,
-            connectionHelpVisible = false
+            connectionHelpVisible = false,
+            limitTo30Fps = false
         )
 
         assertEquals(DisplayFitMode.ASPECT_FIT, settings.fitMode)
         assertEquals(DisplayResolutionPreset.NATIVE_854x480, settings.resolutionPreset)
         assertTrue(settings.diagnosticsOverlayEnabled)
         assertFalse(settings.showConnectionHelp)
+        assertFalse(settings.limitTo30Fps)
     }
 
     @Test
-    fun `round trip preserves fit mode resolution overlay and help`() {
+    fun `round trip preserves fit mode resolution overlay help and fps cap`() {
         val original = DisplaySettings(
             fitMode = DisplayFitMode.FILL,
             resolutionPreset = DisplayResolutionPreset.FULL_HD_1920x1080,
             diagnosticsOverlayEnabled = true,
-            showConnectionHelp = false
+            showConnectionHelp = false,
+            limitTo30Fps = false
         )
 
         val encoded = AppSettingsCodec.encode(original)
@@ -51,7 +56,8 @@ class AppSettingsCodecTest {
             fitModeName = encoded.fitModeName,
             resolutionName = encoded.resolutionName,
             diagnosticsOverlayEnabled = encoded.diagnosticsOverlayEnabled,
-            connectionHelpVisible = encoded.connectionHelpVisible
+            connectionHelpVisible = encoded.connectionHelpVisible,
+            limitTo30Fps = encoded.limitTo30Fps
         )
 
         assertEquals(original, restored)

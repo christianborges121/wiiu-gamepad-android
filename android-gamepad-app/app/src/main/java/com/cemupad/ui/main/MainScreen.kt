@@ -84,6 +84,7 @@ fun MainScreen(
     var packetsSent by remember { mutableLongStateOf(0L) }
     var diagnosticsEnabled by remember { mutableStateOf(displaySettings.diagnosticsOverlayEnabled) }
     var showHelp by remember { mutableStateOf(displaySettings.showConnectionHelp) }
+    var limitFps by remember { mutableStateOf(displaySettings.limitTo30Fps) }
     var selectedFitMode by remember { mutableStateOf(displaySettings.fitMode) }
     var selectedResolution by remember { mutableStateOf(displaySettings.resolutionPreset) }
     var showFitMenu by remember { mutableStateOf(false) }
@@ -96,6 +97,7 @@ fun MainScreen(
         selectedResolution = displaySettings.resolutionPreset
         diagnosticsEnabled = displaySettings.diagnosticsOverlayEnabled
         showHelp = displaySettings.showConnectionHelp
+        limitFps = displaySettings.limitTo30Fps
     }
 
     LaunchedEffect(dsuServer) {
@@ -162,7 +164,8 @@ fun MainScreen(
                                         fitMode = selectedFitMode,
                                         resolutionPreset = selectedResolution,
                                         diagnosticsOverlayEnabled = enabled,
-                                        showConnectionHelp = showHelp
+                                        showConnectionHelp = showHelp,
+                                        limitTo30Fps = limitFps
                                     )
                                 )
                             }
@@ -195,7 +198,8 @@ fun MainScreen(
                                         fitMode = selectedFitMode,
                                         resolutionPreset = selectedResolution,
                                         diagnosticsOverlayEnabled = diagnosticsEnabled,
-                                        showConnectionHelp = enabled
+                                        showConnectionHelp = enabled,
+                                        limitTo30Fps = limitFps
                                     )
                                 )
                             }
@@ -204,6 +208,40 @@ fun MainScreen(
 
                     Text(
                         text = "Show the startup card with local IP and ports until the video stream loads.",
+                        color = Color(0xFF9FB0C6),
+                        fontSize = 12.sp,
+                        lineHeight = 18.sp
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Limit to 30 FPS",
+                            color = Color(0xFFEAF2FF),
+                            fontSize = 15.sp
+                        )
+                        Switch(
+                            checked = limitFps,
+                            onCheckedChange = { enabled ->
+                                limitFps = enabled
+                                onDisplaySettingsChanged(
+                                    DisplaySettings(
+                                        fitMode = selectedFitMode,
+                                        resolutionPreset = selectedResolution,
+                                        diagnosticsOverlayEnabled = diagnosticsEnabled,
+                                        showConnectionHelp = showHelp,
+                                        limitTo30Fps = enabled
+                                    )
+                                )
+                            }
+                        )
+                    }
+
+                    Text(
+                        text = "Cap decoding at 30 FPS to save battery. Off allows full 60 FPS.",
                         color = Color(0xFF9FB0C6),
                         fontSize = 12.sp,
                         lineHeight = 18.sp
@@ -231,7 +269,8 @@ fun MainScreen(
                                                 fitMode = mode,
                                                 resolutionPreset = selectedResolution,
                                                 diagnosticsOverlayEnabled = diagnosticsEnabled,
-                                                showConnectionHelp = showHelp
+                                                showConnectionHelp = showHelp,
+                                                limitTo30Fps = limitFps
                                             )
                                         )
                                     }
@@ -262,7 +301,8 @@ fun MainScreen(
                                                 fitMode = selectedFitMode,
                                                 resolutionPreset = preset,
                                                 diagnosticsOverlayEnabled = diagnosticsEnabled,
-                                                showConnectionHelp = showHelp
+                                                showConnectionHelp = showHelp,
+                                                limitTo30Fps = limitFps
                                             )
                                         )
                                     }

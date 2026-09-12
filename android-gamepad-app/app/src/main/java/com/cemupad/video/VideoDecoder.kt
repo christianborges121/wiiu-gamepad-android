@@ -111,6 +111,9 @@ class VideoDecoder(
     val totalFramesDropped = AtomicLong(0)
     val totalCodecErrors = AtomicLong(0)
     val totalIdrRequests = AtomicLong(0)
+    val totalFramesRateLimited = AtomicLong(0)
+    @Volatile var maxFps: Int = 30
+    private var lastDecodedPtsUs: Long = FrameRateLimiter.NO_PREVIOUS_PTS
     @Volatile var currentFps = 0f
         private set
     private var lastFpsCalcTime = System.currentTimeMillis()
@@ -187,6 +190,12 @@ class VideoDecoder(
             val params = AvcNalUnits.describe(AvcNalUnits.parseAnnexB(normalizedNal))
             if (params.hasSps) spsSeen = true
             if (params.hasPps) ppsSeen = true
+
+            if (!FrameRateLimiter.shouldDecode(ptsUs, lastDecodedPtsUs, maxFps)) {
+                totalFramesRateLimited.incrementAndGet()
+                return
+            }
+            lastDecodedPtsUs = ptsUs
 
             if (spsSeen && ppsSeen) {
                 framesSinceParameterSets = 0

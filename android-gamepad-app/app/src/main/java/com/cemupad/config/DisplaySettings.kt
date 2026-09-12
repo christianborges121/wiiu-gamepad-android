@@ -31,7 +31,8 @@ data class DisplaySettings(
     val fitMode: DisplayFitMode = DisplayFitMode.ASPECT_FIT,
     val resolutionPreset: DisplayResolutionPreset = DisplayResolutionPreset.NATIVE_854x480,
     val diagnosticsOverlayEnabled: Boolean = false,
-    val showConnectionHelp: Boolean = true
+    val showConnectionHelp: Boolean = true,
+    val limitTo30Fps: Boolean = true
 )
 
 data class DisplayDimensions(val width: Float, val height: Float)

@@ -327,7 +327,7 @@ Artemis probes codec capabilities and uses device-specific low-latency options r
 - [ ] Add configurable control opacity and placement.
 - [ ] Add reconnect with exponential backoff.
 - [ ] Add latency, loss, decoder, and encoder telemetry.
-- [ ] Add bitrate and FPS controls.
+- [ ] Add bitrate and FPS controls. (Partial 2026-09-12: phone-side 30/60 FPS decode toggle with drawer switch, persisted, unit-tested; bitrate control and Cemu-side encode cap still open.)
 - [ ] Add deadzone, motion, audio, and microphone settings.
 - [ ] Handle Android sleep/wake and Wi-Fi changes cleanly.
 
@@ -396,3 +396,4 @@ Apollo and Artemis are GPL-licensed projects. Use them as architectural referenc
 | 2026-09-12 | Phase 2 | Mario 3D World colors verified at 60 FPS (RGBA path); full-speed + reconnect stability recorded; HW blocked | Done |
 | 2026-09-12 | Phase 2 | Android decoder hardening: Annex B validation, SPS/PPS-tracked bounded IDR recovery, telemetry counters; idle-label overlap fixed; unit-tested and installed | Done |
 | 2026-09-12 | Phase 2 | Decoder-thread confinement: all MediaCodec calls on `CemuPad-Decoder` via synchronous dispatch (backpressure preserved); live-verified at 60 FPS after reinstall | Done |
+| 2026-09-12 | Phase 4 UX | 30/60 FPS decode toggle: `limitTo30Fps` setting (default on), `FrameRateLimiter` PTS gate in decoder, drawer switch; unit-tested, installed; live cap check needs a game session | Done |

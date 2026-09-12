@@ -10,12 +10,14 @@ object AppSettingsCodec {
     const val KEY_RESOLUTION = "display_resolution"
     const val KEY_DIAGNOSTICS_OVERLAY = "diagnostics_overlay_enabled"
     const val KEY_CONNECTION_HELP = "connection_help_visible"
+    const val KEY_LIMIT_30_FPS = "limit_to_30_fps"
 
     fun decode(
         fitModeName: String?,
         resolutionName: String?,
         diagnosticsOverlayEnabled: Boolean?,
-        connectionHelpVisible: Boolean? = null
+        connectionHelpVisible: Boolean? = null,
+        limitTo30Fps: Boolean? = null
     ): DisplaySettings {
         val fitMode = fitModeName
             ?.let { name -> DisplayFitMode.values().firstOrNull { it.name == name } }
@@ -27,7 +29,8 @@ object AppSettingsCodec {
             fitMode = fitMode,
             resolutionPreset = resolution,
             diagnosticsOverlayEnabled = diagnosticsOverlayEnabled ?: false,
-            showConnectionHelp = connectionHelpVisible ?: true
+            showConnectionHelp = connectionHelpVisible ?: true,
+            limitTo30Fps = limitTo30Fps ?: true
         )
     }
 
@@ -36,7 +39,8 @@ object AppSettingsCodec {
             fitModeName = settings.fitMode.name,
             resolutionName = settings.resolutionPreset.name,
             diagnosticsOverlayEnabled = settings.diagnosticsOverlayEnabled,
-            connectionHelpVisible = settings.showConnectionHelp
+            connectionHelpVisible = settings.showConnectionHelp,
+            limitTo30Fps = settings.limitTo30Fps
         )
     }
 }
@@ -45,5 +49,6 @@ data class EncodedAppSettings(
     val fitModeName: String,
     val resolutionName: String,
     val diagnosticsOverlayEnabled: Boolean,
-    val connectionHelpVisible: Boolean
+    val connectionHelpVisible: Boolean,
+    val limitTo30Fps: Boolean
 )

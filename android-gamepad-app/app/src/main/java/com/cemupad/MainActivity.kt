@@ -74,6 +74,11 @@ class MainActivity : ComponentActivity() {
                 prefs.getBoolean(AppSettingsCodec.KEY_CONNECTION_HELP, true)
             } else {
                 null
+            },
+            limitTo30Fps = if (prefs.contains(AppSettingsCodec.KEY_LIMIT_30_FPS)) {
+                prefs.getBoolean(AppSettingsCodec.KEY_LIMIT_30_FPS, true)
+            } else {
+                null
             }
         )
 
@@ -128,6 +133,7 @@ class MainActivity : ComponentActivity() {
                         displaySettings = displaySettings.value,
                         onDisplaySettingsChanged = { newSettings ->
                             displaySettings.value = newSettings
+                            videoDecoder?.maxFps = if (newSettings.limitTo30Fps) 30 else 60
                             persistDisplaySettings(newSettings)
                         },
                         onSurfaceAvailable = { surface -> handleSurfaceAvailable(surface) },
@@ -174,12 +180,14 @@ class MainActivity : ComponentActivity() {
             .putString(AppSettingsCodec.KEY_RESOLUTION, encoded.resolutionName)
             .putBoolean(AppSettingsCodec.KEY_DIAGNOSTICS_OVERLAY, encoded.diagnosticsOverlayEnabled)
             .putBoolean(AppSettingsCodec.KEY_CONNECTION_HELP, encoded.connectionHelpVisible)
+            .putBoolean(AppSettingsCodec.KEY_LIMIT_30_FPS, encoded.limitTo30Fps)
             .apply()
     }
 
     private fun handleSurfaceAvailable(surface: Surface) {
         activeSurface = surface
         val decoder = VideoDecoder(surface, onRequestIDR = { videoClient?.requestIDR() })
+        decoder.maxFps = if (displaySettings.value.limitTo30Fps) 30 else 60
         if (decoder.init()) {
             videoDecoder = decoder
         }
