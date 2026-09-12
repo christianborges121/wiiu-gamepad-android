@@ -68,6 +68,22 @@ class VideoStreamClient(
         workerThread = null
     }
 
+    /** Watchdog hook: true while the worker thread is alive. */
+    fun isWorkerAlive(): Boolean = workerThread?.isAlive == true
+
+    /** Restarts a dead worker when this client is still supposed to run. */
+    fun restartIfStalled(): Boolean {
+        if (!isRunning.get() || isWorkerAlive()) return false
+        Logger.w(TAG, "Video worker dead while supposed to run; restarting")
+        workerThread = Thread({
+            runClientLoop()
+        }, "CemuPad-VideoClient").apply {
+            isDaemon = true
+            start()
+        }
+        return true
+    }
+
     /**
      * Sends an IDR (Keyframe) request to Cemu to recover from frame loss or initialize a new stream.
      */
@@ -88,65 +104,84 @@ class VideoStreamClient(
     }
 
     private fun runClientLoop() {
-        while (isRunning.get()) {
-            try {
-                Logger.i(TAG, "Connecting to Cemu video stream at $host:$port...")
-                val sock = Socket()
-                sock.tcpNoDelay = true
-                sock.soTimeout = READ_TIMEOUT_MS
-                sock.connect(InetSocketAddress(host, port), CONNECT_TIMEOUT_MS)
+        try {
+            while (isRunning.get()) {
+                try {
+                    Logger.i(TAG, "Connecting to Cemu video stream at $host:$port...")
+                    val sock = Socket()
+                    sock.tcpNoDelay = true
+                    sock.soTimeout = READ_TIMEOUT_MS
+                    sock.connect(InetSocketAddress(host, port), CONNECT_TIMEOUT_MS)
 
-                synchronized(this) {
-                    socket = sock
-                    outStream = DataOutputStream(BufferedOutputStream(sock.getOutputStream()))
-                }
-
-                Logger.i(TAG, "Connected to Cemu video server at $host:$port")
-                onConnected?.invoke()
-
-                // Request initial IDR keyframe immediately upon connection
-                requestIDR()
-
-                val inStream = DataInputStream(BufferedInputStream(sock.getInputStream(), 64 * 1024))
-                val headerBuf = ByteArray(13) // 1 (type) + 4 (size) + 8 (pts)
-
-                while (isRunning.get()) {
-                    inStream.readFully(headerBuf)
-                    val headerWrap = ByteBuffer.wrap(headerBuf).order(ByteOrder.LITTLE_ENDIAN)
-                    val packetType = headerWrap.get().toInt() and 0xFF
-                    val payloadSize = headerWrap.getInt()
-                    val ptsUs = headerWrap.getLong()
-
-                    if (payloadSize <= 0 || payloadSize > 4 * 1024 * 1024) {
-                        Logger.w(TAG, "Invalid payload size: $payloadSize bytes. Reconnecting...")
-                        break
+                    synchronized(this) {
+                        socket = sock
+                        outStream = DataOutputStream(BufferedOutputStream(sock.getOutputStream()))
                     }
 
-                    val payload = ByteArray(payloadSize)
-                    inStream.readFully(payload)
+                    Logger.i(TAG, "Connected to Cemu video server at $host:$port")
+                    onConnected?.invoke()
 
-                    if (packetType == PACKET_TYPE_VIDEO) {
-                        onFrameReceived(payload, ptsUs)
+                    // Request initial IDR keyframe immediately upon connection
+                    requestIDR()
+
+                    val inStream = DataInputStream(BufferedInputStream(sock.getInputStream(), 64 * 1024))
+                    val headerBuf = ByteArray(13) // 1 (type) + 4 (size) + 8 (pts)
+
+                    while (isRunning.get()) {
+                        inStream.readFully(headerBuf)
+                        val headerWrap = ByteBuffer.wrap(headerBuf).order(ByteOrder.LITTLE_ENDIAN)
+                        val packetType = headerWrap.get().toInt() and 0xFF
+                        val payloadSize = headerWrap.getInt()
+                        val ptsUs = headerWrap.getLong()
+
+                        if (payloadSize <= 0 || payloadSize > 4 * 1024 * 1024) {
+                            Logger.w(TAG, "Invalid payload size: $payloadSize bytes. Reconnecting...")
+                            break
+                        }
+
+                        val payload = ByteArray(payloadSize)
+                        inStream.readFully(payload)
+
+                        if (packetType == PACKET_TYPE_VIDEO) {
+                            onFrameReceived(payload, ptsUs)
+                        }
                     }
-                }
-            } catch (e: Exception) {
-                if (isRunning.get()) {
-                    Logger.w(TAG, "Video stream error/disconnect: ${e.message}. Retrying in 1.5s...")
-                    onError?.invoke(e)
-                }
-            } finally {
-                closeSocket()
-                onDisconnected?.invoke()
-                if (isRunning.get()) {
-                    try {
-                        Thread.sleep(1500)
-                    } catch (_: InterruptedException) {
-                        break
+                } catch (e: InterruptedException) {
+                    // stop() requested: exit only when no longer supposed to run,
+                    // otherwise keep retrying (spurious wakeup safety).
+                    if (!isRunning.get()) throw e
+                    Logger.w(TAG, "Video worker interrupted while running; continuing")
+                } catch (e: Exception) {
+                    if (isRunning.get()) {
+                        Logger.w(TAG, "Video stream error/disconnect: ${e.message}. Retrying in 1.5s...")
+                        onError?.invoke(e)
+                    }
+                } catch (t: Throwable) {
+                    // Never let the retry loop die silently: an uncaught throwable
+                    // here used to strand the client with isRunning true forever.
+                    Logger.e(TAG, "Fatal error in video worker; retrying in 1.5s", t)
+                } finally {
+                    closeSocket()
+                    onDisconnected?.invoke()
+                    if (isRunning.get()) {
+                        try {
+                            Thread.sleep(1500)
+                        } catch (ie: InterruptedException) {
+                            if (!isRunning.get()) throw ie
+                            Logger.w(TAG, "Video worker sleep interrupted while running; continuing")
+                        }
                     }
                 }
             }
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+        } finally {
+            if (isRunning.get()) {
+                Logger.e(TAG, "Video worker loop exited while still supposed to run")
+            } else {
+                Logger.i(TAG, "Video client loop terminated.")
+            }
         }
-        Logger.i(TAG, "Video client loop terminated.")
     }
 
     private fun closeSocket() {

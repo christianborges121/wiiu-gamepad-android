@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.Surface
@@ -36,6 +38,7 @@ class MainActivity : ComponentActivity() {
     companion object {
         private const val PREFS_NAME = "cemupad_connection"
         private const val PREF_LAST_CEMU_IP = "last_cemu_ip"
+        private const val WATCHDOG_INTERVAL_MS = 5000L
     }
 
     private lateinit var dsuServer: DSUServer
@@ -53,6 +56,23 @@ class MainActivity : ComponentActivity() {
     private val displaySettings = mutableStateOf(DisplaySettings())
 
     private var wifiLock: WifiManager.WifiLock? = null
+
+    // Watchdog: worker loops must never die silently. If a DSU or video
+    // thread died while supposed to run (e.g. an uncaught throwable),
+    // restart it so Cemu restarts are picked up without reopening the app.
+    private val watchdogHandler = Handler(Looper.getMainLooper())
+    private val watchdogRunnable = object : Runnable {
+        override fun run() {
+            try {
+                if (::dsuServer.isInitialized) {
+                    dsuServer.ensureThreads()
+                }
+                videoClient?.restartIfStalled()
+            } catch (_: Exception) {
+            }
+            watchdogHandler.postDelayed(this, WATCHDOG_INTERVAL_MS)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -149,6 +169,7 @@ class MainActivity : ComponentActivity() {
         acquireWifiLock()
         dsuServer.start()
         motionHandler.start()
+        watchdogHandler.postDelayed(watchdogRunnable, WATCHDOG_INTERVAL_MS)
     }
 
     override fun onResume() {
@@ -165,6 +186,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
+        watchdogHandler.removeCallbacks(watchdogRunnable)
         stopVideoStream()
         handleSurfaceDestroyed()
         motionHandler.stop()

@@ -27,6 +27,8 @@ class DSUServer(
 
     private var socket: DatagramSocket? = null
     private val isRunning = AtomicBoolean(false)
+    private var recvThread: Thread? = null
+    private var pushThread: Thread? = null
 
     // Current controller state (thread-safe snapshot)
     private val stateLock = Any()
@@ -84,18 +86,42 @@ class DSUServer(
         }
 
         // Receive thread
-        thread(name = "DSU-RecvThread") {
+        recvThread = thread(name = "DSU-RecvThread") {
             runReceiveLoop()
         }
 
         // Periodic maintenance & push thread (~100Hz)
-        thread(name = "DSU-SendLoop") {
+        pushThread = thread(name = "DSU-SendLoop") {
             runPushLoop()
         }
 
         Log.i(TAG, "DSU Server listening on 0.0.0.0:$port (Server UID: $serverUid)")
         return true
     }
+
+    /** Watchdog hook: respawns loop threads that died while supposed to run. */
+    fun ensureThreads(): Boolean {
+        if (!isRunning.get()) return false
+        var restarted = false
+        if (recvThread?.isAlive != true) {
+            Log.w(TAG, "DSU receive thread dead while supposed to run; restarting")
+            recvThread = thread(name = "DSU-RecvThread") {
+                runReceiveLoop()
+            }
+            restarted = true
+        }
+        if (pushThread?.isAlive != true) {
+            Log.w(TAG, "DSU push thread dead while supposed to run; restarting")
+            pushThread = thread(name = "DSU-SendLoop") {
+                runPushLoop()
+            }
+            restarted = true
+        }
+        return restarted
+    }
+
+    fun areWorkersAlive(): Boolean =
+        recvThread?.isAlive == true && pushThread?.isAlive == true
 
     /**
      * Stops the DSU server and releases socket resources.
@@ -111,27 +137,37 @@ class DSUServer(
     }
 
     private fun runReceiveLoop() {
-        val recvBuffer = ByteArray(1024)
-        val recvPacket = DatagramPacket(recvBuffer, recvBuffer.size)
+        try {
+            val recvBuffer = ByteArray(1024)
+            val recvPacket = DatagramPacket(recvBuffer, recvBuffer.size)
 
-        while (isRunning.get()) {
-            val sock = socket ?: break
-            try {
-                // CRITICAL FIX: Reset length before every receive iteration.
-                // DatagramSocket.receive() alters packet.length to the size of the received packet.
-                recvPacket.length = recvBuffer.size
+            while (isRunning.get()) {
+                val sock = socket ?: break
+                try {
+                    // CRITICAL FIX: Reset length before every receive iteration.
+                    // DatagramSocket.receive() alters packet.length to the size of the received packet.
+                    recvPacket.length = recvBuffer.size
 
-                sock.receive(recvPacket)
-                packetsReceived.incrementAndGet()
+                    sock.receive(recvPacket)
+                    packetsReceived.incrementAndGet()
 
-                val clientAddr = InetSocketAddress(recvPacket.address, recvPacket.port)
-                handlePacket(sock, recvBuffer, recvPacket.length, clientAddr)
-            } catch (e: SocketException) {
-                if (!isRunning.get()) break
-                Log.e(TAG, "SocketException in receive loop", e)
-            } catch (e: Exception) {
-                if (!isRunning.get()) break
-                Log.e(TAG, "Error handling incoming packet", e)
+                    val clientAddr = InetSocketAddress(recvPacket.address, recvPacket.port)
+                    handlePacket(sock, recvBuffer, recvPacket.length, clientAddr)
+                } catch (e: SocketException) {
+                    if (!isRunning.get()) break
+                    Log.e(TAG, "SocketException in receive loop", e)
+                } catch (e: Exception) {
+                    if (!isRunning.get()) break
+                    Log.e(TAG, "Error handling incoming packet", e)
+                } catch (t: Throwable) {
+                    // Never strand the server: keep receiving unless stopping.
+                    Log.e(TAG, "Fatal error in DSU receive loop", t)
+                    if (!isRunning.get()) break
+                }
+            }
+        } finally {
+            if (isRunning.get()) {
+                Log.e(TAG, "DSU receive loop exited while still supposed to run")
             }
         }
     }
@@ -178,39 +214,49 @@ class DSUServer(
     }
 
     private fun runPushLoop() {
-        while (isRunning.get()) {
-            val now = System.currentTimeMillis()
-            val sock = socket ?: break
+        try {
+            while (isRunning.get()) {
+                val now = System.currentTimeMillis()
+                val sock = socket ?: break
 
-            // Prune inactive clients
-            val iterator = activeClients.entries.iterator()
-            while (iterator.hasNext()) {
-                val entry = iterator.next()
-                if (now - entry.value > CLIENT_TIMEOUT_MS) {
-                    iterator.remove()
-                    Log.i(TAG, "Cemu client timed out: ${entry.key}")
-                    onClientDisconnected?.invoke(entry.key)
+                // Prune inactive clients
+                val iterator = activeClients.entries.iterator()
+                while (iterator.hasNext()) {
+                    val entry = iterator.next()
+                    if (now - entry.value > CLIENT_TIMEOUT_MS) {
+                        iterator.remove()
+                        Log.i(TAG, "Cemu client timed out: ${entry.key}")
+                        onClientDisconnected?.invoke(entry.key)
+                    }
+                }
+
+                // Stream continuous updates to registered clients at ~100Hz
+                if (activeClients.isNotEmpty()) {
+                    val snapshot = synchronized(stateLock) { currentState.copy() }
+                    val resp = DSUPacket.createDataResponse(
+                        serverUid = serverUid,
+                        packetCounter = packetCounter.getAndIncrement(),
+                        state = snapshot
+                    )
+
+                    for (client in activeClients.keys) {
+                        sendPacket(sock, resp, client)
+                    }
+                }
+
+                try {
+                    Thread.sleep(10) // 10ms ~ 100Hz
+                } catch (e: InterruptedException) {
+                    if (!isRunning.get()) break
+                    Log.w(TAG, "DSU push loop sleep interrupted while running; continuing")
+                } catch (t: Throwable) {
+                    Log.e(TAG, "Fatal error in DSU push loop", t)
+                    if (!isRunning.get()) break
                 }
             }
-
-            // Stream continuous updates to registered clients at ~100Hz
-            if (activeClients.isNotEmpty()) {
-                val snapshot = synchronized(stateLock) { currentState.copy() }
-                val resp = DSUPacket.createDataResponse(
-                    serverUid = serverUid,
-                    packetCounter = packetCounter.getAndIncrement(),
-                    state = snapshot
-                )
-
-                for (client in activeClients.keys) {
-                    sendPacket(sock, resp, client)
-                }
-            }
-
-            try {
-                Thread.sleep(10) // 10ms ~ 100Hz
-            } catch (_: InterruptedException) {
-                break
+        } finally {
+            if (isRunning.get()) {
+                Log.e(TAG, "DSU push loop exited while still supposed to run")
             }
         }
     }
