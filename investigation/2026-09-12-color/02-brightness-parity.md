@@ -41,6 +41,21 @@ User confirms TV + pad view brighter than phone.
 - Residual AMOLED-vs-LCD perception in live viewing (files still differ,
   so this cannot be the whole story).
 
+## Update: NV12 math proven lossless, pack ruled out for Mario
+
+- Exact port of `ConvertRGBAToNV12` + standard BT.601-limited inverse
+  roundtrips 11 test colors (primaries, parchment, grass, skin, measured
+  desktop values) with max error +/-1 LSB. The conversion cannot produce
+  the observed darkening.
+- Mario boots with an EMPTY graphic-pack section: Contrasty was never
+  active here, so the pack cannot explain the Mario gap either.
+- Menu-button whites match desktop within ~6%; animated/textured-region
+  comparisons are confounded by capture timing and content mismatch
+  (map vs level), so they carry little weight.
+- Net: unpack, NV12 math, sRGB path, and pack are all exonerated. No
+  code change is justified until a synchronized same-content pair shows
+  a real, reproducible delta.
+
 ## Next step when reopened
 
 Synchronized same-moment capture pair (desktop snip + phone pull) and
