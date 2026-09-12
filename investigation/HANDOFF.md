@@ -8,11 +8,13 @@ prior chat.
 
 ## Where we left off
 
-Phase 2 color verification is active with Wind Waker HD running in Cemu
-and streaming to the phone. Wind Waker inventory colors verified correct
-at 30 FPS (packed A2B10G10R10 path works). Hyrule Warriors color check is
-still open. Phase 4 UX drawer/resolution work from this morning is done
-and installed on the wireless ADB phone.
+Phase 2 color verification is largely done: Wind Waker HD hues verified
+(packed A2B10G10R10 path) and Mario 3D World hues verified at 60 FPS
+(RGBA path, full-speed streaming). Hyrule Warriors is blocked (title
+won't run). Brightness parity is parked. Android decoder hardening
+(Annex B validation, SPS/PPS-tracked IDR recovery, telemetry) is
+implemented, tested, and installed; needs a game session to observe
+live. Cemu is currently off.
 
 Do not restart from Phase 0 or from the reconnect investigation as if they were
 unfinished implementation. Those records are evidence. The next verification
@@ -66,7 +68,8 @@ is whatever game session the user has up, most likely Hyrule Warriors colors.
 
 - Live reconnect of Cemu DSU + video after phone restart is still unverified.
   See `investigation/2026-09-12-reconnect/`.
-- Hyrule Warriors color verification still open (Wind Waker done 2026-09-12).
+- Hyrule Warriors color verification blocked (title has issues running; also seen: Vulkan device-loss crash 13:54:38, Error -4).
+- Brightness parity parked (see `investigation/2026-09-12-color/02-brightness-parity.md`).
 - Original Wii U GamePad fit-mode live confirmation still useful.
 - Overlay toggle against a running stream, and end-to-end resolution scaling
   with live video, still need a watched game session.

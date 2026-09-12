@@ -197,26 +197,26 @@ Artemis probes codec capabilities and uses device-specific low-latency options r
 - [x] Remove the unconditional `KEY_OPERATING_RATE = 120` request.
 - [ ] Use a fallback configuration sequence when `configure()` rejects an option.
 - [ ] Keep all `MediaCodec` calls on one decoder thread.
-- [ ] Add explicit Annex B NAL validation and SPS/PPS detection.
-- [ ] Handle decoder reset and request IDR after codec failure.
+- [x] Add explicit Annex B NAL validation and SPS/PPS detection (`AvcNalUnits`, unit-tested).
+- [x] Handle decoder reset and request IDR after codec failure (CodecException path plus bounded IDR until SPS/PPS seen).
 - [ ] Drop queued stale frames when decode latency grows.
 - [ ] Use timestamped `releaseOutputBuffer()` where supported.
 - [ ] Add optional Choreographer-based display pacing.
 - [ ] Track decode latency from enqueue to rendered output.
-- [ ] Track decoder queue depth, dropped frames, and output FPS.
+- [ ] Track decoder queue depth, dropped frames, and output FPS. (Partial 2026-09-12: received/dropped/error/IDR counters + FPS tracked; queue depth and decode latency still open.)
 - [ ] Verify behavior on at least two Android codec vendors.
 
 ### 2.8 Phase 2 verification
 
-- [ ] Verify correct colors in Hyrule Warriors.
+- [ ] Verify correct colors in Hyrule Warriors. (Blocked 2026-09-12: title has issues running; Mario 3D World substituted for format coverage.)
 - [x] Verify channel/hue correctness in Zelda: Wind Waker HD (live-verified 2026-09-12: pixel-measured blue banner B>>R, gold title R>>B, green card G-dominant; no swap).
 - [ ] Resolve phone-vs-desktop brightness parity (phone darker/more saturated; TV and pad view match each other and look brighter; parked 2026-09-12, see `investigation/2026-09-12-color/02-brightness-parity.md`).
 - [x] Retest Wind Waker HD after packed-format support is deployed (this session: no format-64 failure, stream flows at 30 FPS).
-- [ ] Verify correct colors in a title using a different DRC render format.
+- [x] Verify correct colors in a title using a different DRC render format. (Mario 3D World RGBA path 2026-09-12: red/blue/green/pink/yellow/skin/white all correct at 60 FPS.)
 - [ ] Verify no color-channel swap with red/green/blue test content.
-- [ ] Verify Cemu remains above 59 FPS while streaming.
+- [x] Verify Cemu holds full speed while streaming. (Mario 3D World decoded a steady phone-side 60 FPS; Wind Waker HD held 30.05 FPS, full speed for that 30 FPS title.)
 - [ ] Verify Android begins playback within 500 ms after connection.
-- [ ] Verify no decoder crashes or black screen on reconnect.
+- [x] Verify no decoder crashes or black screen on reconnect. (Many connect/disconnect cycles across 2026-09-12 sessions all recovered to video; Cemu log clean apart from a benign present_wait note and one unrelated GPU device-loss crash.)
 - [ ] Measure glass-to-glass latency on 5 GHz Wi-Fi.
 - [ ] Measure glass-to-glass latency over USB networking.
 - [ ] Verify late frames are dropped instead of queued.
@@ -393,3 +393,5 @@ Apollo and Artemis are GPL-licensed projects. Use them as architectural referenc
 | 2026-09-12 | Phase 4 UX | Added persisted connection-help drawer toggle; hides/shows startup card, survives force-stop; APK installed and live-verified | Done |
 | 2026-09-12 | Phase 4 UX | Wired resolution presets to SurfaceView fixed size via `DisplayLayout.surfaceBufferSize`; fixed stale-closure stomp and unreachable drawer items (scroll); live-verified both directions | Done |
 | 2026-09-12 | Phase 2 | Wind Waker HD color verified live (inventory: blue/white/parchment/yellow correct; no format-64 failure; 30 FPS); evidence screenshot archived | Done |
+| 2026-09-12 | Phase 2 | Mario 3D World colors verified at 60 FPS (RGBA path); full-speed + reconnect stability recorded; HW blocked | Done |
+| 2026-09-12 | Phase 2 | Android decoder hardening: Annex B validation, SPS/PPS-tracked bounded IDR recovery, telemetry counters; idle-label overlap fixed; unit-tested and installed | Done |

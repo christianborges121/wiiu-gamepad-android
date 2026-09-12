@@ -156,9 +156,11 @@ class TouchSurfaceView @JvmOverloads constructor(
             canvas.drawRect(offX, offY, offX + activeW, offY + activeH, activeAreaPaint)
             canvas.drawRect(offX, offY, offX + activeW, offY + activeH, borderPaint)
 
-            // Labels
-            canvas.drawText("Wii U GamePad Touch Surface (16:9 Aspect-Fit)", offX + 24f, offY + 44f, textPaint)
-            canvas.drawText("Pillarbox margins outside cyan border are discarded", offX + 24f, offY + 80f, textPaint)
+            // Labels pinned to the bottom of the active area: clear of both
+            // the top-left diagnostics overlay and the centered startup card.
+            val labelY = offY + activeH - 70f
+            canvas.drawText("Wii U GamePad Touch Surface (16:9 Aspect-Fit)", offX + 24f, labelY, textPaint)
+            canvas.drawText("Pillarbox margins outside cyan border are discarded", offX + 24f, labelY + 36f, textPaint)
         }
 
         // Draw touch indicator crosshairs

@@ -24,6 +24,7 @@ class VideoDecoder(
         const val TAG = "VideoDecoder"
         const val DEFAULT_WIDTH = 854
         const val DEFAULT_HEIGHT = 480
+        const val IDR_RECOVERY_INTERVAL_FRAMES = 30
         private const val DEQUEUE_TIMEOUT_US = 5000L // 5ms
 
         fun normalizeAvcBitstream(input: ByteArray): ByteArray {
@@ -82,10 +83,20 @@ class VideoDecoder(
 
     // Telemetry
     val totalFramesDecoded = AtomicLong(0)
+    val totalFramesReceived = AtomicLong(0)
+    val totalFramesDropped = AtomicLong(0)
+    val totalCodecErrors = AtomicLong(0)
+    val totalIdrRequests = AtomicLong(0)
     var currentFps = 0f
         private set
     private var lastFpsCalcTime = System.currentTimeMillis()
     private var framesSinceLastFps = 0
+
+    // Mid-stream joins only become decodable once SPS/PPS arrive. Until then,
+    // request a keyframe at a bounded rate instead of feeding blind data.
+    @Volatile private var spsSeen = false
+    @Volatile private var ppsSeen = false
+    @Volatile private var framesSinceParameterSets = 0
 
     fun init(width: Int = DEFAULT_WIDTH, height: Int = DEFAULT_HEIGHT): Boolean {
         if (isConfigured) return true
@@ -118,6 +129,9 @@ class VideoDecoder(
             codec = decoder
             isRunning.set(true)
             isConfigured = true
+            spsSeen = false
+            ppsSeen = false
+            framesSinceParameterSets = 0
             Logger.i(TAG, "MediaCodec AVC hardware decoder initialized ($width x $height)")
             true
         } catch (e: Exception) {
@@ -132,9 +146,25 @@ class VideoDecoder(
     fun decodeFrame(nalData: ByteArray, ptsUs: Long) {
         val decoder = codec ?: return
         if (!isRunning.get()) return
+        totalFramesReceived.incrementAndGet()
 
         try {
             val normalizedNal = normalizeAvcBitstream(nalData)
+            val params = AvcNalUnits.describe(AvcNalUnits.parseAnnexB(normalizedNal))
+            if (params.hasSps) spsSeen = true
+            if (params.hasPps) ppsSeen = true
+
+            if (spsSeen && ppsSeen) {
+                framesSinceParameterSets = 0
+            } else {
+                framesSinceParameterSets++
+                if (framesSinceParameterSets >= IDR_RECOVERY_INTERVAL_FRAMES) {
+                    Logger.w(TAG, "No SPS/PPS after $framesSinceParameterSets frames, requesting IDR")
+                    framesSinceParameterSets = 0
+                    totalIdrRequests.incrementAndGet()
+                    onRequestIDR()
+                }
+            }
 
             // First drain any pending output buffers to free up input slots
             drainOutput(decoder)
@@ -152,14 +182,19 @@ class VideoDecoder(
                     inputBuffer.clear()
                     inputBuffer.put(normalizedNal)
                     decoder.queueInputBuffer(inputIndex, 0, normalizedNal.size, ptsUs, 0)
+                } else {
+                    totalFramesDropped.incrementAndGet()
                 }
             } else {
+                totalFramesDropped.incrementAndGet()
                 Logger.w(TAG, "Input buffer dequeue timed out (congestion), frame dropped")
             }
 
             // Drain output again to present decoded frame with minimal latency
             drainOutput(decoder)
         } catch (e: MediaCodec.CodecException) {
+            totalCodecErrors.incrementAndGet()
+            totalIdrRequests.incrementAndGet()
             Logger.e(TAG, "CodecException during decode, requesting IDR recovery", e)
             onRequestIDR()
         } catch (e: Exception) {
@@ -207,6 +242,9 @@ class VideoDecoder(
         }
         codec = null
         isConfigured = false
+        spsSeen = false
+        ppsSeen = false
+        framesSinceParameterSets = 0
         Logger.i(TAG, "MediaCodec decoder released.")
     }
 }
