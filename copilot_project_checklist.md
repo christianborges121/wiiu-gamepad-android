@@ -209,7 +209,8 @@ Artemis probes codec capabilities and uses device-specific low-latency options r
 ### 2.8 Phase 2 verification
 
 - [ ] Verify correct colors in Hyrule Warriors.
-- [x] Verify correct colors in Zelda: Wind Waker HD (live-verified 2026-09-12: inventory screen shows correct blue/white/parchment/yellow/grey; title screen white/gold correct).
+- [x] Verify channel/hue correctness in Zelda: Wind Waker HD (live-verified 2026-09-12: pixel-measured blue banner B>>R, gold title R>>B, green card G-dominant; no swap).
+- [ ] Resolve phone-vs-desktop brightness parity (phone darker/more saturated; TV and pad view match each other and look brighter; parked 2026-09-12, see `investigation/2026-09-12-color/02-brightness-parity.md`).
 - [x] Retest Wind Waker HD after packed-format support is deployed (this session: no format-64 failure, stream flows at 30 FPS).
 - [ ] Verify correct colors in a title using a different DRC render format.
 - [ ] Verify no color-channel swap with red/green/blue test content.
