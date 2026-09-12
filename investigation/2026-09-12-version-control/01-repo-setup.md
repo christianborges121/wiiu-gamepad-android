@@ -1,23 +1,31 @@
 # Repo setup (2026-09-12)
 
-Two private GitHub repos on `main`, both pushed and SHA-verified:
+## App repo (private)
 
-- `christianborges121/Cemu` at `1161901b` — snapshot of `Cemu/` (16,678
-  files). Regenerable vcpkg outputs (`buildtrees/`, `downloads/`,
-  `packages/`) and `bin/` build artifacts are ignored; dependency pins are
-  recorded in `Cemu/FORK.md`.
-- `christianborges121/wiiu-gamepad-android` at `22619134` — Android app,
-  `vanilla/` (minus signing key), docs, investigation notes, screenshots.
-  `Cemu/`, `build/`, `references/`, Gradle caches, APKs, `local.properties`,
-  and `*.jks` are ignored (see root `.gitignore`).
+- `christianborges121/wiiu-gamepad-android`, branch `main`.
+- Android app, `vanilla/` (minus signing key), docs, investigation notes,
+  screenshots. `Cemu/`, `build/`, `references/`, Gradle caches, APKs,
+  `local.properties`, and `*.jks` are ignored (root `.gitignore`).
 
-Notes:
+## Cemu fork (public, attached)
 
-- Upstream is `cemu-project/Cemu` (not `CemuProject/Cemu`). The GitHub fork
-  was created, then set private, which detaches it from the fork network —
-  the repo is now standalone, history restarted as one snapshot commit.
-- `gh` CLI 2.100.0 installed via winget; auth via `gh auth login` (browser
-  flow). Bare `gh` is not on this harness PATH; use
-  `"$env:ProgramFiles\GitHub CLI\gh.exe"`.
-- `git -C <repo> status` is clean in both repos. Future work commits here,
-  not in chat-only patches.
+- `christianborges121/Cemu`, branch `main` at `5886003d`, one commit ahead
+  of upstream `cemu-project/Cemu@3310f3b8` (2026-09-10), zero behind.
+- Compare view (exactly the fork delta, 24 files):
+  `https://github.com/cemu-project/Cemu/compare/main...christianborges121:main`
+- The old detached snapshot is preserved remotely as
+  `snapshot-backup-20260912` (`1161901b`) and as
+  `C:\Users\chris\AppData\Local\Temp\opencode\cemu-snapshot-backup.tar`.
+- Dependencies are real submodules at the fork pins in `Cemu/FORK.md`
+  (base pins were older; `imgui` is pinned older than base — revisit).
+- Local `Cemu/` repo has remotes `origin` (fork) and `upstream`
+  (`cemu-project/Cemu`). `git status` shows only the contained nested
+  `m dependencies/cubeb` marker (sanitizers override, see `FORK.md`).
+
+## Tooling notes
+
+- `gh` CLI 2.100.0 via winget; auth via `gh auth login` (browser flow) plus
+  `gh auth refresh -s delete_repo` for repo deletion. Bare `gh` is not on
+  this harness PATH; use `"$env:ProgramFiles\GitHub CLI\gh.exe"`.
+- Upstream path is `cemu-project/Cemu` (lowercase org). Setting a fork
+  private detaches it from the fork network — keep this one public.

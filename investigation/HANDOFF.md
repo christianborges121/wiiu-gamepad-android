@@ -30,8 +30,10 @@ phone session.
    audio = Phase 3), added the resolution-preset-effect and connection/help-text
    toggle as explicit open items, and logged the fit-mode fix with screenshot
    evidence. See `investigation/2026-09-12-ux/03-checklist-reconciliation.md`.
-6. Started version control: `Cemu/` and the workspace root are separate git
-   repos (branch `main`), pushed to private GitHub repos. Details in
+6. Started version control: workspace root is pushed to private
+   `christianborges121/wiiu-gamepad-android`; `Cemu/` is a public attached
+   fork at `christianborges121/Cemu`, one commit ahead of upstream with a
+   clean 24-file delta. Details in
    `investigation/2026-09-12-version-control/01-repo-setup.md`.
 
 ## Device

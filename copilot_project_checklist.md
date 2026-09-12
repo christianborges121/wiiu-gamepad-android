@@ -387,3 +387,4 @@ Apollo and Artemis are GPL-licensed projects. Use them as architectural referenc
 | 2026-09-12 | Docs | Wrote `investigation/HANDOFF.md` and `investigation/2026-09-12-ux/` for next-harness pickup | Done |
 | 2026-09-12 | Docs | Reconciled checklist: split implemented vs open UX items, added resolution-preset-effect item, aligned phase numbering | Done |
 | 2026-09-12 | Infra | Initialized `Cemu/` and workspace-root git repos on `main`, pushed to private `christianborges121/Cemu` and `christianborges121/wiiu-gamepad-android` | Done |
+| 2026-09-12 | Infra | Rebuilt Cemu as a public attached fork: one commit on upstream `3310f3b8` with a clean 24-file delta; old snapshot kept as `snapshot-backup-20260912` | Done |
