@@ -241,7 +241,7 @@ fun MainScreen(
                     }
 
                     Text(
-                        text = "Cap decoding at 30 FPS to save battery. Off allows full 60 FPS.",
+                        text = "Limit to 30 FPS needs Cemu encoder support (coming soon) and is not enforced yet.",
                         color = Color(0xFF9FB0C6),
                         fontSize = 12.sp,
                         lineHeight = 18.sp

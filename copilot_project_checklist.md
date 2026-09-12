@@ -327,7 +327,7 @@ Artemis probes codec capabilities and uses device-specific low-latency options r
 - [ ] Add configurable control opacity and placement.
 - [ ] Add reconnect with exponential backoff.
 - [ ] Add latency, loss, decoder, and encoder telemetry.
-- [ ] Add bitrate and FPS controls. (Partial 2026-09-12: phone-side 30/60 FPS decode toggle with drawer switch, persisted, unit-tested; bitrate control and Cemu-side encode cap still open.)
+- [ ] Add bitrate and FPS controls. (2026-09-12: phone-side P-frame dropping REMOVED as harmful — it corrupted the H.264 reference chain (ghosting); caps belong at the encoder. Drawer switch kept, honestly labeled pending Cemu support. Bitrate control still open.)
 - [ ] Add deadzone, motion, audio, and microphone settings.
 - [ ] Handle Android sleep/wake and Wi-Fi changes cleanly.
 
@@ -397,3 +397,4 @@ Apollo and Artemis are GPL-licensed projects. Use them as architectural referenc
 | 2026-09-12 | Phase 2 | Android decoder hardening: Annex B validation, SPS/PPS-tracked bounded IDR recovery, telemetry counters; idle-label overlap fixed; unit-tested and installed | Done |
 | 2026-09-12 | Phase 2 | Decoder-thread confinement: all MediaCodec calls on `CemuPad-Decoder` via synchronous dispatch (backpressure preserved); live-verified at 60 FPS after reinstall | Done |
 | 2026-09-12 | Phase 4 UX | 30/60 FPS decode toggle: `limitTo30Fps` setting (default on), `FrameRateLimiter` PTS gate in decoder, drawer switch; unit-tested, installed; live cap check needs a game session | Done |
+| 2026-09-12 | Phase 2 | Removed phone-side frame dropping (P-frame reference corruption caused ghosting); cap must happen at encode; verified clean 60 FPS after hotfix | Done |

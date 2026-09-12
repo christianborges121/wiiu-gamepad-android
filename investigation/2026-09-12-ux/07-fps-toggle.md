@@ -29,3 +29,18 @@ to a 30-vs-60 toggle (Wii U content never exceeds 60 FPS).
   session; Cemu was off at install time.
 - Follow-up (needs Cemu idle + rebuild): Cemu-side encode cap via a new
   control opcode to also save bandwidth and encoder CPU.
+
+## Hotfix the same day: phone-side dropping removed
+
+User reported stuttering + ghosting on screen transitions. Root cause:
+dropping P-frames ahead of a stateful H.264 decoder corrupts its
+reference chain (each P-frame predicts from the previous one); drift
+accumulates until the next IDR, worst on high-delta transitions. NAL
+validity is irrelevant — valid frames still break the chain when a
+predecessor is missing.
+
+Fix: enforcement deleted from `doDecodeFrame` (setting, UI, limiter,
+and tests stay for the future encode-side contract); drawer text now
+states Cemu support is pending. Live-verified after reinstall: clean
+60 FPS file-select screen, no ghosting. Rate caps must skip
+capture/encode, never decode.

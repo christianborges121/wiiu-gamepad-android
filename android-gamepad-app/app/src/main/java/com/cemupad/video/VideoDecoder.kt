@@ -191,10 +191,11 @@ class VideoDecoder(
             if (params.hasSps) spsSeen = true
             if (params.hasPps) ppsSeen = true
 
-            if (!FrameRateLimiter.shouldDecode(ptsUs, lastDecodedPtsUs, maxFps)) {
-                totalFramesRateLimited.incrementAndGet()
-                return
-            }
+            // NOTE: no PTS rate limiting here. Dropping P-frames ahead of a
+            // stateful H.264 decoder corrupts its reference chain (ghosting
+            // until the next IDR). Rate caps belong at the encoder; see the
+            // Cemu-side encode-cap item. lastDecodedPtsUs is still tracked
+            // for future render-side pacing use.
             lastDecodedPtsUs = ptsUs
 
             if (spsSeen && ppsSeen) {
