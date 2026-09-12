@@ -196,7 +196,7 @@ Artemis probes codec capabilities and uses device-specific low-latency options r
 - [x] Apply `KEY_LOW_LATENCY` only when the decoder advertises support.
 - [x] Remove the unconditional `KEY_OPERATING_RATE = 120` request.
 - [ ] Use a fallback configuration sequence when `configure()` rejects an option.
-- [ ] Keep all `MediaCodec` calls on one decoder thread.
+- [x] Keep all `MediaCodec` calls on one decoder thread (`CemuPad-Decoder` HandlerThread with synchronous dispatch; live-verified at 60 FPS on Mario 3D World).
 - [x] Add explicit Annex B NAL validation and SPS/PPS detection (`AvcNalUnits`, unit-tested).
 - [x] Handle decoder reset and request IDR after codec failure (CodecException path plus bounded IDR until SPS/PPS seen).
 - [ ] Drop queued stale frames when decode latency grows.
@@ -266,17 +266,17 @@ Artemis probes codec capabilities and uses device-specific low-latency options r
 - [x] Keep the overlay small and unobtrusive so it does not obstruct the GamePad display.
 - [x] Include local IP, port, client count, packet counters, and video FPS on one line when enabled.
 - [x] Keep overlay text legible without blocking the active GamePad content (no background card; text shadow only).
-- [ ] Live-confirm the restyled overlay on a running stream after the 2026-09-12 restyle.
+- [x] Live-confirm the restyled overlay on a running stream (Mario 3D World 2026-09-12: one line, legible, game unobstructed).
 
 ### 4.6 Phase 4 verification
 
 - [x] Confirm the app launches in immersive fullscreen on the phone.
 - [x] Confirm the GamePad image fills the screen without a framed window (aspect-fit clipping fix 2026-09-12).
 - [x] Confirm back-button drawer toggles settings cleanly.
-- [ ] Confirm diagnostics overlay can be toggled on/off without affecting the stream after the one-line restyle.
+- [x] Confirm diagnostics overlay can be toggled on/off without affecting the stream (toggled both directions mid-stream 2026-09-12; game kept rendering).
 - [x] Confirm startup instructions disappear as soon as streaming begins (user-verified round trip 2026-09-12: card hidden while Cemu streamed, reappeared on stop with no stuck state; screenshot in notes).
 - [x] Confirm the resolution preset changes the SurfaceView buffer size (live-verified 2026-09-12: `surfaceChanged` reports 1920x1080 on Full HD, 854x480 on Native; decoder output stays stream-determined 854x480 with scale-to-fit).
-- [ ] Validate the layout under a real device session and adjust spacing if the UI overlaps the stream.
+- [x] Validate the layout under a real device session and adjust spacing if the UI overlaps the stream (Mario session 2026-09-12: no overlaps; idle labels moved clear of overlay and card).
 
 ---
 
@@ -395,3 +395,4 @@ Apollo and Artemis are GPL-licensed projects. Use them as architectural referenc
 | 2026-09-12 | Phase 2 | Wind Waker HD color verified live (inventory: blue/white/parchment/yellow correct; no format-64 failure; 30 FPS); evidence screenshot archived | Done |
 | 2026-09-12 | Phase 2 | Mario 3D World colors verified at 60 FPS (RGBA path); full-speed + reconnect stability recorded; HW blocked | Done |
 | 2026-09-12 | Phase 2 | Android decoder hardening: Annex B validation, SPS/PPS-tracked bounded IDR recovery, telemetry counters; idle-label overlap fixed; unit-tested and installed | Done |
+| 2026-09-12 | Phase 2 | Decoder-thread confinement: all MediaCodec calls on `CemuPad-Decoder` via synchronous dispatch (backpressure preserved); live-verified at 60 FPS after reinstall | Done |

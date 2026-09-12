@@ -5,10 +5,15 @@ import android.media.MediaCodecInfo
 import android.media.MediaCodecList
 import android.media.MediaFormat
 import android.os.Build
+import android.os.Handler
+import android.os.HandlerThread
 import android.view.Surface
 import com.cemupad.util.Logger
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
+import java.util.concurrent.Callable
+import java.util.concurrent.FutureTask
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
@@ -71,9 +76,28 @@ class VideoDecoder(
         }
     }
 
-    private var codec: MediaCodec? = null
+    @Volatile private var codec: MediaCodec? = null
     private val isRunning = AtomicBoolean(false)
-    private var isConfigured = false
+    @Volatile private var isConfigured = false
+
+    // Every MediaCodec call runs on this thread, no matter which thread
+    // invoked the public API (main thread for init/release, video worker
+    // for decodeFrame). Dispatch is synchronous so backpressure behavior
+    // is unchanged: callers block exactly as if they called inline.
+    private val decoderThread = HandlerThread("CemuPad-Decoder").apply { start() }
+    private val decoderHandler = Handler(decoderThread.looper)
+
+    private fun <T> runOnDecoderThreadSync(timeoutMs: Long, block: () -> T): T? {
+        if (!decoderThread.isAlive) return null
+        val task = FutureTask(Callable { block() })
+        if (!decoderHandler.post(task)) return null
+        return try {
+            task.get(timeoutMs, TimeUnit.MILLISECONDS)
+        } catch (_: Exception) {
+            task.cancel(true)
+            null
+        }
+    }
 
     private fun selectAvcDecoder(): MediaCodecInfo? {
         return MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.firstOrNull { info ->
@@ -87,7 +111,7 @@ class VideoDecoder(
     val totalFramesDropped = AtomicLong(0)
     val totalCodecErrors = AtomicLong(0)
     val totalIdrRequests = AtomicLong(0)
-    var currentFps = 0f
+    @Volatile var currentFps = 0f
         private set
     private var lastFpsCalcTime = System.currentTimeMillis()
     private var framesSinceLastFps = 0
@@ -100,7 +124,10 @@ class VideoDecoder(
 
     fun init(width: Int = DEFAULT_WIDTH, height: Int = DEFAULT_HEIGHT): Boolean {
         if (isConfigured) return true
+        return runOnDecoderThreadSync(10000L) { doInit(width, height) } ?: false
+    }
 
+    private fun doInit(width: Int, height: Int): Boolean {
         return try {
             val decoderInfo = selectAvcDecoder()
                 ?: throw IllegalStateException("No AVC decoder is available")
@@ -144,9 +171,16 @@ class VideoDecoder(
      * Feeds Annex B NAL unit payload into the decoder with a presentation timestamp.
      */
     fun decodeFrame(nalData: ByteArray, ptsUs: Long) {
-        val decoder = codec ?: return
         if (!isRunning.get()) return
         totalFramesReceived.incrementAndGet()
+        if (runOnDecoderThreadSync(2000L) { doDecodeFrame(nalData, ptsUs) } == null) {
+            totalFramesDropped.incrementAndGet()
+            Logger.w(TAG, "Decoder thread dispatch failed, frame dropped")
+        }
+    }
+
+    private fun doDecodeFrame(nalData: ByteArray, ptsUs: Long) {
+        val decoder = codec ?: return
 
         try {
             val normalizedNal = normalizeAvcBitstream(nalData)
@@ -234,6 +268,11 @@ class VideoDecoder(
 
     fun release() {
         isRunning.set(false)
+        runOnDecoderThreadSync(5000L) { doRelease() }
+        decoderThread.quitSafely()
+    }
+
+    private fun doRelease() {
         try {
             codec?.stop()
             codec?.release()
