@@ -1,0 +1,75 @@
+package com.cemupad.config
+
+import kotlin.math.max
+import kotlin.math.min
+
+enum class DisplayFitMode(val label: String) {
+    ASPECT_FIT("Aspect fit"),
+    FILL("Screen fill"),
+    STRETCH("Stretch");
+}
+
+enum class DisplayResolutionPreset(
+    val label: String,
+    val width: Int,
+    val height: Int
+) {
+    NATIVE_854x480("Native 854x480", 854, 480),
+    HD_1280x720("Wide 1280x720", 1280, 720),
+    FULL_HD_1920x1080("Full HD 1920x1080", 1920, 1080),
+    DEVICE_AUTO("Device auto", 0, 0);
+
+    val aspectRatio: Float
+        get() = if (width > 0 && height > 0) {
+            width.toFloat() / height.toFloat()
+        } else {
+            16f / 9f
+        }
+}
+
+data class DisplaySettings(
+    val fitMode: DisplayFitMode = DisplayFitMode.ASPECT_FIT,
+    val resolutionPreset: DisplayResolutionPreset = DisplayResolutionPreset.NATIVE_854x480,
+    val diagnosticsOverlayEnabled: Boolean = false
+)
+
+data class DisplayDimensions(val width: Float, val height: Float)
+
+object DisplayLayout {
+    /**
+     * Returns the largest rectangle with [targetAspectRatio] that fits entirely
+     * within the supplied container. This avoids measuring from width alone,
+     * which can make a 16:9 surface taller than a landscape display.
+     */
+    fun aspectFitDimensions(
+        containerWidth: Float,
+        containerHeight: Float,
+        targetAspectRatio: Float
+    ): DisplayDimensions {
+        require(containerWidth > 0f)
+        require(containerHeight > 0f)
+        require(targetAspectRatio > 0f)
+
+        val widthFromHeight = containerHeight * targetAspectRatio
+        val width = min(containerWidth, widthFromHeight)
+        return DisplayDimensions(width = width, height = width / targetAspectRatio)
+    }
+
+    /**
+     * Returns the smallest target-aspect rectangle that covers the entire
+     * container. The overflow is intentionally cropped by the parent.
+     */
+    fun aspectFillDimensions(
+        containerWidth: Float,
+        containerHeight: Float,
+        targetAspectRatio: Float
+    ): DisplayDimensions {
+        require(containerWidth > 0f)
+        require(containerHeight > 0f)
+        require(targetAspectRatio > 0f)
+
+        val widthFromHeight = containerHeight * targetAspectRatio
+        val width = max(containerWidth, widthFromHeight)
+        return DisplayDimensions(width = width, height = width / targetAspectRatio)
+    }
+}

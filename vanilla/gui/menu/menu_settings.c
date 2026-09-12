@@ -1,0 +1,232 @@
+#include "menu_settings.h"
+
+#include <vanilla.h>
+#include <unistd.h>
+
+#include "config.h"
+#include "lang.h"
+#include "menu_common.h"
+#include "menu_connection.h"
+#include "menu_gamepad.h"
+#include "menu_main.h"
+#include "menu_region.h"
+#include "menu_sudo_warning.h"
+#include "pipe/def.h"
+#include "ui/ui_anim.h"
+
+static void return_to_main(vui_context_t *vui, int btn, void *v)
+{
+    int layer = (intptr_t) v;
+    vui_transition_fade_layer_out(vui, layer, vpi_menu_main, (void *) (intptr_t) 1);
+}
+
+static void transition_to_gamepad(vui_context_t *vui, int button, void *v)
+{
+    int layer = (intptr_t) v;
+    vui_transition_fade_layer_out(vui, layer, vpi_menu_gamepad, 0);
+}
+
+static void transition_to_connection(vui_context_t *vui, int button, void *v)
+{
+    int layer = (intptr_t) v;
+    vui_transition_fade_layer_out(vui, layer, vpi_menu_connection, 0);
+}
+
+static void transition_to_region(vui_context_t *vui, int button, void *v)
+{
+    int layer = (intptr_t) v;
+    vui_transition_fade_layer_out(vui, layer, vpi_menu_region, 0);
+}
+
+static void thunk_to_quit(vui_context_t *vui, int button, void *v)
+{
+    vpi_menu_quit_vanilla(vui);
+}
+
+#ifdef VANILLA_POLKIT_AVAILABLE
+static void do_polkit_install(vui_context_t *vui, void *v)
+{
+	int install = (intptr_t) v;
+	if (install) {
+		vanilla_install_polkit(vpi_config.server_address);
+	} else {
+		vanilla_uninstall_polkit(vpi_config.server_address);
+	}
+	vpi_menu_settings(vui, 0);
+}
+
+static void thunk_to_start_pipe_for_polkit_rule_install(vui_context_t *vui, void *v)
+{
+	vpi_menu_start_pipe(vui, 0, do_polkit_install, v, 0, 0);
+}
+
+int tmp_fglayer;
+static void install_polkit_rule_ack(vui_context_t *vui, int button, void *v)
+{
+	vui_transition_fade_layer_out(vui, tmp_fglayer, thunk_to_start_pipe_for_polkit_rule_install, v);
+}
+
+static void install_polkit_rule_cancel(vui_context_t *vui, int button, void *v)
+{
+	vui_transition_fade_layer_out(vui, tmp_fglayer, vpi_menu_settings, 0);
+}
+
+static void install_polkit_rule(vui_context_t *vui, void *v)
+{
+    vui_reset(vui);
+
+	tmp_fglayer = vui_layer_create(vui);
+
+	vpi_menu_create_sudo_warning(vui, tmp_fglayer, install_polkit_rule_ack, v, install_polkit_rule_cancel, 0);
+
+	vui_transition_fade_layer_in(vui, tmp_fglayer, 0, 0);
+}
+
+static void transition_to_install_polkit_rule(vui_context_t *vui, int button, void *v)
+{
+    int layer = (intptr_t) v;
+    vui_transition_fade_layer_out(vui, layer, install_polkit_rule, (void *) (intptr_t) 1);
+}
+
+static void transition_to_uninstall_polkit_rule(vui_context_t *vui, int button, void *v)
+{
+    int layer = (intptr_t) v;
+    vui_transition_fade_layer_out(vui, layer, thunk_to_start_pipe_for_polkit_rule_install, 0);
+}
+#endif
+
+static void toggle_fullscreen(vui_context_t *vui, int button, void *v)
+{
+    vpi_config.fullscreen = !vpi_config.fullscreen;
+    vpi_config_save();
+    vui_set_fullscreen(vui, vpi_config.fullscreen);
+    vui_button_update_checked(vui, button, vpi_config.fullscreen);
+}
+
+static void toggle_cursor_in_fullscreen(vui_context_t *vui, int button, void *v)
+{
+    vpi_config.cursor_in_fullscreen = !vpi_config.cursor_in_fullscreen;
+    vpi_config_save();
+    vui_set_fullscreen(vui, vpi_config.fullscreen);
+    vui_button_update_checked(vui, button, vpi_config.cursor_in_fullscreen);
+}
+
+static void toggle_hwdec(vui_context_t *vui, int button, void *v)
+{
+    vpi_config.force_software_decode = !vpi_config.force_software_decode;
+    vpi_config_save();
+    vui_button_update_checked(vui, button, !vpi_config.force_software_decode);
+}
+
+void vpi_menu_settings(vui_context_t *vui, void *v)
+{
+    vui_reset(vui);
+
+    int fglayer = vui_layer_create(vui);
+
+    int scrw, scrh;
+    vui_get_screen_size(vui, &scrw, &scrh);
+
+    // Set up settings menu
+    #define SETTINGS_COUNT 10
+    int SETTINGS_NAMES[SETTINGS_COUNT];
+    vui_button_callback_t SETTINGS_ACTION[SETTINGS_COUNT];
+    int buttons[SETTINGS_COUNT];
+
+    size_t sc = 0;
+
+    // Connection menu
+    SETTINGS_NAMES[sc] = VPI_LANG_CONNECTION;
+    SETTINGS_ACTION[sc] = transition_to_connection;
+    sc++;
+
+    // Controls menu
+    SETTINGS_NAMES[sc] = VPI_LANG_CONTROLS;
+    SETTINGS_ACTION[sc] = transition_to_gamepad;
+    sc++;
+
+    // Controls menu
+    SETTINGS_NAMES[sc] = VPI_LANG_REGION;
+    SETTINGS_ACTION[sc] = transition_to_region;
+    sc++;
+
+    // Full screen option (if on a platform that supports windowed mode)
+    // Else, add a quit button
+#ifdef VANILLA_GUI_ENABLE_WINDOWED
+    int FS_SETTING = sc;
+    SETTINGS_NAMES[sc] = VPI_LANG_FULLSCREEN;
+	SETTINGS_ACTION[sc] = toggle_fullscreen;
+    sc++;
+
+    int SHOW_CURSOR_IN_FS_BTN = sc;
+    SETTINGS_NAMES[sc] = VPI_LANG_CURSOR_IN_FS;
+	SETTINGS_ACTION[sc] = toggle_cursor_in_fullscreen;
+    sc++;
+#else
+    SETTINGS_NAMES[sc] = VPI_LANG_QUIT;
+    SETTINGS_ACTION[sc] = thunk_to_quit;
+    sc++;
+#endif
+
+    // Polkit option (if on a platform that supports polkit)
+#ifdef VANILLA_POLKIT_AVAILABLE
+    int PW_SKIP_SETTING = sc;
+    const int PW_SKIP_ENABLED = access(POLKIT_ACTION_DST, F_OK) == 0;
+	if (PW_SKIP_ENABLED) {
+        SETTINGS_NAMES[sc] = VPI_LANG_DISABLE_PASSWORD_SKIP;
+		SETTINGS_ACTION[sc] = transition_to_uninstall_polkit_rule;
+    } else {
+		SETTINGS_NAMES[sc] = VPI_LANG_ENABLE_PASSWORD_SKIP;
+		SETTINGS_ACTION[sc] = transition_to_install_polkit_rule;
+	}
+    sc++;
+#endif
+
+#if defined(VANILLA_CUDA_AVAILABLE) || defined(VANILLA_DRM_PRIME_IMPORT_AVAILABLE) || defined(VANILLA_VAAPI_AVAILABLE) || defined(ANDROID)
+#define VANILLA_HAS_HWDEC
+#endif
+
+#ifdef VANILLA_HAS_HWDEC
+    int HWDEC_SETTING = sc;
+    SETTINGS_NAMES[sc] = VPI_LANG_HWDEC;
+	SETTINGS_ACTION[sc] = toggle_hwdec;
+    sc++;
+#endif
+
+    // Back button
+    vpi_menu_create_back_button(vui, fglayer, return_to_main, (void *) (intptr_t) fglayer);
+
+    const int COLS = 2;
+
+    int btnfw = scrw;
+	int btnw = btnfw / 2;
+	int btnx = scrw/2 - btnfw/2;
+	int btny = BTN_SZ;
+	for (int index = 0; index < sc; index++) {
+        int row = index / COLS;
+        int col = index % COLS;
+        buttons[index] = vui_button_create(vui, btnx + btnw * col, btny + BTN_SZ * row, btnw, BTN_SZ, lang(SETTINGS_NAMES[index]), 0, VUI_BUTTON_STYLE_BUTTON, fglayer, SETTINGS_ACTION[index], (void *) (intptr_t) fglayer);
+	}
+
+#ifdef VANILLA_POLKIT_AVAILABLE
+    // Make root password skip button checkable
+    vui_button_update_checkable(vui, buttons[PW_SKIP_SETTING], 1);
+    vui_button_update_checked(vui, buttons[PW_SKIP_SETTING], PW_SKIP_ENABLED);
+#endif // VANILLA_POLKIT_AVAILABLE
+
+#ifdef VANILLA_GUI_ENABLE_WINDOWED
+    // Make full screen button checkable
+    vui_button_update_checkable(vui, buttons[FS_SETTING], 1);
+    vui_button_update_checked(vui, buttons[FS_SETTING], vpi_config.fullscreen);
+
+    vui_button_update_checkable(vui, buttons[SHOW_CURSOR_IN_FS_BTN], 1);
+    vui_button_update_checked(vui, buttons[SHOW_CURSOR_IN_FS_BTN], vpi_config.cursor_in_fullscreen);
+#endif // VANILLA_GUI_ENABLE_WINDOWED
+
+#ifdef VANILLA_HAS_HWDEC
+    vui_button_update_checkable(vui, buttons[HWDEC_SETTING], 1);
+    vui_button_update_checked(vui, buttons[HWDEC_SETTING], !vpi_config.force_software_decode);
+#endif // VANILLA_HAS_HWDEC
+
+    vui_transition_fade_layer_in(vui, fglayer, 0, 0);
+}

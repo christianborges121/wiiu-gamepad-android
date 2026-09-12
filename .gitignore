@@ -1,0 +1,35 @@
+# Cemu fork is tracked in its own repo (see Cemu/FORK.md)
+Cemu/
+
+# CMake build output (disposable, regenerable)
+build/
+
+# Third-party research checkouts (pins in AI_HARNESS_INSTRUCTIONS.md)
+references/
+
+# Gradle caches and build outputs
+.gradle-home/
+**/.gradle/
+**/build/
+captures/
+.cxx/
+.externalNativeBuild/
+*.apk
+*.aab
+
+# Machine-specific files and secrets
+local.properties
+*.jks
+*.keystore
+*.pem
+*.key
+
+# IDE and editor state
+.idea/
+*.iml
+.vs/
+.vscode/
+
+# OS artifacts
+.DS_Store
+Thumbs.db

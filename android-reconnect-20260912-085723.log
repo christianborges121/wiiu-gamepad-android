@@ -1,0 +1,356 @@
+﻿
+09-12 08:56:06.267  4149 22174 I NearbyMediums: Current Tracked Scanning 
+Clients are : {NearbyConnections.EnvironmentMonitor, NearbySharing, 
+NearbyConnections.TxAdvertisement}
+09-12 08:56:08.748  3277  3399 D SatelliteController: 
+getCarrierRoamingNtnConnectType: Falling back to global carrier config connect 
+type: 0
+09-12 08:56:09.070  3299  3299 I PowerUI : mBootCompleted = true |  
+mFullyConnected = true
+09-12 08:56:09.117  1684  1943 D SurfaceFlinger: setDesiredMode 
+4630947084936606082 {mode={fps=120.00 Hz, modePtr={id=0, vsyncRate=120.00 Hz, 
+peakRefreshRate=120.00 Hz}}, emitEvent=false, force=false}
+09-12 08:56:09.128  1684  1911 I SurfaceFlinger: Current= 60, Period= 120, 
+hwcPeriod= 60
+09-12 08:56:09.135  1684  1684 I SurfaceFlinger: No layers with votes - choose 
+120.00 Hz
+09-12 08:56:09.135  1564  1564 I sensors-hal: deactivate:380, disconnect qmi 
+to disable sensor
+09-12 08:56:09.136  1684  1684 D SurfaceFlinger: initiateModeChange 
+4630947084936606082 {mode={fps=120.00 Hz, modePtr={id=0, vsyncRate=120.00 Hz, 
+peakRefreshRate=120.00 Hz}}, emitEvent=false, force=false}
+09-12 08:56:09.136  1684  1684 I SurfaceFlinger: [4630947084936606082] 
+ActiveConfigToHWC, ID : 0
+09-12 08:56:09.145  1684  1911 I SurfaceFlinger: Current= 60, Period= 120, 
+hwcPeriod= 120
+09-12 08:56:09.153  1684  1684 I SurfaceFlinger: finalizeDisplayModeChange 
+4630947084936606082
+09-12 08:56:09.285  1564  1564 I sensors-hal: deactivate:380, disconnect qmi 
+to disable sensor
+09-12 08:56:09.368  1684  1943 D SurfaceFlinger: setDesiredMode 
+4630947084936606082 {mode={fps=60.00 Hz, modePtr={id=1, vsyncRate=60.00 Hz, 
+peakRefreshRate=60.00 Hz}}, emitEvent=false, force=false}
+09-12 08:56:09.372  1684  1684 I SurfaceFlinger: IdleFps - choose 60.00 Hz
+09-12 08:56:09.373  1684  1684 D SurfaceFlinger: initiateModeChange 
+4630947084936606082 {mode={fps=60.00 Hz, modePtr={id=1, vsyncRate=60.00 Hz, 
+peakRefreshRate=60.00 Hz}}, emitEvent=false, force=false}
+09-12 08:56:09.374  1684  1684 I SurfaceFlinger: [4630947084936606082] 
+ActiveConfigToHWC, ID : 1
+09-12 08:56:09.379  1684  1684 I SurfaceFlinger: finalizeDisplayModeChange 
+4630947084936606082
+09-12 08:56:09.379  1684  1911 I SurfaceFlinger: Current= 120, Period= 60, 
+hwcPeriod= 60
+09-12 08:56:16.272  4149 22174 I NearbyMediums: Current Tracked Scanning 
+Clients are : {NearbyConnections.EnvironmentMonitor, NearbySharing, 
+NearbyConnections.TxAdvertisement}
+09-12 08:56:16.276  4149 22193 I NearbyConnections: Processing lost 
+BlePeripheral BlePeripheral{advertisement=BleAdvertisement { version=2, 
+socketVersion=2, isFast=true, serviceIdHash=null, data=[ 0x23 0x44 0x45 0x39 
+0x51 0x11 0x32 0xcc 0x29 0xd7 0x75 0xf8 0xe5 0xba 0xeb 0x08 0xf2 0x7c 0xd7 
+0xcb 0x4e 0xfb 0xa6 ], deviceToken=[ 0x93 0x4e ], rxAdvertisement=null }, 
+dctAdvertisement=null, address=null, psm=0, deviceToken=<ByteString@b6016ed 
+size=2 contents="\223N">, isSecondProfile=false, rxInstantConnectionAdv=null}.
+09-12 08:56:16.276  4149 22193 I NearbyConnections: Lost BleEndpoint for 
+BlePeripheral BlePeripheral{advertisement=BleAdvertisement { version=2, 
+socketVersion=2, isFast=true, serviceIdHash=null, data=[ 0x23 0x44 0x45 0x39 
+0x51 0x11 0x32 0xcc 0x29 0xd7 0x75 0xf8 0xe5 0xba 0xeb 0x08 0xf2 0x7c 0xd7 
+0xcb 0x4e 0xfb 0xa6 ], deviceToken=[ 0x93 0x4e ], rxAdvertisement=null }, 
+dctAdvertisement=null, address=null, psm=0, deviceToken=<ByteString@b6016ed 
+size=2 contents="\223N">, isSecondProfile=false, rxInstantConnectionAdv=null} 
+(with EndpointId DE9Q and EndpointInfo [ 0x32 0xcc 0x29 0xd7 0x75 0xf8 0xe5 
+0xba 0xeb 0x08 0xf2 0x7c 0xd7 0xcb 0x4e 0xfb 0xa6 ]).
+09-12 08:56:16.277  4149 22193 I NearbyConnections: Unable to record lost 
+endpoint due to null currentDiscoveryPhase
+09-12 08:56:16.277  4149 22193 I NearbyConnections: ClientProxy(216585935) 
+reporting onEndpointLost(DE9Q)
+09-12 08:56:21.348  4149 22195 I NearbyConnections: Found BleAdvertisement [ 
+0x23 0x44 0x45 0x39 0x51 0x11 0x32 0xcc 0x29 0xd7 0x75 0xf8 0xe5 0xba 0xeb 
+0x08 0xf2 0x7c 0xd7 0xcb 0x4e 0xfb 0xa6 ] (with EndpointId DE9Q and 
+EndpointInfo [ 0x32 0xcc 0x29 0xd7 0x75 0xf8 0xe5 0xba 0xeb 0x08 0xf2 0x7c 
+0xd7 0xcb 0x4e 0xfb 0xa6 ])
+09-12 08:56:21.349  4149 22195 I NearbyConnections: Unable to record 
+discovered endpoint due to null currentDiscoveryPhase
+09-12 08:56:21.349  4149 22195 I NearbyConnections: ClientProxy(216585935 
+0p:com.google.android.gms.nearby.sharing) reporting onEndpointFound(DE9Q)
+09-12 08:56:21.349  4149 22195 I NearbyConnections: ClientProxy(216585935) 
+reporting onEndpointDistanceChanged(DE9Q, UNKNOWN)
+09-12 08:56:21.359  4149 22174 I NearbySharing: [NS_DEBUG] previous receiver 
+info ReceiverInfo(endpointIds=[DiscoveryEndpoint(id=DE9Q, 
+origin=NEARBY_CONNECTIONS)], metadata=DeviceMetadata(version=1, deviceType=1, 
+deviceName=Christian's Pixel 9a, displayName=Christian Borges, modelName=Pixel 
+9a, imageUri=content://com.google.android.gms.fileprovider/nearby_share_images/
+592857497.jpg, isSelfShare=true, isFamilyShare=false, isKnown=true, 
+bluetoothMacAddress=[-104, -104, -5, 64, -22, 109], vendorId=0, 
+matchesLocalQrCode=false, devicePairingBindingIds=[]), 
+state=Tomb(delayedStateChangeJob=jukl{Active}@be8f334))
+09-12 08:56:26.279  4149 22193 I NearbyMediums: Current Tracked Scanning 
+Clients are : {NearbyConnections.EnvironmentMonitor, NearbySharing, 
+NearbyConnections.TxAdvertisement}
+09-12 08:56:26.809  3277  3399 D SatelliteController: 
+getCarrierRoamingNtnConnectType: Falling back to global carrier config connect 
+type: 0
+09-12 08:56:26.866  4149 22195 I NearbyConnections: Processing instant lost on 
+BlePeripheral BlePeripheral{advertisement=BleAdvertisement { version=2, 
+socketVersion=2, isFast=true, serviceIdHash=null, data=[ 0x23 0x44 0x45 0x39 
+0x51 0x11 0x32 0xcc 0x29 0xd7 0x75 0xf8 0xe5 0xba 0xeb 0x08 0xf2 0x7c 0xd7 
+0xcb 0x4e 0xfb 0xa6 ], deviceToken=[ 0x93 0x4e ], rxAdvertisement=null }, 
+dctAdvertisement=null, address=null, psm=0, deviceToken=<ByteString@8472a59 
+size=2 contents="\223N">, isSecondProfile=false, rxInstantConnectionAdv=null}.
+09-12 08:56:26.867  4149 22195 I NearbyConnections: Remove entry from 
+BleAdvertisementProcessor bleEndpoints.
+09-12 08:56:26.867  4149 22195 I NearbyConnections: Unable to record lost 
+endpoint due to null currentDiscoveryPhase
+09-12 08:56:26.868  4149 22195 I NearbyConnections: ClientProxy(216585935) 
+reporting onEndpointLost(DE9Q)
+09-12 08:56:29.029  4149 22193 I NearbyConnections: Found BleAdvertisement [ 
+0x23 0x44 0x45 0x39 0x51 0x11 0x32 0xf4 0x48 0x33 0xc4 0xaf 0xb4 0x68 0x11 
+0xfc 0xb0 0x6e 0xf8 0x05 0x6b 0xaf 0x24 ] (with EndpointId DE9Q and 
+EndpointInfo [ 0x32 0xf4 0x48 0x33 0xc4 0xaf 0xb4 0x68 0x11 0xfc 0xb0 0x6e 
+0xf8 0x05 0x6b 0xaf 0x24 ])
+09-12 08:56:29.030  4149 22193 I NearbyConnections: Unable to record 
+discovered endpoint due to null currentDiscoveryPhase
+09-12 08:56:29.030  4149 22193 I NearbyConnections: ClientProxy(216585935 
+0p:com.google.android.gms.nearby.sharing) reporting onEndpointFound(DE9Q)
+09-12 08:56:29.031  4149 22193 I NearbyConnections: ClientProxy(216585935) 
+reporting onEndpointDistanceChanged(DE9Q, UNKNOWN)
+09-12 08:56:29.046  4149 22174 I NearbySharing: [NS_DEBUG] previous receiver 
+info ReceiverInfo(endpointIds=[DiscoveryEndpoint(id=DE9Q, 
+origin=NEARBY_CONNECTIONS)], metadata=DeviceMetadata(version=1, deviceType=1, 
+deviceName=Christian's Pixel 9a, displayName=Christian Borges, modelName=Pixel 
+9a, imageUri=content://com.google.android.gms.fileprovider/nearby_share_images/
+592857497.jpg, isSelfShare=true, isFamilyShare=false, isKnown=true, 
+bluetoothMacAddress=[-104, -104, -5, 64, -22, 109], vendorId=0, 
+matchesLocalQrCode=false, devicePairingBindingIds=[]), 
+state=Tomb(delayedStateChangeJob=jukl{Active}@85d0af6))
+09-12 08:56:30.777  4149 22195 I NearbyConnections: Processing instant lost on 
+BlePeripheral BlePeripheral{advertisement=BleAdvertisement { version=2, 
+socketVersion=2, isFast=true, serviceIdHash=null, data=[ 0x23 0x44 0x45 0x39 
+0x51 0x11 0x32 0xf4 0x48 0x33 0xc4 0xaf 0xb4 0x68 0x11 0xfc 0xb0 0x6e 0xf8 
+0x05 0x6b 0xaf 0x24 ], deviceToken=[ 0x81 0xf3 ], rxAdvertisement=[ 0xa0 0x17 
+0xee 0xd8 0xac 0xe1 0x62 0x96 0xd4 0xb3 0xe2 0x3e 0x7c 0x28 0x7d 0x59 0x38 
+0xea 0xdc 0x25 0x6b 0x71 0xa0 0xf5 0x75 0xf7 0x3b 0xb2 0x45 0x24 0x7b 0x3f 
+0x02 0x5b 0x84 0x15 0x05 0x3f 0x00 0x00 0x84 0x15 0x06 0x21 0x00 0x00 0x84 
+0x15 0x04 0x7f 0xff 0x1f 0x84 0x15 0x07 0x21 0xff 0x1f 0x83 0x15 0x01 0x14 
+0x64 ] }, dctAdvertisement=null, address=null, psm=0, 
+deviceToken=<ByteString@938cef7 size=2 contents="\201\363">, 
+isSecondProfile=false, rxInstantConnectionAdv=[-96, 23, -18, -40, -84, -31, 
+98, -106, -44, -77, -30, 62, 124, 40, 125, 89, 56, -22, -36, 37, 107, 113, 
+-96, -11, 117, -9, 59, -78, 69, 36, 123, 63, 2, 91, -124, 21, 5, 63, 0, 0, 
+-124, 21, 6, 33, 0, 0, -124, 21, 4, 127, -1, 31, -124, 21, 7, 33, -1, 31, 
+-125, 21, 1, 20, 100]}.
+09-12 08:56:30.778  4149 22195 I NearbyConnections: Remove entry from 
+BleAdvertisementProcessor bleEndpoints.
+09-12 08:56:30.778  4149 22195 I NearbyConnections: Unable to record lost 
+endpoint due to null currentDiscoveryPhase
+09-12 08:56:30.778  4149 22195 I NearbyConnections: ClientProxy(216585935) 
+reporting onEndpointLost(DE9Q)
+09-12 08:56:32.727  4149 22193 I NearbyConnections: Found BleAdvertisement [ 
+0x23 0x44 0x45 0x39 0x51 0x11 0x32 0x17 0x2d 0xa4 0xc1 0x8d 0x88 0x67 0xa0 
+0x2f 0xc1 0xf3 0x0e 0xc3 0x84 0x20 0xae ] (with EndpointId DE9Q and 
+EndpointInfo [ 0x32 0x17 0x2d 0xa4 0xc1 0x8d 0x88 0x67 0xa0 0x2f 0xc1 0xf3 
+0x0e 0xc3 0x84 0x20 0xae ])
+09-12 08:56:32.728  4149 22193 I NearbyConnections: Unable to record 
+discovered endpoint due to null currentDiscoveryPhase
+09-12 08:56:32.728  4149 22193 I NearbyConnections: ClientProxy(216585935 
+0p:com.google.android.gms.nearby.sharing) reporting onEndpointFound(DE9Q)
+09-12 08:56:32.728  4149 22193 I NearbyConnections: ClientProxy(216585935) 
+reporting onEndpointDistanceChanged(DE9Q, UNKNOWN)
+09-12 08:56:32.747  4149 22195 I NearbySharing: [NS_DEBUG] previous receiver 
+info ReceiverInfo(endpointIds=[DiscoveryEndpoint(id=DE9Q, 
+origin=NEARBY_CONNECTIONS)], metadata=DeviceMetadata(version=1, deviceType=1, 
+deviceName=Christian's Pixel 9a, displayName=Christian Borges, modelName=Pixel 
+9a, imageUri=content://com.google.android.gms.fileprovider/nearby_share_images/
+592857497.jpg, isSelfShare=true, isFamilyShare=false, isKnown=true, 
+bluetoothMacAddress=[-104, -104, -5, 64, -22, 109], vendorId=0, 
+matchesLocalQrCode=false, devicePairingBindingIds=[]), 
+state=Tomb(delayedStateChangeJob=jukl{Active}@48bfdda))
+09-12 08:56:33.287  2466  2588 D RefreshRateModeManager:  Current Mode 
+mReportedRefreshRateMode(toSurfaceFlinger)=REFRESH_RATE_MODE_SEAMLESS, 
+mRefreshRateMode(fromSettings)=REFRESH_RATE_MODE_SEAMLESS
+09-12 08:56:33.287  2466  2588 D SurfaceControl: notifyHFRmode, 
+displayToken=android.os.BinderProxy@1abfc4c, hfrMode=REFRESH_RATE_MODE_SEAMLESS
+09-12 08:56:33.288  1684  1751 I SurfaceFlinger: [4630947084936606082] HFR 
+mode : 1
+09-12 08:56:33.301  1684  1684 I SurfaceFlinger: [4630947084936606082] 
+ActiveConfigToHWC, ID : 1
+09-12 08:56:33.317  1684  1684 I SurfaceFlinger: SFWD update time=2687596805535
+09-12 08:56:33.337  1684  1911 I SurfaceFlinger: Current= 60, Period= 60, 
+hwcPeriod= 60
+09-12 08:56:34.009  5787  5787 I HBD     : c skip onKeyDown as physical 
+keyboard not connected 
+09-12 08:56:35.768  3277  3399 D SatelliteController: 
+getCarrierRoamingNtnConnectType: Falling back to global carrier config connect 
+type: 0
+09-12 08:56:36.282  4149 22202 I NearbyMediums: Current Tracked Scanning 
+Clients are : {NearbyConnections.EnvironmentMonitor, NearbySharing, 
+NearbyConnections.TxAdvertisement}
+09-12 08:56:36.284  4149 22195 I NearbyConnections: Processing lost 
+BlePeripheral BlePeripheral{advertisement=BleAdvertisement { version=2, 
+socketVersion=2, isFast=true, serviceIdHash=null, data=[ 0x23 0x44 0x45 0x39 
+0x51 0x11 0x32 0xcc 0x29 0xd7 0x75 0xf8 0xe5 0xba 0xeb 0x08 0xf2 0x7c 0xd7 
+0xcb 0x4e 0xfb 0xa6 ], deviceToken=[ 0x93 0x4e ], rxAdvertisement=null }, 
+dctAdvertisement=null, address=null, psm=0, deviceToken=<ByteString@6e61b94 
+size=2 contents="\223N">, isSecondProfile=false, rxInstantConnectionAdv=null}.
+09-12 08:56:37.047  3277  3399 D SatelliteController: 
+getCarrierRoamingNtnConnectType: Falling back to global carrier config connect 
+type: 0
+09-12 08:56:38.109  4149 22202 I NearbyConnections: Found BleAdvertisement [ 
+0x23 0x4c 0x32 0x54 0x34 0x11 0x32 0x2d 0xfa 0xd1 0x06 0x8d 0x88 0xcd 0x97 
+0x3b 0xf3 0x4c 0xbe 0x5d 0xa2 0x14 0x5e ] (with EndpointId L2T4 and 
+EndpointInfo [ 0x32 0x2d 0xfa 0xd1 0x06 0x8d 0x88 0xcd 0x97 0x3b 0xf3 0x4c 
+0xbe 0x5d 0xa2 0x14 0x5e ])
+09-12 08:56:38.110  4149 22202 I NearbyConnections: Unable to record 
+discovered endpoint due to null currentDiscoveryPhase
+09-12 08:56:38.110  4149 22202 I NearbyConnections: ClientProxy(216585935 
+0p:com.google.android.gms.nearby.sharing) reporting onEndpointFound(L2T4)
+09-12 08:56:38.110  4149 22202 I NearbyConnections: ClientProxy(216585935) 
+reporting onEndpointDistanceChanged(L2T4, UNKNOWN)
+09-12 08:56:41.429  2466  3096 D ConnectivityService: Update of LinkProperties 
+for [100 WIFI]; created=22202; firstConnected=23104
+09-12 08:56:41.433  2466  3096 D ConnectivityService: Adding Route [::/64 -> 
+:: wlan0 mtu 0] to network 100
+09-12 08:56:41.436  2466  3096 D ConnectivityService: notifyType 
+CALLBACK_IP_CHANGED for [100 WIFI]
+09-12 08:56:41.438  2466  3224 I WifiConnectivityMonitor: Link configuration 
+changed for netId: 100
+09-12 08:56:41.441  6764  6972 I AutoHotspotMde:AutoConnect: Wi-Fi interface 
+name:wlan0
+09-12 08:56:41.441  6764  6972 I AutoHotspotMde:AutoConnect: Wi-Fi interface 
+name:wlan0
+09-12 08:56:41.946  4149 22195 I NearbySharing: Network state changed: 
+NetworkState(isRestricted=false, isOnline=true, isCongested=false, 
+isMetered=false, isWifiConnected=true)
+09-12 08:56:41.946  4149 22203 I NearbySharing: Network state changed: 
+NetworkState(isRestricted=false, isOnline=true, isCongested=false, 
+isMetered=false, isWifiConnected=true)
+09-12 08:56:42.167  3277  3399 D SatelliteController: 
+getCarrierRoamingNtnConnectType: Falling back to global carrier config connect 
+type: 0
+09-12 08:56:44.728  3277  3399 D SatelliteController: 
+getCarrierRoamingNtnConnectType: Falling back to global carrier config connect 
+type: 0
+09-12 08:56:46.287  4149 22195 I NearbyMediums: Current Tracked Scanning 
+Clients are : {NearbyConnections.EnvironmentMonitor, NearbySharing, 
+NearbyConnections.TxAdvertisement}
+09-12 08:56:46.289  4149 22203 I NearbyConnections: Processing lost 
+BlePeripheral BlePeripheral{advertisement=BleAdvertisement { version=2, 
+socketVersion=2, isFast=true, serviceIdHash=null, data=[ 0x23 0x44 0x45 0x39 
+0x51 0x11 0x32 0xf4 0x48 0x33 0xc4 0xaf 0xb4 0x68 0x11 0xfc 0xb0 0x6e 0xf8 
+0x05 0x6b 0xaf 0x24 ], deviceToken=[ 0x81 0xf3 ], rxAdvertisement=[ 0xa0 0x17 
+0xee 0xd8 0xac 0xe1 0x62 0x96 0xd4 0xb3 0xe2 0x3e 0x7c 0x28 0x7d 0x59 0x38 
+0xea 0xdc 0x25 0x6b 0x71 0xa0 0xf5 0x75 0xf7 0x3b 0xb2 0x45 0x24 0x7b 0x3f 
+0x02 0x5b 0x84 0x15 0x05 0x3f 0x00 0x00 0x84 0x15 0x06 0x21 0x00 0x00 0x84 
+0x15 0x04 0x7f 0xff 0x1f 0x84 0x15 0x07 0x21 0xff 0x1f 0x83 0x15 0x01 0x14 
+0x64 ] }, dctAdvertisement=null, address=null, psm=0, 
+deviceToken=<ByteString@f2fbff5 size=2 contents="\201\363">, 
+isSecondProfile=false, rxInstantConnectionAdv=[-96, 23, -18, -40, -84, -31, 
+98, -106, -44, -77, -30, 62, 124, 40, 125, 89, 56, -22, -36, 37, 107, 113, 
+-96, -11, 117, -9, 59, -78, 69, 36, 123, 63, 2, 91, -124, 21, 5, 63, 0, 0, 
+-124, 21, 6, 33, 0, 0, -124, 21, 4, 127, -1, 31, -124, 21, 7, 33, -1, 31, 
+-125, 21, 1, 20, 100]}.
+09-12 08:56:49.850  3277  3399 D SatelliteController: 
+getCarrierRoamingNtnConnectType: Falling back to global carrier config connect 
+type: 0
+09-12 08:56:51.128  3277  3399 D SatelliteController: 
+getCarrierRoamingNtnConnectType: Falling back to global carrier config connect 
+type: 0
+09-12 08:56:52.740  2466 22208 D WifiConnectivityMonitor.DnsThread:  [|208] [] 
+[]
+09-12 08:56:52.742  2466  3226 D WifiConnectivityMonitor.NetworkStatsAnalyzer: 
+DNS resultType : 0, responseTime : 208
+09-12 08:56:54.967  3277  3399 D SatelliteController: 
+getCarrierRoamingNtnConnectType: Falling back to global carrier config connect 
+type: 0
+09-12 08:56:56.290  4149 22203 I NearbyMediums: Current Tracked Scanning 
+Clients are : {NearbyConnections.EnvironmentMonitor, NearbySharing, 
+NearbyConnections.TxAdvertisement}
+09-12 08:56:57.527  3277  3399 D SatelliteController: 
+getCarrierRoamingNtnConnectType: Falling back to global carrier config connect 
+type: 0
+09-12 08:57:00.044  1684  1943 D SurfaceFlinger: setDesiredMode 
+4630947084936606082 {mode={fps=120.00 Hz, modePtr={id=0, vsyncRate=120.00 Hz, 
+peakRefreshRate=120.00 Hz}}, emitEvent=false, force=false}
+09-12 08:57:00.046  1684  1684 I SurfaceFlinger: No layers with votes - choose 
+120.00 Hz
+09-12 08:57:00.047  1684  1684 D SurfaceFlinger: initiateModeChange 
+4630947084936606082 {mode={fps=120.00 Hz, modePtr={id=0, vsyncRate=120.00 Hz, 
+peakRefreshRate=120.00 Hz}}, emitEvent=false, force=false}
+09-12 08:57:00.047  1684  1684 I SurfaceFlinger: [4630947084936606082] 
+ActiveConfigToHWC, ID : 0
+09-12 08:57:00.062  1684  1911 I SurfaceFlinger: Current= 60, Period= 120, 
+hwcPeriod= 120
+09-12 08:57:00.079  1684  1684 I SurfaceFlinger: finalizeDisplayModeChange 
+4630947084936606082
+09-12 08:57:00.296  1684  1943 D SurfaceFlinger: setDesiredMode 
+4630947084936606082 {mode={fps=60.00 Hz, modePtr={id=1, vsyncRate=60.00 Hz, 
+peakRefreshRate=60.00 Hz}}, emitEvent=false, force=false}
+09-12 08:57:00.299  1684  1684 I SurfaceFlinger: IdleFps - choose 60.00 Hz
+09-12 08:57:00.300  1684  1684 D SurfaceFlinger: initiateModeChange 
+4630947084936606082 {mode={fps=60.00 Hz, modePtr={id=1, vsyncRate=60.00 Hz, 
+peakRefreshRate=60.00 Hz}}, emitEvent=false, force=false}
+09-12 08:57:00.301  1684  1684 I SurfaceFlinger: [4630947084936606082] 
+ActiveConfigToHWC, ID : 1
+09-12 08:57:00.304  1684  1911 I SurfaceFlinger: Current= 120, Period= 60, 
+hwcPeriod= 60
+09-12 08:57:00.306  1684  1684 I SurfaceFlinger: finalizeDisplayModeChange 
+4630947084936606082
+09-12 08:57:04.003  2466  2626 I PowerManagerService: [PWL]  
+SCREEN_BRIGHT_WAKE_LOCK           'WindowManager/displayId:0' ON_AFTER_RELEASE 
+ACQ=-2m44s992ms (uid=1000 isFrozen=false pid=2466 ws=WorkSource{10305 
+com.cemupad} displayId=0 lock=a681ff5)
+09-12 08:57:06.294  4149 22213 I NearbyMediums: Current Tracked Scanning 
+Clients are : {NearbyConnections.EnvironmentMonitor, NearbySharing, 
+NearbyConnections.TxAdvertisement}
+09-12 08:57:16.297  4149 22213 I NearbyMediums: Current Tracked Scanning 
+Clients are : {NearbyConnections.EnvironmentMonitor, NearbySharing, 
+NearbyConnections.TxAdvertisement}
+09-12 08:57:16.299  4149 22203 I NearbyConnections: Processing lost 
+BlePeripheral BlePeripheral{advertisement=BleAdvertisement { version=2, 
+socketVersion=2, isFast=true, serviceIdHash=null, data=[ 0x23 0x44 0x45 0x39 
+0x51 0x11 0x32 0x17 0x2d 0xa4 0xc1 0x8d 0x88 0x67 0xa0 0x2f 0xc1 0xf3 0x0e 
+0xc3 0x84 0x20 0xae ], deviceToken=[ 0x11 0x60 ], rxAdvertisement=null }, 
+dctAdvertisement=null, address=null, psm=0, deviceToken=<ByteString@4ea6b48 
+size=2 contents="\021`">, isSecondProfile=false, rxInstantConnectionAdv=null}.
+09-12 08:57:16.299  4149 22203 I NearbyConnections: Lost BleEndpoint for 
+BlePeripheral BlePeripheral{advertisement=BleAdvertisement { version=2, 
+socketVersion=2, isFast=true, serviceIdHash=null, data=[ 0x23 0x44 0x45 0x39 
+0x51 0x11 0x32 0x17 0x2d 0xa4 0xc1 0x8d 0x88 0x67 0xa0 0x2f 0xc1 0xf3 0x0e 
+0xc3 0x84 0x20 0xae ], deviceToken=[ 0x11 0x60 ], rxAdvertisement=null }, 
+dctAdvertisement=null, address=null, psm=0, deviceToken=<ByteString@4ea6b48 
+size=2 contents="\021`">, isSecondProfile=false, rxInstantConnectionAdv=null} 
+(with EndpointId DE9Q and EndpointInfo [ 0x32 0x17 0x2d 0xa4 0xc1 0x8d 0x88 
+0x67 0xa0 0x2f 0xc1 0xf3 0x0e 0xc3 0x84 0x20 0xae ]).
+09-12 08:57:16.300  4149 22203 I NearbyConnections: Unable to record lost 
+endpoint due to null currentDiscoveryPhase
+09-12 08:57:16.300  4149 22203 I NearbyConnections: ClientProxy(216585935) 
+reporting onEndpointLost(DE9Q)
+09-12 08:57:17.240  4149 22216 I NearbyConnections: Found BleAdvertisement [ 
+0x23 0x44 0x45 0x39 0x51 0x11 0x32 0xa8 0x9f 0x27 0xfc 0x94 0xe0 0xb4 0x42 
+0xdb 0xa5 0x03 0xf7 0x0b 0x6d 0x8f 0x0c ] (with EndpointId DE9Q and 
+EndpointInfo [ 0x32 0xa8 0x9f 0x27 0xfc 0x94 0xe0 0xb4 0x42 0xdb 0xa5 0x03 
+0xf7 0x0b 0x6d 0x8f 0x0c ])
+09-12 08:57:17.241  4149 22216 I NearbyConnections: Unable to record 
+discovered endpoint due to null currentDiscoveryPhase
+09-12 08:57:17.241  4149 22216 I NearbyConnections: ClientProxy(216585935 
+0p:com.google.android.gms.nearby.sharing) reporting onEndpointFound(DE9Q)
+09-12 08:57:17.242  4149 22216 I NearbyConnections: ClientProxy(216585935) 
+reporting onEndpointDistanceChanged(DE9Q, UNKNOWN)
+09-12 08:57:17.242  4149 22216 I NearbyConnections: Found BleAdvertisement [ 
+0x23 0x44 0x45 0x39 0x51 0x11 0x32 0xa8 0x9f 0x27 0xfc 0x94 0xe0 0xb4 0x42 
+0xdb 0xa5 0x03 0xf7 0x0b 0x6d 0x8f 0x0c ] (with EndpointId DE9Q and 
+EndpointInfo [ 0x32 0xa8 0x9f 0x27 0xfc 0x94 0xe0 0xb4 0x42 0xdb 0xa5 0x03 
+0xf7 0x0b 0x6d 0x8f 0x0c ])
+09-12 08:57:17.243  4149 22216 I NearbyConnections: ClientProxy(216585935) 
+ignoring onEndpointDistanceChanged(DE9Q, UNKNOWN), because this distance has 
+already been reported
+09-12 08:57:17.256  4149 22216 I NearbySharing: [NS_DEBUG] previous receiver 
+info ReceiverInfo(endpointIds=[DiscoveryEndpoint(id=DE9Q, 
+origin=NEARBY_CONNECTIONS)], metadata=DeviceMetadata(version=1, deviceType=1, 
+deviceName=Christian's Pixel 9a, displayName=Christian Borges, modelName=Pixel 
+9a, imageUri=content://com.google.android.gms.fileprovider/nearby_share_images/
+592857497.jpg, isSelfShare=true, isFamilyShare=false, isKnown=true, 
+bluetoothMacAddress=[-104, -104, -5, 64, -22, 109], vendorId=0, 
+matchesLocalQrCode=false, devicePairingBindingIds=[]), 
+state=Tomb(delayedStateChangeJob=jukl{Active}@1a442bf))
+
+

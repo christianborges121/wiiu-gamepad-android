@@ -1,0 +1,18 @@
+build/
+CMakeUserPresets.json
+.vscode/
+.directory
+.cache/
+*.AppImage
+squashfs-root/
+
+buildpi/
+
+.gradle/
+.cxx/
+.idea/
+android/local.properties
+android/app/src/main/assets
+
+# macOS
+.DS_Store
