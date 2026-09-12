@@ -386,3 +386,4 @@ Apollo and Artemis are GPL-licensed projects. Use them as architectural referenc
 | 2026-09-12 | Phase 4 UX | Captured aspect-fit, screen-fill, original-mode, and drawer screenshots from the connected phone | Done |
 | 2026-09-12 | Docs | Wrote `investigation/HANDOFF.md` and `investigation/2026-09-12-ux/` for next-harness pickup | Done |
 | 2026-09-12 | Docs | Reconciled checklist: split implemented vs open UX items, added resolution-preset-effect item, aligned phase numbering | Done |
+| 2026-09-12 | Infra | Initialized `Cemu/` and workspace-root git repos on `main`, pushed to private `christianborges121/Cemu` and `christianborges121/wiiu-gamepad-android` | Done |
