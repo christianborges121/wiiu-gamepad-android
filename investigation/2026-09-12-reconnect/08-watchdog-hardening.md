@@ -30,5 +30,24 @@ a silently dead worker loop (an uncaught throwable kills the thread while
   (`/proc/net/udp6` shows `:::26760`). Earlier logcat silence was
   healthy-quiet (socket is IPv6 dual-stack; the first probe only read
   the IPv4 table).
-- True Cemu-down/up recovery still needs a live cycle to confirm
-  end-to-end; the tripwire logs will pinpoint it if it ever strands again.
+
+## Live confirmation (Cemu restart, same day)
+
+User closed/reopened Cemu to Mario; phone sat at `awaiting c1` with no
+video despite the server listening. Diagnosis: the phone process (pid
+20994, uptime 69 min) predated the watchdog APK install (14:47:27) —
+`install -r` does not restart a running process, so the old code without
+watchdog/guards was still executing. Its push loop had died silently
+(no prune ever ran: c1 stuck, resubscribe never fired, video never
+restarted), while the receive thread kept answering polls (counters
+growing). Force-stop + relaunch (fresh watchdog build, pid 24802)
+recovered instantly: DSU subscribe, video connect + IDR in Cemu's log,
+60 FPS Mario title. Root cause and fix both confirmed live.
+
+## New observation: DSU request storm
+
+Fresh counters show ~10-12k DSU req/s (tx/rx +142k in ~10-12 s at 1:1
+ratio). The phone push loop is capped at 100 Hz, so Cemu originates the
+storm (per-response request chaining with no pacing). Wasteful for
+WiFi/battery/CPU; input needs at most ~120 Hz. Needs Cemu-side pacing
+(rebuild when no game runs).

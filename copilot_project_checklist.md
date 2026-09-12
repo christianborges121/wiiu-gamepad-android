@@ -173,6 +173,7 @@ Apollo uses a producer/consumer design where capture and encoding can run concur
 The current TCP framing is simple but has head-of-line blocking. Apollo uses RTP/UDP, packet-level FEC, frame metadata, and a separate reliable control channel.
 
 - [x] Keep TCP as a diagnostic/fallback transport.
+- [ ] Pace Cemu DSU polling (observed ~10-12k req/s request/response storm 2026-09-12; input needs ~120 Hz max; WiFi/battery waste).
 - [ ] Add UDP video transport on port `26761`.
 - [ ] Fragment encoded H.264 frames into packets below the path MTU.
 - [ ] Add RTP-like sequence number, frame ID, packet index, packet count, PTS, and flags.
