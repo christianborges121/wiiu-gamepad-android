@@ -298,12 +298,17 @@ VK_FORMAT_A2B10G10R10_UNORM_PACK32
 
 This was the reason Wind Waker produced no video. The current source includes unpacking for this format. Rebuild and redeploy before retesting.
 
-For packed `A2B10G10R10`, the 32-bit word is interpreted as:
+For packed `A2B10G10R10`, Vulkan names the format MSB-first, so the 32-bit
+word is interpreted as:
 
-- B: bits 0-9
+- R: bits 0-9
 - G: bits 10-19
-- R: bits 20-29
+- B: bits 20-29
 - A: bits 30-31
+
+(This matches DXGI `R10G10B10A2` and Cemu's
+`TextureDecoder_R10_G10_B10_A2`. An earlier note here had R and B
+backwards; the code in `VideoEncoder.cpp` was correct all along.)
 
 Convert 10-bit values to 8-bit with approximately:
 

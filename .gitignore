@@ -24,6 +24,12 @@ local.properties
 *.pem
 *.key
 
+# Session screenshots and diagnostic logs (AI-generated, kept on disk only;
+# anchored so source assets like vanilla launcher icons stay tracked)
+/*.png
+/*.log
+/android-gamepad-app/*.png
+
 # IDE and editor state
 .idea/
 *.iml

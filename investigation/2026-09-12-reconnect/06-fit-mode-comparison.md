@@ -4,8 +4,8 @@ Date: 2026-09-12
 
 Screenshots captured from the connected Android device:
 
-- [Original Wii U GamePad](../../original-wiiu-gamepad-20260912.png)
-- [Screen Fill](../../screen-fill-20260912.png)
+- [Original Wii U GamePad](../../original-wiiu-gamepad-20260912.png) *(local screenshot, untracked)*
+- [Screen Fill](../../screen-fill-20260912.png) *(local screenshot, untracked)*
 
 The Original-mode image is visibly clipped at the display bounds. Screen Fill
 shows the intended full-screen framing and retains the complete visible GamePad

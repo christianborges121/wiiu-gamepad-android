@@ -25,7 +25,7 @@ Stretch remain full-screen modes and were not changed.
 - `testDebugUnitTest` passed.
 - Built and installed the debug APK successfully.
 - Live screenshot after installation:
-  [aspect-fit-after-layout-fix-20260912.png](../../aspect-fit-after-layout-fix-20260912.png)
+  [aspect-fit-after-layout-fix-20260912.png](../../aspect-fit-after-layout-fix-20260912.png) *(local screenshot, untracked)*
   shows the stream fully contained at 29 FPS with one connected client.
 
 Original Wii U GamePad uses the same corrected fit calculation with its native

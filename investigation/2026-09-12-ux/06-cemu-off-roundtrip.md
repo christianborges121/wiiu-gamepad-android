@@ -7,7 +7,7 @@ Date: 2026-09-12
 User ran Cemu with the stream up, then turned Cemu off. Phone screenshot
 shows the idle state:
 
-![Startup card after Cemu stopped](../../cemu-off-startup-card-20260912.png)
+![Startup card after Cemu stopped](../../cemu-off-startup-card-20260912.png) *(local screenshot, untracked)*
 
 - Startup card visible again: "Connect Cemu and wait for the Wii U GamePad
   stream to load.", Local IP 192.168.0.193, DSU 26760, video 26761.

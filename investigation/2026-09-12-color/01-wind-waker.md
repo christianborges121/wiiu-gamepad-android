@@ -11,7 +11,7 @@ Previously Wind Waker produced no video at all
 
 ## Evidence
 
-![Wind Waker inventory on the phone](../../wind-waker-inventory-phone-20260912.png)
+![Wind Waker inventory on the phone](../../wind-waker-inventory-phone-20260912.png) *(local screenshot, untracked)*
 
 Phone frame (binary-safe `screencap` + `pull`; earlier `exec-out` redirect
 captures were byte-mangled by PowerShell): inventory screen streaming at
