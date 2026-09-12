@@ -30,10 +30,13 @@ enum class DisplayResolutionPreset(
 data class DisplaySettings(
     val fitMode: DisplayFitMode = DisplayFitMode.ASPECT_FIT,
     val resolutionPreset: DisplayResolutionPreset = DisplayResolutionPreset.NATIVE_854x480,
-    val diagnosticsOverlayEnabled: Boolean = false
+    val diagnosticsOverlayEnabled: Boolean = false,
+    val showConnectionHelp: Boolean = true
 )
 
 data class DisplayDimensions(val width: Float, val height: Float)
+
+data class DisplayBufferSize(val width: Int, val height: Int)
 
 object DisplayLayout {
     /**
@@ -71,5 +74,24 @@ object DisplayLayout {
         val widthFromHeight = containerHeight * targetAspectRatio
         val width = max(containerWidth, widthFromHeight)
         return DisplayDimensions(width = width, height = width / targetAspectRatio)
+    }
+
+    /**
+     * Returns the SurfaceView buffer size for [preset]. Explicit presets use
+     * their own dimensions; Device Auto follows the container so the surface
+     * matches the laid-out view size.
+     */
+    fun surfaceBufferSize(
+        preset: DisplayResolutionPreset,
+        containerWidthPx: Int,
+        containerHeightPx: Int
+    ): DisplayBufferSize {
+        require(containerWidthPx > 0)
+        require(containerHeightPx > 0)
+        return if (preset.width > 0 && preset.height > 0) {
+            DisplayBufferSize(width = preset.width, height = preset.height)
+        } else {
+            DisplayBufferSize(width = containerWidthPx, height = containerHeightPx)
+        }
     }
 }

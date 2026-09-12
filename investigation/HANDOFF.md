@@ -19,22 +19,24 @@ phone session.
 
 ## Just completed (this session)
 
-1. Diagnostics overlay defaults to **off**.
-2. Overlay, fit mode, and resolution persist in SharedPreferences
-   (`cemupad_connection`) and restore on the next launch.
-3. Overlay restyled: **no background card**, one line, top-left, light text
-   shadow only.
-4. Debug APK built and installed over wireless ADB.
-5. Reconciled `copilot_project_checklist.md` against the live Phase 4 UX code:
-   split implemented vs open items, aligned phase numbering (UX = Phase 4 UX,
-   audio = Phase 3), added the resolution-preset-effect and connection/help-text
-   toggle as explicit open items, and logged the fit-mode fix with screenshot
-   evidence. See `investigation/2026-09-12-ux/03-checklist-reconciliation.md`.
-6. Started version control: workspace root is pushed to private
-   `christianborges121/wiiu-gamepad-android`; `Cemu/` is a public attached
-   fork at `christianborges121/Cemu`, one commit ahead of upstream with a
-   clean 24-file delta. Details in
-   `investigation/2026-09-12-version-control/01-repo-setup.md`.
+1. Connection-help drawer toggle: new persisted `showConnectionHelp`
+   setting hides the startup card; live-verified on the phone including
+   force-stop persistence. See `investigation/2026-09-12-ux/04-connection-help-toggle.md`.
+2. Resolution presets now drive the SurfaceView buffer size
+   (`DisplayLayout.surfaceBufferSize`); live-verified both directions via
+   `surfaceChanged` (1920x1080 / 854x480). Fixed a stale-closure stomp and
+   made the drawer scrollable. See
+   `investigation/2026-09-12-ux/05-resolution-preset-surface.md`.
+3. Earlier: overlay defaults off, overlay/fit/resolution persist, overlay
+   restyled to one top-left line, checklist reconciled, version control
+   started (private app repo, public attached Cemu fork).
+
+## Device
+
+- Product: Galaxy S23 FE (`SM_S711U1`, `r11q`)
+- Last ADB serial: `adb-R5CWC0G7CKW-WpLfEG._adb-tls-connect._tcp`
+- Confirm with `adb devices -l` before install. Do not assume this serial.
+- Prefs left at: Native 854x480, Aspect Fit, overlay off, help on.
 
 ## Device
 

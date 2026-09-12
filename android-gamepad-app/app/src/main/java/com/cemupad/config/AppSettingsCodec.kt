@@ -9,11 +9,13 @@ object AppSettingsCodec {
     const val KEY_FIT_MODE = "display_fit_mode"
     const val KEY_RESOLUTION = "display_resolution"
     const val KEY_DIAGNOSTICS_OVERLAY = "diagnostics_overlay_enabled"
+    const val KEY_CONNECTION_HELP = "connection_help_visible"
 
     fun decode(
         fitModeName: String?,
         resolutionName: String?,
-        diagnosticsOverlayEnabled: Boolean?
+        diagnosticsOverlayEnabled: Boolean?,
+        connectionHelpVisible: Boolean? = null
     ): DisplaySettings {
         val fitMode = fitModeName
             ?.let { name -> DisplayFitMode.values().firstOrNull { it.name == name } }
@@ -24,7 +26,8 @@ object AppSettingsCodec {
         return DisplaySettings(
             fitMode = fitMode,
             resolutionPreset = resolution,
-            diagnosticsOverlayEnabled = diagnosticsOverlayEnabled ?: false
+            diagnosticsOverlayEnabled = diagnosticsOverlayEnabled ?: false,
+            showConnectionHelp = connectionHelpVisible ?: true
         )
     }
 
@@ -32,7 +35,8 @@ object AppSettingsCodec {
         return EncodedAppSettings(
             fitModeName = settings.fitMode.name,
             resolutionName = settings.resolutionPreset.name,
-            diagnosticsOverlayEnabled = settings.diagnosticsOverlayEnabled
+            diagnosticsOverlayEnabled = settings.diagnosticsOverlayEnabled,
+            connectionHelpVisible = settings.showConnectionHelp
         )
     }
 }
@@ -40,5 +44,6 @@ object AppSettingsCodec {
 data class EncodedAppSettings(
     val fitModeName: String,
     val resolutionName: String,
-    val diagnosticsOverlayEnabled: Boolean
+    val diagnosticsOverlayEnabled: Boolean,
+    val connectionHelpVisible: Boolean
 )

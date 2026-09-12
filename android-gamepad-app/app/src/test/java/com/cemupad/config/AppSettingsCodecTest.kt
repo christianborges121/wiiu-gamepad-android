@@ -8,16 +8,18 @@ import org.junit.Test
 class AppSettingsCodecTest {
 
     @Test
-    fun `missing values default to overlay off aspect fit and native resolution`() {
+    fun `missing values default to overlay off help on aspect fit and native resolution`() {
         val settings = AppSettingsCodec.decode(
             fitModeName = null,
             resolutionName = null,
-            diagnosticsOverlayEnabled = null
+            diagnosticsOverlayEnabled = null,
+            connectionHelpVisible = null
         )
 
         assertEquals(DisplayFitMode.ASPECT_FIT, settings.fitMode)
         assertEquals(DisplayResolutionPreset.NATIVE_854x480, settings.resolutionPreset)
         assertFalse(settings.diagnosticsOverlayEnabled)
+        assertTrue(settings.showConnectionHelp)
     }
 
     @Test
@@ -25,27 +27,31 @@ class AppSettingsCodecTest {
         val settings = AppSettingsCodec.decode(
             fitModeName = "ORIGINAL_WII_U",
             resolutionName = "4K",
-            diagnosticsOverlayEnabled = true
+            diagnosticsOverlayEnabled = true,
+            connectionHelpVisible = false
         )
 
         assertEquals(DisplayFitMode.ASPECT_FIT, settings.fitMode)
         assertEquals(DisplayResolutionPreset.NATIVE_854x480, settings.resolutionPreset)
         assertTrue(settings.diagnosticsOverlayEnabled)
+        assertFalse(settings.showConnectionHelp)
     }
 
     @Test
-    fun `round trip preserves fit mode resolution and overlay`() {
+    fun `round trip preserves fit mode resolution overlay and help`() {
         val original = DisplaySettings(
             fitMode = DisplayFitMode.FILL,
             resolutionPreset = DisplayResolutionPreset.FULL_HD_1920x1080,
-            diagnosticsOverlayEnabled = true
+            diagnosticsOverlayEnabled = true,
+            showConnectionHelp = false
         )
 
         val encoded = AppSettingsCodec.encode(original)
         val restored = AppSettingsCodec.decode(
             fitModeName = encoded.fitModeName,
             resolutionName = encoded.resolutionName,
-            diagnosticsOverlayEnabled = encoded.diagnosticsOverlayEnabled
+            diagnosticsOverlayEnabled = encoded.diagnosticsOverlayEnabled,
+            connectionHelpVisible = encoded.connectionHelpVisible
         )
 
         assertEquals(original, restored)

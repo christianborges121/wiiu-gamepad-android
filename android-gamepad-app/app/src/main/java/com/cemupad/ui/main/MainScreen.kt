@@ -5,6 +5,8 @@ import android.view.SurfaceHolder
 import android.view.SurfaceView
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -43,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -51,6 +54,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.cemupad.config.DisplayBufferSize
 import com.cemupad.config.DisplayFitMode
 import com.cemupad.config.DisplayLayout
 import com.cemupad.config.DisplayResolutionPreset
@@ -79,16 +83,19 @@ fun MainScreen(
     var packetsReceived by remember { mutableLongStateOf(0L) }
     var packetsSent by remember { mutableLongStateOf(0L) }
     var diagnosticsEnabled by remember { mutableStateOf(displaySettings.diagnosticsOverlayEnabled) }
+    var showHelp by remember { mutableStateOf(displaySettings.showConnectionHelp) }
     var selectedFitMode by remember { mutableStateOf(displaySettings.fitMode) }
     var selectedResolution by remember { mutableStateOf(displaySettings.resolutionPreset) }
     var showFitMenu by remember { mutableStateOf(false) }
     var showResolutionMenu by remember { mutableStateOf(false) }
+    var videoHolder by remember { mutableStateOf<SurfaceHolder?>(null) }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     LaunchedEffect(displaySettings) {
         selectedFitMode = displaySettings.fitMode
         selectedResolution = displaySettings.resolutionPreset
         diagnosticsEnabled = displaySettings.diagnosticsOverlayEnabled
+        showHelp = displaySettings.showConnectionHelp
     }
 
     LaunchedEffect(dsuServer) {
@@ -123,6 +130,7 @@ fun MainScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
                         .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
@@ -153,7 +161,8 @@ fun MainScreen(
                                     DisplaySettings(
                                         fitMode = selectedFitMode,
                                         resolutionPreset = selectedResolution,
-                                        diagnosticsOverlayEnabled = enabled
+                                        diagnosticsOverlayEnabled = enabled,
+                                        showConnectionHelp = showHelp
                                     )
                                 )
                             }
@@ -162,6 +171,39 @@ fun MainScreen(
 
                     Text(
                         text = "Toggle the small status overlay for local IP, packet counters, and video FPS.",
+                        color = Color(0xFF9FB0C6),
+                        fontSize = 12.sp,
+                        lineHeight = 18.sp
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Connection help",
+                            color = Color(0xFFEAF2FF),
+                            fontSize = 15.sp
+                        )
+                        Switch(
+                            checked = showHelp,
+                            onCheckedChange = { enabled ->
+                                showHelp = enabled
+                                onDisplaySettingsChanged(
+                                    DisplaySettings(
+                                        fitMode = selectedFitMode,
+                                        resolutionPreset = selectedResolution,
+                                        diagnosticsOverlayEnabled = diagnosticsEnabled,
+                                        showConnectionHelp = enabled
+                                    )
+                                )
+                            }
+                        )
+                    }
+
+                    Text(
+                        text = "Show the startup card with local IP and ports until the video stream loads.",
                         color = Color(0xFF9FB0C6),
                         fontSize = 12.sp,
                         lineHeight = 18.sp
@@ -188,7 +230,8 @@ fun MainScreen(
                                             DisplaySettings(
                                                 fitMode = mode,
                                                 resolutionPreset = selectedResolution,
-                                                diagnosticsOverlayEnabled = diagnosticsEnabled
+                                                diagnosticsOverlayEnabled = diagnosticsEnabled,
+                                                showConnectionHelp = showHelp
                                             )
                                         )
                                     }
@@ -218,7 +261,8 @@ fun MainScreen(
                                             DisplaySettings(
                                                 fitMode = selectedFitMode,
                                                 resolutionPreset = preset,
-                                                diagnosticsOverlayEnabled = diagnosticsEnabled
+                                                diagnosticsOverlayEnabled = diagnosticsEnabled,
+                                                showConnectionHelp = showHelp
                                             )
                                         )
                                     }
@@ -248,6 +292,27 @@ fun MainScreen(
             modifier = modifier.fillMaxSize().background(Color.Black).clipToBounds(),
             contentAlignment = Alignment.Center
         ) {
+            val density = LocalDensity.current
+            val containerPx = with(density) {
+                DisplayBufferSize(maxWidth.roundToPx(), maxHeight.roundToPx())
+            }
+            fun applySurfaceSize() {
+                videoHolder?.let { holder ->
+                    val size = DisplayLayout.surfaceBufferSize(
+                        preset = selectedResolution,
+                        containerWidthPx = containerPx.width,
+                        containerHeightPx = containerPx.height
+                    )
+                    holder.setFixedSize(size.width, size.height)
+                }
+            }
+            // Keyed on both the preset and the holder: surface recreation
+            // reuses the same holder instance, so this does not loop, and it
+            // always applies the current preset instead of a stale closure.
+            LaunchedEffect(selectedResolution, videoHolder) {
+                applySurfaceSize()
+            }
+
             val contentModifier = when (selectedFitMode) {
                 DisplayFitMode.ASPECT_FIT -> {
                     val dimensions = DisplayLayout.aspectFitDimensions(
@@ -282,11 +347,12 @@ fun MainScreen(
                         SurfaceView(ctx).apply {
                             holder.addCallback(object : SurfaceHolder.Callback {
                                 override fun surfaceCreated(holder: SurfaceHolder) {
-                                    holder.setFixedSize(854, 480)
+                                    videoHolder = holder
                                     onSurfaceAvailable?.invoke(holder.surface)
                                 }
                                 override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
                                 override fun surfaceDestroyed(holder: SurfaceHolder) {
+                                    videoHolder = null
                                     onSurfaceDestroyed?.invoke()
                                 }
                             })
@@ -337,7 +403,7 @@ fun MainScreen(
                 )
             }
 
-            if (!isVideoStreaming) {
+            if (!isVideoStreaming && showHelp) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()

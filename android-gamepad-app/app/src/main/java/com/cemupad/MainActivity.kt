@@ -69,6 +69,11 @@ class MainActivity : ComponentActivity() {
                 prefs.getBoolean(AppSettingsCodec.KEY_DIAGNOSTICS_OVERLAY, false)
             } else {
                 null
+            },
+            connectionHelpVisible = if (prefs.contains(AppSettingsCodec.KEY_CONNECTION_HELP)) {
+                prefs.getBoolean(AppSettingsCodec.KEY_CONNECTION_HELP, true)
+            } else {
+                null
             }
         )
 
@@ -168,6 +173,7 @@ class MainActivity : ComponentActivity() {
             .putString(AppSettingsCodec.KEY_FIT_MODE, encoded.fitModeName)
             .putString(AppSettingsCodec.KEY_RESOLUTION, encoded.resolutionName)
             .putBoolean(AppSettingsCodec.KEY_DIAGNOSTICS_OVERLAY, encoded.diagnosticsOverlayEnabled)
+            .putBoolean(AppSettingsCodec.KEY_CONNECTION_HELP, encoded.connectionHelpVisible)
             .apply()
     }
 

@@ -246,9 +246,10 @@ Artemis probes codec capabilities and uses device-specific low-latency options r
 ### 4.3 Configuration drawer and diagnostics controls
 
 - [x] Add a configuration drawer opened via the back button.
-- [x] Include a diagnostics overlay toggle; persist overlay, fit mode, and resolution.
-- [ ] Add a separate connection/help-text toggle in the drawer.
+- [x] Include a diagnostics overlay toggle; persist overlay, fit mode, resolution, and connection help.
+- [x] Include a separate connection-help toggle in the drawer (hides the startup card; live-verified 2026-09-12).
 - [x] Keep the settings panel compact and easy to access during live troubleshooting.
+- [x] Make the drawer content scrollable so all settings stay reachable on short landscape displays.
 - [x] Show a clear visual indication when the drawer is opened or closed.
 
 ### 4.4 Connection and startup instructions
@@ -273,7 +274,7 @@ Artemis probes codec capabilities and uses device-specific low-latency options r
 - [x] Confirm back-button drawer toggles settings cleanly.
 - [ ] Confirm diagnostics overlay can be toggled on/off without affecting the stream after the one-line restyle.
 - [ ] Confirm startup instructions disappear as soon as streaming begins.
-- [ ] Confirm the resolution preset changes the SurfaceView buffer/decoder size (currently fixed at 854 x 480 regardless of the selected preset).
+- [x] Confirm the resolution preset changes the SurfaceView buffer size (live-verified 2026-09-12: `surfaceChanged` reports 1920x1080 on Full HD, 854x480 on Native; decoder output stays stream-determined 854x480 with scale-to-fit).
 - [ ] Validate the layout under a real device session and adjust spacing if the UI overlaps the stream.
 
 ---
@@ -388,3 +389,5 @@ Apollo and Artemis are GPL-licensed projects. Use them as architectural referenc
 | 2026-09-12 | Docs | Reconciled checklist: split implemented vs open UX items, added resolution-preset-effect item, aligned phase numbering | Done |
 | 2026-09-12 | Infra | Initialized `Cemu/` and workspace-root git repos on `main`, pushed to private `christianborges121/Cemu` and `christianborges121/wiiu-gamepad-android` | Done |
 | 2026-09-12 | Infra | Rebuilt Cemu as a public attached fork: one commit on upstream `3310f3b8` with a clean 24-file delta; redundant snapshot branch deleted, tarball kept at `C:\Projects\cemu-snapshot-backup-20260912.tar` | Done |
+| 2026-09-12 | Phase 4 UX | Added persisted connection-help drawer toggle; hides/shows startup card, survives force-stop; APK installed and live-verified | Done |
+| 2026-09-12 | Phase 4 UX | Wired resolution presets to SurfaceView fixed size via `DisplayLayout.surfaceBufferSize`; fixed stale-closure stomp and unreachable drawer items (scroll); live-verified both directions | Done |

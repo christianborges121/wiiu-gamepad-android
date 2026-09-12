@@ -40,4 +40,26 @@ class DisplayLayoutTest {
         assertEquals(2340f, dimensions.width, 0.01f)
         assertEquals(1316.25f, dimensions.height, 0.01f)
     }
+
+    @Test
+    fun `explicit resolution preset uses its own buffer size`() {
+        val size = DisplayLayout.surfaceBufferSize(
+            preset = DisplayResolutionPreset.HD_1280x720,
+            containerWidthPx = 2340,
+            containerHeightPx = 1080
+        )
+
+        assertEquals(DisplayBufferSize(width = 1280, height = 720), size)
+    }
+
+    @Test
+    fun `device auto follows the container buffer size`() {
+        val size = DisplayLayout.surfaceBufferSize(
+            preset = DisplayResolutionPreset.DEVICE_AUTO,
+            containerWidthPx = 1920,
+            containerHeightPx = 1080
+        )
+
+        assertEquals(DisplayBufferSize(width = 1920, height = 1080), size)
+    }
 }
