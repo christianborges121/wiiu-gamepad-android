@@ -209,8 +209,8 @@ Artemis probes codec capabilities and uses device-specific low-latency options r
 ### 2.8 Phase 2 verification
 
 - [ ] Verify correct colors in Hyrule Warriors.
-- [ ] Verify correct colors in Zelda: Wind Waker HD.
-- [ ] Retest Wind Waker HD after packed-format support is deployed.
+- [x] Verify correct colors in Zelda: Wind Waker HD (live-verified 2026-09-12: inventory screen shows correct blue/white/parchment/yellow/grey; title screen white/gold correct).
+- [x] Retest Wind Waker HD after packed-format support is deployed (this session: no format-64 failure, stream flows at 30 FPS).
 - [ ] Verify correct colors in a title using a different DRC render format.
 - [ ] Verify no color-channel swap with red/green/blue test content.
 - [ ] Verify Cemu remains above 59 FPS while streaming.
@@ -391,3 +391,4 @@ Apollo and Artemis are GPL-licensed projects. Use them as architectural referenc
 | 2026-09-12 | Infra | Rebuilt Cemu as a public attached fork: one commit on upstream `3310f3b8` with a clean 24-file delta; redundant snapshot branch deleted, tarball kept at `C:\Projects\cemu-snapshot-backup-20260912.tar` | Done |
 | 2026-09-12 | Phase 4 UX | Added persisted connection-help drawer toggle; hides/shows startup card, survives force-stop; APK installed and live-verified | Done |
 | 2026-09-12 | Phase 4 UX | Wired resolution presets to SurfaceView fixed size via `DisplayLayout.surfaceBufferSize`; fixed stale-closure stomp and unreachable drawer items (scroll); live-verified both directions | Done |
+| 2026-09-12 | Phase 2 | Wind Waker HD color verified live (inventory: blue/white/parchment/yellow correct; no format-64 failure; 30 FPS); evidence screenshot archived | Done |

@@ -1,6 +1,6 @@
 # Current harness handoff
 
-Last updated: 2026-09-12 11:33 (America/New_York)
+Last updated: 2026-09-12 13:10 (America/New_York)
 
 Read this file first. Then read the dated folders it points to. Keep this file
 current at the end of every session so a new harness can resume without the
@@ -8,26 +8,31 @@ prior chat.
 
 ## Where we left off
 
-Phase 4 fullscreen UX is in progress on the Android app. The latest user-facing
-change is a transparent, single-line diagnostics overlay in the top-left
-corner. That debug APK is installed on the wireless ADB phone.
+Phase 2 color verification is active with Wind Waker HD running in Cemu
+and streaming to the phone. Wind Waker inventory colors verified correct
+at 30 FPS (packed A2B10G10R10 path works). Hyrule Warriors color check is
+still open. Phase 4 UX drawer/resolution work from this morning is done
+and installed on the wireless ADB phone.
 
 Do not restart from Phase 0 or from the reconnect investigation as if they were
-unfinished implementation. Those records are evidence. The next code work is
-whatever the user asks next, most likely more Phase 4 UX polish on the live
-phone session.
+unfinished implementation. Those records are evidence. The next verification
+is whatever game session the user has up, most likely Hyrule Warriors colors.
 
 ## Just completed (this session)
 
-1. Connection-help drawer toggle: new persisted `showConnectionHelp`
+1. Wind Waker HD color verified live: inventory screen streams at 30 FPS
+   with correct blue/white/parchment/yellow (packed A2B10G10R10 path
+   works, no format-64 failure). See
+   `investigation/2026-09-12-color/01-wind-waker.md`.
+2. Connection-help drawer toggle: new persisted `showConnectionHelp`
    setting hides the startup card; live-verified on the phone including
    force-stop persistence. See `investigation/2026-09-12-ux/04-connection-help-toggle.md`.
-2. Resolution presets now drive the SurfaceView buffer size
+3. Resolution presets now drive the SurfaceView buffer size
    (`DisplayLayout.surfaceBufferSize`); live-verified both directions via
    `surfaceChanged` (1920x1080 / 854x480). Fixed a stale-closure stomp and
    made the drawer scrollable. See
    `investigation/2026-09-12-ux/05-resolution-preset-surface.md`.
-3. Earlier: overlay defaults off, overlay/fit/resolution persist, overlay
+4. Earlier: overlay defaults off, overlay/fit/resolution persist, overlay
    restyled to one top-left line, checklist reconciled, version control
    started (private app repo, public attached Cemu fork).
 
@@ -61,14 +66,14 @@ phone session.
 
 - Live reconnect of Cemu DSU + video after phone restart is still unverified.
   See `investigation/2026-09-12-reconnect/`.
-- Wind Waker HD / Hyrule Warriors color verification still open.
+- Hyrule Warriors color verification still open (Wind Waker done 2026-09-12).
 - Original Wii U GamePad fit-mode live confirmation still useful.
-- Drawer does not yet have a separate connection/help-text toggle.
-- Resolution preset is stored and shown; confirm it actually changes the
-  decoder/surface size if the user expects that.
+- Overlay toggle against a running stream, and end-to-end resolution scaling
+  with live video, still need a watched game session.
 - Do not kill a running Cemu/game to deploy.
 
 ## Dated notes
 
 - Reconnect investigation: `investigation/2026-09-12-reconnect/`
 - UX session: `investigation/2026-09-12-ux/`
+- Color verification: `investigation/2026-09-12-color/`
