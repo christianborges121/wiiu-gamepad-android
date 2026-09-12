@@ -273,7 +273,7 @@ Artemis probes codec capabilities and uses device-specific low-latency options r
 - [x] Confirm the GamePad image fills the screen without a framed window (aspect-fit clipping fix 2026-09-12).
 - [x] Confirm back-button drawer toggles settings cleanly.
 - [ ] Confirm diagnostics overlay can be toggled on/off without affecting the stream after the one-line restyle.
-- [ ] Confirm startup instructions disappear as soon as streaming begins.
+- [x] Confirm startup instructions disappear as soon as streaming begins (user-verified round trip 2026-09-12: card hidden while Cemu streamed, reappeared on stop with no stuck state; screenshot in notes).
 - [x] Confirm the resolution preset changes the SurfaceView buffer size (live-verified 2026-09-12: `surfaceChanged` reports 1920x1080 on Full HD, 854x480 on Native; decoder output stays stream-determined 854x480 with scale-to-fit).
 - [ ] Validate the layout under a real device session and adjust spacing if the UI overlaps the stream.
 
