@@ -13,9 +13,11 @@
   of upstream `cemu-project/Cemu@3310f3b8` (2026-09-10), zero behind.
 - Compare view (exactly the fork delta, 24 files):
   `https://github.com/cemu-project/Cemu/compare/main...christianborges121:main`
-- The old detached snapshot is preserved remotely as
-  `snapshot-backup-20260912` (`1161901b`) and as
-  `C:\Users\chris\AppData\Local\Temp\opencode\cemu-snapshot-backup.tar`.
+- The old detached snapshot (`1161901b`) is preserved as
+  `C:\Projects\cemu-snapshot-backup-20260912.tar` (outside both repos).
+  Its remote backup branch was deleted because in-repo compares against it
+  (unrelated history, ~16k files) drown out the real fork delta. The only
+  meaningful compare is cross-fork against upstream (24 files).
 - Dependencies are real submodules at the fork pins in `Cemu/FORK.md`
   (base pins were older; `imgui` is pinned older than base — revisit).
 - Local `Cemu/` repo has remotes `origin` (fork) and `upstream`
