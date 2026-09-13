@@ -58,3 +58,6 @@ UDP-only clients never pruned. Fixed, untested until deploy:
   stats in the log line.
 - New Cemu binary built (`Cemu/bin/Cemu_release.exe`); deploy blocked
   on the running game.
+- DEPLOYED 2026-09-12 22:39 (user closed Cemu): backup
+  `Cemu.exe.backup-20260912-223926`, SHA-256 `BDA8A2D3...B33D` match.
+  Live test runs on relaunch.
