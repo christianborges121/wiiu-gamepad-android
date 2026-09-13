@@ -400,3 +400,4 @@ Apollo and Artemis are GPL-licensed projects. Use them as architectural referenc
 | 2026-09-13 | Phase 2 | Motion artifact elimination: callback pipeline, zero B-frames, Annex B scanning bypass, zero tearing/ghosting at 60 FPS | Done |
 | 2026-09-13 | Phase 4 UX | Menu modernization & dismissal ergonomics: dark card styling, Back button only open, scrim tap to save/close, 30 FPS cap removed | Done |
 | 2026-09-13 | Phase 3/4 | Mic red dot indicator & toggle: sleek red dot with touch-blow interaction; Microphone setting toggle with AudioRecord hardware release | Done |
+| 2026-09-13 | Phase 4.3 | GamePad Rumble Haptics: VPADControlMotor duty-cycle envelope calculation, VideoStreamServer streaming, Android RumbleHandler pulse flooring & debouncing | Done |
