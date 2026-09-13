@@ -557,14 +557,15 @@ class MainActivity : ComponentActivity() {
                 Logger.i("MainActivity", "Video stream disconnected")
                 isVideoStreaming.value = false
                 idleControlMode = false
-                rumbleHandler.cancel()
+                rumbleHandler.cancel(force = true)
                 discoveryClient?.start()
             }
             onRumbleReceived = { active, intensity, durationMs ->
+                Logger.i("MainActivity", "Rumble packet: active=$active intensity=$intensity duration=${durationMs}ms")
                 if (active) {
                     rumbleHandler.rumble(intensity, durationMs.toLong())
                 } else {
-                    rumbleHandler.cancel()
+                    rumbleHandler.cancel(force = false)
                 }
             }
             onError = { err ->
@@ -579,7 +580,7 @@ class MainActivity : ComponentActivity() {
         videoClient?.idleControlMode = false
         videoClient?.stop()
         videoClient = null
-        rumbleHandler.cancel()
+        rumbleHandler.cancel(force = true)
         isVideoStreaming.value = false
         videoFps.floatValue = 0f
     }
