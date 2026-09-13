@@ -20,6 +20,7 @@ class MotionHandler(
 
     companion object {
         const val RAD_TO_DEG = 57.29577951308232f
+        private const val GYRO_DEADBAND_DEG_PER_SEC = 0.08f
     }
 
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
@@ -27,6 +28,20 @@ class MotionHandler(
     private val gyroscope: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
 
     var displayRotation: Int = Surface.ROTATION_90
+
+    // Gyro calibration bias offsets (in deg/s)
+    @Volatile
+    var gyroBiasX = 0.0f
+    @Volatile
+    var gyroBiasY = 0.0f
+    @Volatile
+    var gyroBiasZ = 0.0f
+
+    private var isCalibrating = false
+    private var calibrationSamplesCollected = 0
+    private var calibSumX = 0.0
+    private var calibSumY = 0.0
+    private var calibSumZ = 0.0
 
     // Cached latest gyro readings (in deg/s)
     @Volatile
@@ -37,6 +52,17 @@ class MotionHandler(
     private var gyroRoll = 0.0f
 
     private var isRunning = false
+
+    /**
+     * Calibrates gyroscope zero-bias across stationary samples to eliminate drift.
+     */
+    fun calibrateGyro() {
+        calibSumX = 0.0
+        calibSumY = 0.0
+        calibSumZ = 0.0
+        calibrationSamplesCollected = 0
+        isCalibrating = true
+    }
 
     fun start(): Boolean {
         if (isRunning) return true
@@ -70,10 +96,28 @@ class MotionHandler(
                 val rawZ = event.values[2] * RAD_TO_DEG
 
                 val (remapX, remapY, remapZ) = remapSensorValues(rawX, rawY, rawZ, displayRotation)
-                // Cache latest gyro values without advancing motion timestamp
-                gyroPitch = remapX
-                gyroYaw = remapY
-                gyroRoll = remapZ
+
+                if (isCalibrating) {
+                    calibSumX += remapX
+                    calibSumY += remapY
+                    calibSumZ += remapZ
+                    calibrationSamplesCollected++
+                    if (calibrationSamplesCollected >= 60) {
+                        gyroBiasX = (calibSumX / 60.0).toFloat()
+                        gyroBiasY = (calibSumY / 60.0).toFloat()
+                        gyroBiasZ = (calibSumZ / 60.0).toFloat()
+                        isCalibrating = false
+                    }
+                }
+
+                val adjustedX = remapX - gyroBiasX
+                val adjustedY = remapY - gyroBiasY
+                val adjustedZ = remapZ - gyroBiasZ
+
+                // Cache latest gyro values without advancing motion timestamp, applying micro-deadband
+                gyroPitch = if (kotlin.math.abs(adjustedX) < GYRO_DEADBAND_DEG_PER_SEC) 0.0f else adjustedX
+                gyroYaw = if (kotlin.math.abs(adjustedY) < GYRO_DEADBAND_DEG_PER_SEC) 0.0f else adjustedY
+                gyroRoll = if (kotlin.math.abs(adjustedZ) < GYRO_DEADBAND_DEG_PER_SEC) 0.0f else adjustedZ
             }
 
             Sensor.TYPE_ACCELEROMETER -> {

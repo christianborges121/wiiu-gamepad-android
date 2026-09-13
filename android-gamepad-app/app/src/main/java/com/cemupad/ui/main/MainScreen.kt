@@ -28,6 +28,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -86,6 +87,7 @@ fun MainScreen(
     videoFps: Float = 0f,
     displaySettings: DisplaySettings = DisplaySettings(),
     onDisplaySettingsChanged: (DisplaySettings) -> Unit = {},
+    onCalibrateGyro: (() -> Unit)? = null,
     onSurfaceAvailable: ((Surface) -> Unit)? = null,
     onSurfaceDestroyed: (() -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -319,6 +321,36 @@ fun MainScreen(
                                 onDisplaySettingsChanged(currentSettings().copy(vibrationEnabled = it))
                             }
                         )
+                    }
+
+                    HorizontalDivider(color = Color(0xFF2A3348))
+
+                    // --- Motion & Gyroscope ---
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Text("Motion & gyroscope", color = Color.White, fontSize = 16.sp)
+                            Text("Calibrate sensor zero-bias on flat surface", color = Color(0xFF9FB0C6), fontSize = 12.sp)
+                        }
+                        var isCalibrated by remember { mutableStateOf(false) }
+                        OutlinedButton(
+                            onClick = {
+                                onCalibrateGyro?.invoke()
+                                isCalibrated = true
+                                scope.launch {
+                                    kotlinx.coroutines.delay(1800)
+                                    isCalibrated = false
+                                }
+                            },
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = if (isCalibrated) Color(0xFF00E5FF) else Color.White
+                            )
+                        ) {
+                            Text(if (isCalibrated) "Calibrated ✓" else "Calibrate", fontSize = 12.sp)
+                        }
                     }
 
                     HorizontalDivider(color = Color(0xFF2A3348))

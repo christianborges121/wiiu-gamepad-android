@@ -17,11 +17,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface as ComposeSurface
 import androidx.compose.ui.Modifier
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.cemupad.audio.AudioStreamReceiver
@@ -74,8 +78,20 @@ class MainActivity : ComponentActivity() {
     private val isVideoStreaming = mutableStateOf(false)
     private val videoFps = mutableFloatStateOf(0f)
     private val displaySettings = mutableStateOf(DisplaySettings())
-
     private var wifiLock: WifiManager.WifiLock? = null
+
+    private val requestAudioPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            Logger.i("MainActivity", "RECORD_AUDIO granted, starting mic blow detector")
+            if (::micBlowDetector.isInitialized) {
+                micBlowDetector.start()
+            }
+        } else {
+            Logger.w("MainActivity", "RECORD_AUDIO denied, mic blow detector in manual-only mode")
+        }
+    }
 
     // Watchdog: worker loops must never die silently. If a DSU or video
     // thread died while supposed to run (e.g. an uncaught throwable),
@@ -333,6 +349,11 @@ class MainActivity : ComponentActivity() {
                             rumbleHandler.isEnabled = newSettings.vibrationEnabled
                             persistDisplaySettings(newSettings)
                         },
+                        onCalibrateGyro = {
+                            if (::motionHandler.isInitialized) {
+                                motionHandler.calibrateGyro()
+                            }
+                        },
                         onSurfaceAvailable = { surface -> handleSurfaceAvailable(surface) },
                         onSurfaceDestroyed = { handleSurfaceDestroyed() }
                     )
@@ -347,6 +368,9 @@ class MainActivity : ComponentActivity() {
         dsuServer.start()
         motionHandler.start()
         micBlowDetector.start()
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
         audioReceiver = AudioStreamReceiver().apply {
             isMuted = !displaySettings.value.audioEnabled
             volume = displaySettings.value.audioVolume
