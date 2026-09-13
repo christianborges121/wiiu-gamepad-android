@@ -68,6 +68,9 @@ class MainActivity : ComponentActivity() {
         private const val PREF_LAST_CEMU_IP = "last_cemu_ip"
         private const val PREF_AUTH_TOKEN = "auth_token"
         private const val WATCHDOG_INTERVAL_MS = 5000L
+        // Discovery responses arrive ~every 2s while Cemu is up; three missed
+        // windows means the host is gone (or stopped answering).
+        private const val DISCOVERY_STALE_MS = 7000L
     }
 
     private lateinit var dsuServer: DSUServer
@@ -108,6 +111,9 @@ class MainActivity : ComponentActivity() {
         return dirs
     }
     private val discoveredServer = mutableStateOf<DiscoveredServer?>(null)
+    // Last time a CEMUPAD_HERE response arrived. The found-card is cleared
+    // once responses stop (e.g. Cemu closed) so it can't strand the UI.
+    private var lastDiscoveryTimeMs: Long = 0L
 
     private var videoDecoder: VideoDecoder? = null
     private var videoClient: VideoStreamClient? = null
@@ -144,6 +150,16 @@ class MainActivity : ComponentActivity() {
     private val watchdogRunnable = object : Runnable {
         override fun run() {
             try {
+                if (discoveredServer.value != null &&
+                    DiscoveryClient.isStale(
+                        lastDiscoveryTimeMs,
+                        System.currentTimeMillis(),
+                        DISCOVERY_STALE_MS
+                    )
+                ) {
+                    Logger.i("MainActivity", "Discovery stale; clearing found-Cemu card")
+                    discoveredServer.value = null
+                }
                 if (::dsuServer.isInitialized) {
                     dsuServer.ensureThreads()
                     val peerIp = dsuServer.activeClientAddress?.address?.hostAddress
@@ -253,6 +269,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        com.cemupad.util.Logger.init(applicationContext)
 
         // Preserve the last verified peer across activity/process restarts so video
         // reconnect does not depend on Cemu sending a fresh DSU packet first.
@@ -345,6 +362,7 @@ class MainActivity : ComponentActivity() {
 
         discoveryClient = DiscoveryClient { server ->
             discoveredServer.value = server
+            lastDiscoveryTimeMs = System.currentTimeMillis()
             if (lastKnownClientIp.isNullOrEmpty() && !isVideoStreaming.value) {
                 Logger.i("MainActivity", "Auto-connecting to discovered Cemu at ${server.ip}")
                 lastKnownClientIp = server.ip
@@ -444,8 +462,18 @@ class MainActivity : ComponentActivity() {
                                 videoClient?.sendBitrate(newSettings.videoBitrateMbps * 1_000_000)
                             }
                             val newPreset = newSettings.resolutionPreset
-                            if (newPreset != oldSettings.resolutionPreset && newPreset.width > 0 && newPreset.height > 0) {
-                                videoClient?.sendResolution(newPreset.width, newPreset.height)
+                            val resolvedNew = newPreset.resolveForDevice(
+                                resources.displayMetrics.widthPixels,
+                                resources.displayMetrics.heightPixels,
+                                newSettings.videoBitrateMbps
+                            )
+                            val resolvedOld = oldSettings.resolutionPreset.resolveForDevice(
+                                resources.displayMetrics.widthPixels,
+                                resources.displayMetrics.heightPixels,
+                                oldSettings.videoBitrateMbps
+                            )
+                            if (resolvedNew != resolvedOld && resolvedNew.width > 0 && resolvedNew.height > 0) {
+                                videoClient?.sendResolution(resolvedNew.width, resolvedNew.height)
                             }
                             persistDisplaySettings(newSettings)
                         },
@@ -507,7 +535,8 @@ class MainActivity : ComponentActivity() {
                         wizardScreen = wizardScreen.value,
                         wizardActions = wizardActions(),
                         onSurfaceAvailable = { surface -> handleSurfaceAvailable(surface) },
-                        onSurfaceDestroyed = { handleSurfaceDestroyed() }
+                        onSurfaceDestroyed = { handleSurfaceDestroyed() },
+                        onExportDebug = { exportDebugBundle() }
                     )
                 }
             }
@@ -708,8 +737,13 @@ class MainActivity : ComponentActivity() {
                 // PC encoder at its 854x480/6Mbps defaults.
                 videoClient?.sendBitrate(displaySettings.value.videoBitrateMbps * 1_000_000)
                 val preset = displaySettings.value.resolutionPreset
-                if (preset.width > 0 && preset.height > 0) {
-                    videoClient?.sendResolution(preset.width, preset.height)
+                val resolvedPreset = preset.resolveForDevice(
+                    resources.displayMetrics.widthPixels,
+                    resources.displayMetrics.heightPixels,
+                    displaySettings.value.videoBitrateMbps
+                )
+                if (resolvedPreset.width > 0 && resolvedPreset.height > 0) {
+                    videoClient?.sendResolution(resolvedPreset.width, resolvedPreset.height)
                 }
                 startVoiceStream(host)
                 requestIDR()
@@ -761,6 +795,85 @@ class MainActivity : ComponentActivity() {
     private fun stopVoiceStream() {
         micVoiceStreamer?.stop()
         micVoiceStreamer = null
+    }
+
+    /**
+     * Builds the remote-debugging bundle (log file + window screenshot +
+     * device/codec report) and opens the system share sheet. Screenshot via
+     * PixelCopy so SurfaceView frames are captured correctly.
+     */
+    private fun exportDebugBundle() {
+        try {
+            val rootView = window.decorView.rootView
+            val width = rootView.width
+            val height = rootView.height
+            if (width <= 0 || height <= 0) {
+                Toast.makeText(this, "Screen not ready, try again", Toast.LENGTH_SHORT).show()
+                return
+            }
+            Toast.makeText(this, "Capturing debug bundle…", Toast.LENGTH_SHORT).show()
+            val bitmap = android.graphics.Bitmap.createBitmap(
+                width, height, android.graphics.Bitmap.Config.ARGB_8888
+            )
+            android.view.PixelCopy.request(
+                window,
+                bitmap,
+                { result ->
+                    Thread {
+                        try {
+                            val png = if (result == android.view.PixelCopy.SUCCESS) {
+                                com.cemupad.util.DebugBundle.screenshotPng(bitmap)
+                            } else {
+                                com.cemupad.util.Logger.w("DebugBundle", "Screenshot failed: $result")
+                                null
+                            }
+                            val report = com.cemupad.util.DebugBundle.collectDeviceReport(
+                                applicationContext, displaySettings.value
+                            )
+                            val reportText = com.cemupad.util.DebugBundle.formatReport(report)
+                            val logText = com.cemupad.util.Logger.logFiles()
+                                .joinToString("\n") { file ->
+                                    "===== ${file.name} =====\n" + try {
+                                        file.readText()
+                                    } catch (_: Exception) {
+                                        "<unreadable>"
+                                    }
+                                }.ifEmpty { "<no log file — restart the app once>" }
+                            val dir = java.io.File(cacheDir, "debug")
+                            if (!dir.exists()) dir.mkdirs()
+                            val zip = java.io.File(dir, "cemupad-debug.zip")
+                            if (zip.exists()) zip.delete()
+                            com.cemupad.util.DebugBundle.buildZip(zip, reportText, logText, png)
+                            runOnUiThread {
+                                try {
+                                    com.cemupad.util.DebugBundle.shareZip(this, zip)
+                                } catch (_: Exception) {
+                                    Toast.makeText(
+                                        this,
+                                        "No app available to share with",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            com.cemupad.util.Logger.w("DebugBundle", "Export failed: ${e.message}")
+                            runOnUiThread {
+                                Toast.makeText(this, "Export failed", Toast.LENGTH_SHORT).show()
+                            }
+                        } finally {
+                            try {
+                                bitmap.recycle()
+                            } catch (_: Exception) {
+                            }
+                        }
+                    }.apply { isDaemon = true; start() }
+                },
+                android.os.Handler(android.os.Looper.getMainLooper())
+            )
+        } catch (e: Exception) {
+            com.cemupad.util.Logger.w("DebugBundle", "Export failed: ${e.message}")
+            Toast.makeText(this, "Export failed", Toast.LENGTH_SHORT).show()
+        }
     }
 
     /**

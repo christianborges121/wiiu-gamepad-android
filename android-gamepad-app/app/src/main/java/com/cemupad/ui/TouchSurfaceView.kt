@@ -55,22 +55,11 @@ class TouchSurfaceView @JvmOverloads constructor(
         style = Paint.Style.FILL
     }
 
-    private val touchPaint = Paint().apply {
-        color = 0xFFFFD700.toInt() // Golden yellow
-        style = Paint.Style.FILL
-        isAntiAlias = true
-    }
-
     private val textPaint = Paint().apply {
         color = 0xAAFFFFFF.toInt()
         textSize = 28f
         isAntiAlias = true
     }
-
-    private var touch1X = -1f
-    private var touch1Y = -1f
-    private var touch2X = -1f
-    private var touch2Y = -1f
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
@@ -86,27 +75,8 @@ class TouchSurfaceView @JvmOverloads constructor(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE, MotionEvent.ACTION_POINTER_DOWN -> {
-                if (event.pointerCount > 0) {
-                    touch1X = event.getX(0)
-                    touch1Y = event.getY(0)
-                }
-                if (event.pointerCount > 1) {
-                    touch2X = event.getX(1)
-                    touch2Y = event.getY(1)
-                }
-                invalidate()
-            }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                touch1X = -1f
-                touch1Y = -1f
-                touch2X = -1f
-                touch2Y = -1f
-                invalidate()
-            }
-        }
-
+        // Touch coordinates are forwarded to the DSU layer only — no on-screen
+        // indicators are drawn (removed per user request).
         val handled = touchHandler?.onTouchEvent(event) ?: false
         return handled || super.onTouchEvent(event)
     }
@@ -161,21 +131,6 @@ class TouchSurfaceView @JvmOverloads constructor(
             val labelY = offY + activeH - 70f
             canvas.drawText("Wii U GamePad Touch Surface (16:9 Aspect-Fit)", offX + 24f, labelY, textPaint)
             canvas.drawText("Pillarbox margins outside cyan border are discarded", offX + 24f, labelY + 36f, textPaint)
-        }
-
-        // Draw touch indicator crosshairs
-        if (touch1X >= 0 && touch1X in offX..(offX + activeW) && touch1Y in offY..(offY + activeH)) {
-            canvas.drawCircle(touch1X, touch1Y, 32f, touchPaint)
-            val normX = ((touch1X - offX) / activeW * TouchInputHandler.CEMU_TOUCH_MAX_X).toInt()
-            val normY = ((touch1Y - offY) / activeH * TouchInputHandler.CEMU_TOUCH_MAX_Y).toInt()
-            canvas.drawText("Touch 1: ($normX, $normY)", touch1X + 40f, touch1Y - 10f, textPaint)
-        }
-
-        if (touch2X >= 0 && touch2X in offX..(offX + activeW) && touch2Y in offY..(offY + activeH)) {
-            canvas.drawCircle(touch2X, touch2Y, 32f, touchPaint)
-            val normX = ((touch2X - offX) / activeW * TouchInputHandler.CEMU_TOUCH_MAX_X).toInt()
-            val normY = ((touch2Y - offY) / activeH * TouchInputHandler.CEMU_TOUCH_MAX_Y).toInt()
-            canvas.drawText("Touch 2: ($normX, $normY)", touch2X + 40f, touch2Y - 10f, textPaint)
         }
     }
 }

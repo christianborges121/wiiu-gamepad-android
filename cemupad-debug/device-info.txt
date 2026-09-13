@@ -1,0 +1,17 @@
+CemuPad debug report
+manufacturer=Razer
+model=Razer Edge 5G
+device=RZ45-0460
+board=lahaina
+soc=SG8175P
+sdk=36 release=16
+screen=2400x1080 @360dpi refresh=0.0Hz
+app=1.0 (1)
+settings: fit=FILL res=DEVICE_AUTO bitrate=12Mbps audio=true mic=true
+avc_decoders:
+  - c2.qti.avc.decoder [hw]
+  - c2.qti.avc.decoder.low_latency [hw]
+  - c2.android.avc.decoder [sw]
+  - OMX.qcom.video.decoder.avc [hw]
+  - OMX.qcom.video.decoder.avc.low_latency [hw]
+  - OMX.google.h264.decoder [sw]

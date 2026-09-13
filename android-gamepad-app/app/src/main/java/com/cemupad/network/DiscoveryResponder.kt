@@ -48,7 +48,9 @@ class DiscoveryResponder(
         }
 
         fun buildHereResponse(deviceName: String): String {
-            return "$HERE_PREFIX${sanitizeDeviceName(deviceName)}:$DSU_PORT:$VIDEO_PORT:$AUDIO_PORT"
+            // Trailing "phone" marker lets other phones ignore us (and the Cemu
+            // PC parser tolerates the extra field). Prevents phantom "Cemu Found".
+            return "$HERE_PREFIX${sanitizeDeviceName(deviceName)}:$DSU_PORT:$VIDEO_PORT:$AUDIO_PORT:phone"
         }
     }
 

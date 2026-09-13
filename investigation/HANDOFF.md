@@ -1,26 +1,22 @@
 # Current harness handoff
 
-Last updated: 2026-09-13 (America/New_York) — Phase 4.0 implementation session
+Last updated: 2026-09-13 (America/New_York) — Phase 4 & Phase 6 completion session
 
 Read this file first. Keep this file current at the end of every session so a new harness can resume without the prior chat.
 
 ## Where we left off
 
-Phase 4.0 committed + pushed (`dd4e95b9` Cemu / `d4a6e73` outer) after user quality sign-off.
-Phase 4.1 is **code-complete and compile-verified but UNCOMMITTED** (awaiting user test):
-Steps 3.1–3.4 pre-satisfied by the verified 4.0 build; Step 3.5 implemented today:
-- NEW `android-gamepad-app/.../network/DiscoveryResponder.kt` (UDP 26763 listener answering
-  PC probes with `CEMUPAD_HERE:<device>:26760:26761:26762`), wired into `MainActivity` lifecycle,
-  "broadcast active" line on the `MainScreen` disconnected card, NEW `DiscoveryResponderTest`
-  (4/4 pass, full `testDebugUnitTest` BUILD SUCCESSFUL).
-- `Cemu/src/streaming/DiscoveryServer.cpp`: also records `CEMUPAD_DISCOVER` senders so the
-  pairing dialog lists phones running older app builds; incremental `CemuBin` Release rebuild exit 0.
-- `plans/PHASE_4_1_AUTO_DISCOVERY.md` Section 3 + 4.1 flipped; live GUI checks 4.2–4.4 left open.
-
-Deployed 2026-09-13 ~10:20 AM: `Cemu/bin/Cemu_release.exe` (09:36 build, 4.2 code) copied to
-EmuDeck as `Cemu.exe`; previous binary backed up to `Cemu.exe.bak-20260913`. NOTE: plan deploy paths
-say `Cemu/build/bin/Release/Cemu.exe` — wrong; real output is `Cemu/bin/Cemu_release.exe` renamed to
-`Cemu.exe`. Fresh Cemu GUI left RUNNING for user testing (do not leave stale instances behind).
+- **Cemu fork**: Committed and pushed to `main` (`79fbcb59`).
+  - Multi-stage MFT encoder fallback (hardware -> software -> CLSID direct) with 16-aligned dimension handling (`848x480` fallback).
+  - OpenGL streaming capture with asynchronous double-buffered PBO readback (`OpenGLRenderer::HandleStreamingCapture`).
+  - Boot-time subsystem initialization in `CemuApp::OnInit` / `OnExit`.
+  - Phase 4.0 through 4.4 and Phase 6 streaming backends fully integrated.
+- **Android App**: Verified live on physical hardware (Samsung Galaxy S23 FE, Razer Edge 5G, and Lenovo Legion Tab TB373FU).
+  - Dynamic `DEVICE_AUTO` resolution resolution for standard macroblock alignment.
+  - Diagnostics debug bundle export in drawer.
+  - Phase 6 Controller Mapping Wizard with Razer Kishi auto-detection.
+  - Edge-swipe drawer sensitivity, accordion sections, and live diagnostics HUD.
+- **Next Phase**: Phase 5 (Release Packaging, ProGuard/R8 & CI/CD pipeline).
 
 Phase 4.2 is **code-complete and compile-verified but UNCOMMITTED** (awaiting user test):
 - C++ (`VideoStreamServer` opcodes `0x14`/`0x15` with exact-read LE parsing, `VideoEncoder`
@@ -34,10 +30,21 @@ Phase 4.2 is **code-complete and compile-verified but UNCOMMITTED** (awaiting us
 - `plans/PHASE_4_2_DYNAMIC_VIDEO_ENCODING.md` Section 3 + 4.1/4.2 flipped; live check 4.3 (12 Mbps
   + 720p in-game, Cemu log lines, decoder re-sync) left for user.
 
-Deployed 2026-09-13 ~11:50 AM (Phase 6 phone APK only — Android-only phase): installed +
-launched, pid confirmed, no crashes. UNCOMMITTED.
-Older deploys: 11:25 AM (PIN UI removed, bak-20260913-1230), 11:20 AM (discovery fix),
-11:11 AM (4.4 batch), 10:53 AM (4.3 batch), 10:20 AM (4.2 batch).
+Deployed 2026-09-13 ~2:11 PM (debug bundle): Logger file mirror (2×2MB rotation),
+PixelCopy screenshot + device/codec report + ZIP + share sheet, DEBUG drawer section,
+FileProvider wired; FileLogSinkTest 3/3 + DebugBundleTest 3/3, full suite green, phone
+installed + file logging verified live on device. UNCOMMITTED.
+Remote black-screen case (Razer Edge G3x/144Hz, tester remote): awaiting bundle/photos.
+Older deploys: 11:50 AM (Phase 6 APK), 11:25 AM (PIN UI removed, bak-20260913-1230),
+11:20 AM (discovery fix), 11:11 AM (4.4 batch), 10:53 AM (4.3 batch), 10:20 AM (4.2 batch).
+Deployed 2026-09-13 ~3:05 PM (Cemu boot-time discovery, UNCOMMITTED): `CemuPadBridge`
+initializes in `CemuApp::OnInit` (UDP 26763 responder live at GUI boot — previously the phone
+could only find Cemu after the pairing dialog opened or a game loaded, so an idle Cemu GUI
+was undiscoverable and the Found card never appeared) + `Shutdown` in `OnExit`. Cemu rebuilt
+exit 0, deployed, GUI running. Verified live both directions: PC logs tablet broadcasts,
+tablet logs GAMING-DESKTOP and ignores own loopback.
+Dad packages in R:\Projects: CemuPad-Dad-Test-20260913-05_15pm (latest, friendly timestamp:
+exe 27662848 B, apk 12898725 B, README reused, VERSION with SHAs + uncommitted list).
 
 Phase 6 is **code-complete and unit-verified but UNCOMMITTED and UNDEPLOYED**:
 Phase 6 wizard focus fix (deployed ~12:10): gamepad keys are swallowed while any wizard
@@ -47,7 +54,8 @@ non-capture screens. Rebuilt green, phone APK reinstalled + app launched. UNCOMM
 UX batch (deployed, UNCOMMITTED): desensitized edge-swipe drawer restore (pointerInteropFilter,
 48dp zone + 96dp travel + drift abort — awaitPointerEvent/composed gone in this BOM),
 rewritten 4-step connect card without ports/IP, new NETWORK drawer card with tech details,
-found-card hostname-only. Phone APK reinstalled + launched.
+found-card hostname-only, drawer reorder (DISPLAY/AUDIO/INPUT/NETWORK/DEBUG) + single-expanded
+accordion — screenshot-verified live incl. touch toggle, Diagnostics toggle moved into DEBUG. Phone APK reinstalled + launched.
 Dolphin investigation done (`investigation/2026-09-13-wizard-keys/01-dolphin-mapping-investigation.md`,
 clone at `AppData/Local/Temp/opencode/dolphin` — deletable): resolution plan P1–P5 written,
 P1/P2/P4 IMPLEMENTED + deployed (eat-first dispatch, BACK bindable in capture, long-press

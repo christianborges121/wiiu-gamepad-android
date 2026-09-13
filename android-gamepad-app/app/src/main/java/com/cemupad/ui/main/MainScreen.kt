@@ -6,6 +6,7 @@ import android.view.SurfaceView
 import android.view.MotionEvent as AndroidMotionEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -107,6 +108,7 @@ fun MainScreen(
     onCalibrateGyro: (() -> Unit)? = null,
     onSurfaceAvailable: ((Surface) -> Unit)? = null,
     onSurfaceDestroyed: (() -> Unit)? = null,
+    onExportDebug: (() -> Unit)? = null,
     mappingPrompt: MappingPromptUi? = null,
     onMappingSetup: (() -> Unit)? = null,
     onMappingDismiss: (() -> Unit)? = null,
@@ -138,6 +140,11 @@ fun MainScreen(
     var videoHolder by remember { mutableStateOf<SurfaceHolder?>(null) }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    // Accordion: exactly one drawer section open at a time ("" = all collapsed).
+    var expandedSection by remember { mutableStateOf("DISPLAY") }
+    fun toggleSection(key: String) {
+        expandedSection = if (expandedSection == key) "" else key
+    }
     val edgeSwipeState = remember { EdgeSwipeState() }
     val swipeDensity = LocalDensity.current
     LaunchedEffect(displaySettings) {
@@ -250,15 +257,14 @@ fun MainScreen(
                         }
                     }
 
-                    // --- DISPLAY SECTION ---
-                    Text(
-                        text = "DISPLAY",
-                        color = Color(0xFF00E5FF),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.2.sp
+                    // --- DISPLAY SECTION (accordion; expanding one collapses the rest) ---
+                    SectionHeader(
+                        title = "DISPLAY",
+                        expanded = expandedSection == "DISPLAY",
+                        onToggle = { toggleSection("DISPLAY") }
                     )
 
+                    if (expandedSection == "DISPLAY") {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -392,90 +398,18 @@ fun MainScreen(
                                     }
                                 }
                             }
-
-                            HorizontalDivider(color = Color(0xFF222B3D))
-
-                            // Diagnostics overlay (NO description)
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Diagnostics overlay", color = Color(0xFFEAF2FF), fontSize = 14.sp)
-                                Switch(
-                                    checked = diagnosticsEnabled,
-                                    onCheckedChange = { enabled ->
-                                        diagnosticsEnabled = enabled
-                                        onDisplaySettingsChanged(currentSettings().copy(diagnosticsOverlayEnabled = enabled))
-                                    },
-                                    colors = switchColors
-                                )
-                            }
                         }
                     }
-
-                    // --- NETWORK SECTION (technical details) ---
-                    Text(
-                        text = "NETWORK",
-                        color = Color(0xFF00E5FF),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.2.sp
-                    )
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF161D2B)),
-                        border = BorderStroke(1.dp, Color(0xFF222B3D))
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Phone IP", color = Color(0xFFEAF2FF), fontSize = 14.sp)
-                                Text(
-                                    ipAddress,
-                                    color = Color(0xFF00E5FF),
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 13.sp
-                                )
-                            }
-
-                            HorizontalDivider(color = Color(0xFF222B3D))
-
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                Text("Ports", color = Color(0xFFEAF2FF), fontSize = 14.sp)
-                                Text(
-                                    "DSU ${dsuServer?.port ?: 26760} · Video 26761 · Audio 26762",
-                                    color = Color(0xFF9FB0C6),
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 13.sp
-                                )
-                                Text(
-                                    "Discovery broadcast on UDP 26763",
-                                    color = Color(0xFF9FB0C6),
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 13.sp
-                                )
-                            }
-                        }
-                    }
+                    } // end DISPLAY accordion
 
                     // --- AUDIO SECTION ---
-                    Text(
-                        text = "AUDIO",
-                        color = Color(0xFF00E5FF),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.2.sp
+                    SectionHeader(
+                        title = "AUDIO",
+                        expanded = expandedSection == "AUDIO",
+                        onToggle = { toggleSection("AUDIO") }
                     )
 
+                    if (expandedSection == "AUDIO") {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -545,16 +479,16 @@ fun MainScreen(
                             }
                         }
                     }
+                    } // end AUDIO accordion
 
                     // --- INPUT & HAPTICS SECTION ---
-                    Text(
-                        text = "INPUT & HAPTICS",
-                        color = Color(0xFF00E5FF),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.2.sp
+                    SectionHeader(
+                        title = "INPUT & HAPTICS",
+                        expanded = expandedSection == "INPUT",
+                        onToggle = { toggleSection("INPUT") }
                     )
 
+                    if (expandedSection == "INPUT") {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -734,6 +668,114 @@ fun MainScreen(
                             }
                         }
                     }
+                    } // end INPUT accordion
+
+                    // --- NETWORK SECTION (technical details), second to last ---
+                    SectionHeader(
+                        title = "NETWORK",
+                        expanded = expandedSection == "NETWORK",
+                        onToggle = { toggleSection("NETWORK") }
+                    )
+
+                    if (expandedSection == "NETWORK") {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF161D2B)),
+                        border = BorderStroke(1.dp, Color(0xFF222B3D))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Phone IP", color = Color(0xFFEAF2FF), fontSize = 14.sp)
+                                Text(
+                                    ipAddress,
+                                    color = Color(0xFF00E5FF),
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 13.sp
+                                )
+                            }
+
+                            HorizontalDivider(color = Color(0xFF222B3D))
+
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text("Ports", color = Color(0xFFEAF2FF), fontSize = 14.sp)
+                                Text(
+                                    "DSU ${dsuServer?.port ?: 26760} · Video 26761 · Audio 26762",
+                                    color = Color(0xFF9FB0C6),
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 13.sp
+                                )
+                                Text(
+                                    "Discovery broadcast on UDP 26763",
+                                    color = Color(0xFF9FB0C6),
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 13.sp
+                                )
+                            }
+                        }
+                    }
+                    } // end NETWORK accordion
+
+                    // --- DEBUG SECTION (remote troubleshooting bundle), always last ---
+                    SectionHeader(
+                        title = "DEBUG",
+                        expanded = expandedSection == "DEBUG",
+                        onToggle = { toggleSection("DEBUG") }
+                    )
+
+                    if (expandedSection == "DEBUG") {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF161D2B)),
+                        border = BorderStroke(1.dp, Color(0xFF222B3D))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Diagnostics overlay", color = Color(0xFFEAF2FF), fontSize = 14.sp)
+                                Switch(
+                                    checked = diagnosticsEnabled,
+                                    onCheckedChange = { enabled ->
+                                        diagnosticsEnabled = enabled
+                                        onDisplaySettingsChanged(currentSettings().copy(diagnosticsOverlayEnabled = enabled))
+                                    },
+                                    colors = switchColors
+                                )
+                            }
+
+                            HorizontalDivider(color = Color(0xFF222B3D))
+
+                            Text(
+                                "Sends the app log, a screenshot and device details " +
+                                    "for troubleshooting (e.g. black screen on a new device).",
+                                color = Color(0xFF9FB0C6),
+                                fontSize = 13.sp
+                            )
+                            OutlinedButton(
+                                onClick = { onExportDebug?.invoke() },
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF00E5FF)),
+                                border = BorderStroke(1.dp, Color(0xFF2A3446))
+                            ) {
+                                Text("Export debug bundle", fontSize = 13.sp)
+                            }
+                        }
+                    }
+                    } // end DEBUG accordion
                 }
             }
         }
@@ -1082,6 +1124,40 @@ private fun Modifier.edgeSwipeToOpen(
             state.tracking = false
             false
         }
+    }
+}
+
+/**
+ * Accordion section header for the drawer: tapping expands the section and
+ * collapses all others (single-expanded state lives in MainScreen).
+ */
+@Composable
+private fun SectionHeader(
+    title: String,
+    expanded: Boolean,
+    onToggle: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onToggle() }
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            color = Color(0xFF00E5FF),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.2.sp
+        )
+        Text(
+            text = if (expanded) "▾" else "▸",
+            color = Color(0xFF00E5FF),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 

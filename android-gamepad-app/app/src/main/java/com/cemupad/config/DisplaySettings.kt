@@ -25,6 +25,19 @@ enum class DisplayResolutionPreset(
         } else {
             16f / 9f
         }
+
+    fun resolveForDevice(screenWidthPx: Int, screenHeightPx: Int, bitrateMbps: Int): DisplayResolutionPreset {
+        if (this != DEVICE_AUTO) return this
+        val maxDim = maxOf(screenWidthPx, screenHeightPx)
+        val minDim = minOf(screenWidthPx, screenHeightPx)
+        return if (maxDim >= 1920 && minDim >= 1080 && bitrateMbps >= 12) {
+            FULL_HD_1920x1080
+        } else if (maxDim >= 1280 && minDim >= 720) {
+            HD_1280x720
+        } else {
+            NATIVE_854x480
+        }
+    }
 }
 
 data class DisplaySettings(

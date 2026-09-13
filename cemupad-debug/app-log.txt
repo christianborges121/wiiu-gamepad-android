@@ -1,0 +1,496 @@
+===== cemupad-log.txt =====
+09-13 18:07:50.832 I/Logger: File logging to /data/user/0/com.cemupad/files/logs
+09-13 18:07:50.854 I/DSUServer: DSU Server listening on 0.0.0.0:26760 (Server UID: 458047686)
+09-13 18:07:50.874 I/AudioStreamReceiver: AudioTrack initialized (48 kHz stereo, bufferSize=61504)
+09-13 18:07:50.876 I/AudioStreamReceiver: UDP audio receiver listening on port 26762
+09-13 18:07:50.877 I/UdpVideoReceiver: UDP video listening on 0.0.0.0:26761
+09-13 18:07:50.877 I/DiscoveryResponder: Responding to discovery probes on UDP 26763
+09-13 18:07:50.879 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:07:50.880 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:07:50.881 I/MainActivity: Connecting to Cemu video stream at 192.168.50.104:26761
+09-13 18:07:50.882 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:07:50.883 I/VideoStreamClient: Connecting to Cemu video stream at 192.168.50.104:26761...
+09-13 18:07:50.886 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:07:50.884 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:07:50.889 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:07:50.900 I/MicBlowDetector: Mic blow detector recording active
+09-13 18:07:51.268 I/VideoDecoder: MediaCodec AVC hardware decoder initialized (854 x 480)
+09-13 18:07:52.894 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:07:52.896 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:07:52.896 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:07:52.897 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:07:52.897 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:07:52.899 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:07:54.903 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:07:54.905 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:07:54.906 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:07:54.907 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:07:54.908 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:07:54.911 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:07:55.890 W/VideoStreamClient: Video stream error/disconnect: failed to connect to /192.168.50.104 (port 26761) from /192.168.50.130 (port 44548) after 5000ms. Retrying in 1.5s...
+09-13 18:07:55.891 W/MainActivity: Video stream error: failed to connect to /192.168.50.104 (port 26761) from /192.168.50.130 (port 44548) after 5000ms
+09-13 18:07:55.891 I/MainActivity: Video stream disconnected
+09-13 18:07:56.915 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:07:56.917 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:07:56.918 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:07:56.919 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:07:56.920 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:07:56.922 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:07:57.393 I/VideoStreamClient: Connecting to Cemu video stream at 192.168.50.104:26761...
+09-13 18:07:58.927 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:07:58.929 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:07:58.931 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:07:58.931 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:07:58.932 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:07:58.936 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:00.941 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:00.943 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:00.946 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:00.946 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:00.947 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:00.950 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:02.402 W/VideoStreamClient: Video stream error/disconnect: failed to connect to /192.168.50.104 (port 26761) from /192.168.50.130 (port 51708) after 5000ms. Retrying in 1.5s...
+09-13 18:08:02.403 W/MainActivity: Video stream error: failed to connect to /192.168.50.104 (port 26761) from /192.168.50.130 (port 51708) after 5000ms
+09-13 18:08:02.403 I/MainActivity: Video stream disconnected
+09-13 18:08:02.954 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:02.955 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:02.956 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:02.956 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:02.957 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:02.959 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:03.904 I/VideoStreamClient: Connecting to Cemu video stream at 192.168.50.104:26761...
+09-13 18:08:04.963 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:04.965 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:04.966 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:04.966 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:04.966 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:04.970 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:06.976 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:06.978 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:06.980 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:06.980 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:06.980 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:06.984 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:08.909 W/VideoStreamClient: Video stream error/disconnect: failed to connect to /192.168.50.104 (port 26761) from /192.168.50.130 (port 51714) after 5000ms. Retrying in 1.5s...
+09-13 18:08:08.912 W/MainActivity: Video stream error: failed to connect to /192.168.50.104 (port 26761) from /192.168.50.130 (port 51714) after 5000ms
+09-13 18:08:08.912 I/MainActivity: Video stream disconnected
+09-13 18:08:08.989 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:08.990 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:08.992 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:08.992 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:08.994 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:08.998 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:10.414 I/VideoStreamClient: Connecting to Cemu video stream at 192.168.50.104:26761...
+09-13 18:08:11.005 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:11.007 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:11.008 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:11.008 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:11.011 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:11.015 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:13.023 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:13.027 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:13.029 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:13.031 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:13.033 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:13.038 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:15.043 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:15.045 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:15.046 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:15.047 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:15.047 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:15.048 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:15.423 W/VideoStreamClient: Video stream error/disconnect: failed to connect to /192.168.50.104 (port 26761) from /192.168.50.130 (port 49618) after 5000ms. Retrying in 1.5s...
+09-13 18:08:15.425 W/MainActivity: Video stream error: failed to connect to /192.168.50.104 (port 26761) from /192.168.50.130 (port 49618) after 5000ms
+09-13 18:08:15.426 I/MainActivity: Video stream disconnected
+09-13 18:08:16.928 I/VideoStreamClient: Connecting to Cemu video stream at 192.168.50.104:26761...
+09-13 18:08:17.054 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:17.056 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:17.059 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:17.060 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:17.062 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:17.066 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:19.073 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:19.076 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:19.079 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:19.079 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:19.080 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:19.082 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:19.296 I/DSUServer: New Cemu client subscribed: /192.168.50.104:51113
+09-13 18:08:19.300 I/MainActivity: Connecting to Cemu video stream at 192.168.50.104:26761
+09-13 18:08:19.302 I/VideoStreamClient: Connecting to Cemu video stream at 192.168.50.104:26761...
+09-13 18:08:21.086 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:21.086 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:21.086 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:21.086 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:21.087 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:21.087 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:21.136 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:21.934 I/MainActivity: Video stream disconnected
+09-13 18:08:21.934 I/VideoStreamClient: Video client loop terminated.
+09-13 18:08:23.141 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:23.142 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:23.142 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:23.142 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:23.143 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:23.143 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:23.181 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:23.183 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:24.306 W/VideoStreamClient: Video stream error/disconnect: failed to connect to /192.168.50.104 (port 26761) from /192.168.50.130 (port 46026) after 5000ms. Retrying in 1.5s...
+09-13 18:08:24.306 W/MainActivity: Video stream error: failed to connect to /192.168.50.104 (port 26761) from /192.168.50.130 (port 46026) after 5000ms
+09-13 18:08:24.307 I/MainActivity: Video stream disconnected
+09-13 18:08:25.186 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:25.187 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:25.187 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:25.188 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:25.187 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:25.188 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:25.227 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:25.228 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:25.807 I/VideoStreamClient: Connecting to Cemu video stream at 192.168.50.104:26761...
+09-13 18:08:27.231 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:27.231 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:27.232 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:27.232 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:27.233 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:27.234 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:27.276 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:27.276 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:29.280 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:29.281 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:29.281 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:29.281 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:29.282 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:29.283 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:29.323 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:29.325 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:30.813 W/VideoStreamClient: Video stream error/disconnect: failed to connect to /192.168.50.104 (port 26761) from /192.168.50.130 (port 37920) after 5000ms. Retrying in 1.5s...
+09-13 18:08:30.814 W/MainActivity: Video stream error: failed to connect to /192.168.50.104 (port 26761) from /192.168.50.130 (port 37920) after 5000ms
+09-13 18:08:30.814 I/MainActivity: Video stream disconnected
+09-13 18:08:31.328 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:31.329 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:31.329 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:31.329 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:31.329 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:31.329 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:31.372 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:31.373 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:32.315 I/VideoStreamClient: Connecting to Cemu video stream at 192.168.50.104:26761...
+09-13 18:08:33.377 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:33.377 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:33.377 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:33.378 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:33.379 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:33.379 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:33.420 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:33.421 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:35.424 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:35.424 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:35.425 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:35.425 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:35.426 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:35.426 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:35.467 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:35.468 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:37.320 W/VideoStreamClient: Video stream error/disconnect: failed to connect to /192.168.50.104 (port 26761) from /192.168.50.130 (port 37936) after 5000ms. Retrying in 1.5s...
+09-13 18:08:37.321 W/MainActivity: Video stream error: failed to connect to /192.168.50.104 (port 26761) from /192.168.50.130 (port 37936) after 5000ms
+09-13 18:08:37.321 I/MainActivity: Video stream disconnected
+09-13 18:08:37.471 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:37.472 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:37.474 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:37.475 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:37.476 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:37.478 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:37.515 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:38.822 I/VideoStreamClient: Connecting to Cemu video stream at 192.168.50.104:26761...
+09-13 18:08:39.519 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:39.520 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:39.520 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:39.520 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:39.521 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:39.522 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:39.566 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:39.567 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:41.571 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:41.571 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:41.571 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:41.572 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:41.572 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:41.572 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:41.615 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:41.617 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:43.620 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:43.621 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:43.621 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:43.621 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:43.622 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:43.623 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:43.661 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:43.668 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:43.828 W/VideoStreamClient: Video stream error/disconnect: failed to connect to /192.168.50.104 (port 26761) from /192.168.50.130 (port 56074) after 5000ms. Retrying in 1.5s...
+09-13 18:08:43.829 W/MainActivity: Video stream error: failed to connect to /192.168.50.104 (port 26761) from /192.168.50.130 (port 56074) after 5000ms
+09-13 18:08:43.829 I/MainActivity: Video stream disconnected
+09-13 18:08:45.331 I/VideoStreamClient: Connecting to Cemu video stream at 192.168.50.104:26761...
+09-13 18:08:45.672 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:45.672 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:45.673 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:45.673 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:45.674 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:45.675 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:45.709 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:45.710 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:47.713 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:47.714 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:47.714 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:47.714 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:47.715 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:47.715 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:47.759 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:47.761 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:49.764 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:49.765 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:49.765 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:49.765 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:49.765 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:49.766 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:49.807 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:49.810 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:50.338 W/VideoStreamClient: Video stream error/disconnect: failed to connect to /192.168.50.104 (port 26761) from /192.168.50.130 (port 56076) after 5000ms. Retrying in 1.5s...
+09-13 18:08:50.338 W/MainActivity: Video stream error: failed to connect to /192.168.50.104 (port 26761) from /192.168.50.130 (port 56076) after 5000ms
+09-13 18:08:50.338 I/MainActivity: Video stream disconnected
+09-13 18:08:51.814 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:51.815 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:51.815 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:51.815 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:51.817 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:51.817 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:51.839 I/VideoStreamClient: Connecting to Cemu video stream at 192.168.50.104:26761...
+09-13 18:08:51.853 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:51.854 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:53.857 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:53.857 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:53.857 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:53.858 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:53.858 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:53.858 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:53.914 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:53.915 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:55.919 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:55.920 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:55.920 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:55.920 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:55.921 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:55.922 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:55.950 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:56.845 W/VideoStreamClient: Video stream error/disconnect: failed to connect to /192.168.50.104 (port 26761) from /192.168.50.130 (port 38104) after 5000ms. Retrying in 1.5s...
+09-13 18:08:56.846 W/MainActivity: Video stream error: failed to connect to /192.168.50.104 (port 26761) from /192.168.50.130 (port 38104) after 5000ms
+09-13 18:08:56.846 I/MainActivity: Video stream disconnected
+09-13 18:08:57.955 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:57.955 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:57.955 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:08:57.955 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:08:57.957 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:57.957 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:08:57.999 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:58.001 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:08:58.346 I/VideoStreamClient: Connecting to Cemu video stream at 192.168.50.104:26761...
+09-13 18:09:00.009 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:09:00.010 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:09:00.010 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:09:00.011 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:09:00.012 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:09:00.012 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:09:01.403 I/VideoStreamClient: Session authenticated with Cemu
+09-13 18:09:01.403 I/VideoStreamClient: Connected to Cemu video server at 192.168.50.104:26761
+09-13 18:09:01.404 I/MainActivity: Video stream connected to 192.168.50.104:26761
+09-13 18:09:01.406 I/VideoStreamClient: Sent TRANSPORT_UDP to Cemu video server
+09-13 18:09:01.406 I/VideoStreamClient: Sent SET_BITRATE=12000000 to Cemu video server
+09-13 18:09:01.407 I/VideoStreamClient: Sent IDR_REQUEST to Cemu video server
+09-13 18:09:01.407 I/VideoStreamClient: Sent IDR_REQUEST to Cemu video server
+09-13 18:09:01.433 I/MicVoiceStreamer: Voice streaming started at 32 kHz -> 192.168.50.104:26764
+09-13 18:09:01.776 I/AudioStreamReceiver: Audio packet received (count=1, payloadLen=1152)
+09-13 18:09:03.502 W/UdpVideoReceiver: No complete UDP frame for 2000ms (rx=0 malformed=0 done=0 dropped=0 lost=0)
+09-13 18:09:03.502 W/MainActivity: UDP video silent, falling back to TCP
+09-13 18:09:03.503 I/VideoStreamClient: Sent TRANSPORT_TCP to Cemu video server
+09-13 18:09:04.758 I/AudioStreamReceiver: Audio packet received (count=501, payloadLen=1152)
+09-13 18:09:05.881 I/MainActivity: Discovery stale; clearing found-Cemu card
+09-13 18:09:07.760 I/AudioStreamReceiver: Audio packet received (count=1001, payloadLen=1152)
+09-13 18:09:10.759 I/AudioStreamReceiver: Audio packet received (count=1501, payloadLen=1152)
+09-13 18:09:13.761 I/AudioStreamReceiver: Audio packet received (count=2001, payloadLen=1152)
+09-13 18:09:16.424 W/VideoStreamClient: Video stream error/disconnect: Read timed out. Retrying in 1.5s...
+09-13 18:09:16.425 W/MainActivity: Video stream error: Read timed out
+09-13 18:09:16.425 I/MainActivity: Video stream disconnected
+09-13 18:09:16.427 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:09:16.427 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:09:16.429 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:09:16.429 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:09:16.430 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:09:16.432 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:09:16.533 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:09:16.535 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:09:17.926 I/VideoStreamClient: Connecting to Cemu video stream at 192.168.50.104:26761...
+09-13 18:09:17.944 I/VideoStreamClient: Session authenticated with Cemu
+09-13 18:09:17.944 I/VideoStreamClient: Connected to Cemu video server at 192.168.50.104:26761
+09-13 18:09:17.944 I/MainActivity: Video stream connected to 192.168.50.104:26761
+09-13 18:09:17.946 I/VideoStreamClient: Sent TRANSPORT_UDP to Cemu video server
+09-13 18:09:17.946 I/VideoStreamClient: Sent SET_BITRATE=12000000 to Cemu video server
+09-13 18:09:17.946 I/VideoStreamClient: Sent IDR_REQUEST to Cemu video server
+09-13 18:09:17.947 I/VideoStreamClient: Sent IDR_REQUEST to Cemu video server
+09-13 18:09:17.973 I/MicVoiceStreamer: Voice streaming started at 32 kHz -> 192.168.50.104:26764
+09-13 18:09:18.272 I/AudioStreamReceiver: Audio packet received (count=2501, payloadLen=1152)
+09-13 18:09:20.026 W/UdpVideoReceiver: No complete UDP frame for 2000ms (rx=0 malformed=0 done=0 dropped=0 lost=0)
+09-13 18:09:20.027 W/MainActivity: UDP video silent, falling back to TCP
+09-13 18:09:20.027 I/VideoStreamClient: Sent TRANSPORT_TCP to Cemu video server
+09-13 18:09:21.272 I/AudioStreamReceiver: Audio packet received (count=3001, payloadLen=1152)
+09-13 18:09:21.328 I/ControllerDetector: Name match 'kishi': Razer Kishi
+09-13 18:09:24.272 I/AudioStreamReceiver: Audio packet received (count=3501, payloadLen=1152)
+09-13 18:09:25.883 I/MainActivity: Discovery stale; clearing found-Cemu card
+09-13 18:09:27.273 I/AudioStreamReceiver: Audio packet received (count=4001, payloadLen=1152)
+09-13 18:09:30.271 I/AudioStreamReceiver: Audio packet received (count=4501, payloadLen=1152)
+09-13 18:09:32.947 W/VideoStreamClient: Video stream error/disconnect: Read timed out. Retrying in 1.5s...
+09-13 18:09:32.947 W/MainActivity: Video stream error: Read timed out
+09-13 18:09:32.948 I/MainActivity: Video stream disconnected
+09-13 18:09:32.949 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:09:32.949 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:09:32.950 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:09:32.950 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:09:32.951 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:09:32.952 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:09:33.020 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:09:33.025 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:09:34.448 I/VideoStreamClient: Connecting to Cemu video stream at 192.168.50.104:26761...
+09-13 18:09:34.473 I/VideoStreamClient: Session authenticated with Cemu
+09-13 18:09:34.474 I/VideoStreamClient: Connected to Cemu video server at 192.168.50.104:26761
+09-13 18:09:34.474 I/MainActivity: Video stream connected to 192.168.50.104:26761
+09-13 18:09:34.476 I/VideoStreamClient: Sent TRANSPORT_UDP to Cemu video server
+09-13 18:09:34.476 I/VideoStreamClient: Sent SET_BITRATE=12000000 to Cemu video server
+09-13 18:09:34.477 I/VideoStreamClient: Sent IDR_REQUEST to Cemu video server
+09-13 18:09:34.477 I/VideoStreamClient: Sent IDR_REQUEST to Cemu video server
+09-13 18:09:34.494 I/MicVoiceStreamer: Voice streaming started at 32 kHz -> 192.168.50.104:26764
+09-13 18:09:34.784 I/AudioStreamReceiver: Audio packet received (count=5001, payloadLen=1152)
+09-13 18:09:36.551 W/UdpVideoReceiver: No complete UDP frame for 2000ms (rx=0 malformed=0 done=0 dropped=0 lost=0)
+09-13 18:09:36.553 W/MainActivity: UDP video silent, falling back to TCP
+09-13 18:09:36.555 I/VideoStreamClient: Sent TRANSPORT_TCP to Cemu video server
+09-13 18:09:37.784 I/AudioStreamReceiver: Audio packet received (count=5501, payloadLen=1152)
+09-13 18:09:40.784 I/AudioStreamReceiver: Audio packet received (count=6001, payloadLen=1152)
+09-13 18:09:40.886 I/MainActivity: Discovery stale; clearing found-Cemu card
+09-13 18:09:43.785 I/AudioStreamReceiver: Audio packet received (count=6501, payloadLen=1152)
+09-13 18:09:46.784 I/AudioStreamReceiver: Audio packet received (count=7001, payloadLen=1152)
+09-13 18:09:49.233 I/MicVoiceStreamer: Voice streaming started at 32 kHz -> 192.168.50.104:26764
+09-13 18:09:49.492 W/VideoStreamClient: Video stream error/disconnect: Read timed out. Retrying in 1.5s...
+09-13 18:09:49.492 W/MainActivity: Video stream error: Read timed out
+09-13 18:09:49.493 I/MainActivity: Video stream disconnected
+09-13 18:09:49.494 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:09:49.494 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:09:49.495 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:09:49.495 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:09:49.497 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:09:49.499 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:09:49.630 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:09:50.994 I/VideoStreamClient: Connecting to Cemu video stream at 192.168.50.104:26761...
+09-13 18:09:51.008 I/VideoStreamClient: Session authenticated with Cemu
+09-13 18:09:51.008 I/VideoStreamClient: Connected to Cemu video server at 192.168.50.104:26761
+09-13 18:09:51.008 I/MainActivity: Video stream connected to 192.168.50.104:26761
+09-13 18:09:51.009 I/VideoStreamClient: Sent TRANSPORT_UDP to Cemu video server
+09-13 18:09:51.009 I/VideoStreamClient: Sent SET_BITRATE=12000000 to Cemu video server
+09-13 18:09:51.010 I/VideoStreamClient: Sent IDR_REQUEST to Cemu video server
+09-13 18:09:51.010 I/VideoStreamClient: Sent IDR_REQUEST to Cemu video server
+09-13 18:09:51.034 I/MicVoiceStreamer: Voice streaming started at 32 kHz -> 192.168.50.104:26764
+09-13 18:09:51.286 I/AudioStreamReceiver: Audio packet received (count=7501, payloadLen=1152)
+09-13 18:09:53.080 W/UdpVideoReceiver: No complete UDP frame for 2000ms (rx=0 malformed=0 done=0 dropped=0 lost=0)
+09-13 18:09:53.080 W/MainActivity: UDP video silent, falling back to TCP
+09-13 18:09:53.081 I/VideoStreamClient: Sent TRANSPORT_TCP to Cemu video server
+09-13 18:09:54.286 I/AudioStreamReceiver: Audio packet received (count=8001, payloadLen=1152)
+09-13 18:09:57.285 I/AudioStreamReceiver: Audio packet received (count=8501, payloadLen=1152)
+09-13 18:10:00.286 I/AudioStreamReceiver: Audio packet received (count=9001, payloadLen=1152)
+09-13 18:10:00.891 I/MainActivity: Discovery stale; clearing found-Cemu card
+09-13 18:10:03.285 I/AudioStreamReceiver: Audio packet received (count=9501, payloadLen=1152)
+09-13 18:10:06.015 W/VideoStreamClient: Video stream error/disconnect: Read timed out. Retrying in 1.5s...
+09-13 18:10:06.016 W/MainActivity: Video stream error: Read timed out
+09-13 18:10:06.016 I/MainActivity: Video stream disconnected
+09-13 18:10:06.018 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:10:06.019 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:10:06.022 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:10:06.023 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:10:06.025 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:10:06.027 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:10:06.098 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:10:06.099 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:10:07.518 I/VideoStreamClient: Connecting to Cemu video stream at 192.168.50.104:26761...
+09-13 18:10:07.532 I/VideoStreamClient: Session authenticated with Cemu
+09-13 18:10:07.533 I/VideoStreamClient: Connected to Cemu video server at 192.168.50.104:26761
+09-13 18:10:07.533 I/MainActivity: Video stream connected to 192.168.50.104:26761
+09-13 18:10:07.534 I/VideoStreamClient: Sent TRANSPORT_UDP to Cemu video server
+09-13 18:10:07.535 I/VideoStreamClient: Sent SET_BITRATE=12000000 to Cemu video server
+09-13 18:10:07.536 I/VideoStreamClient: Sent IDR_REQUEST to Cemu video server
+09-13 18:10:07.536 I/VideoStreamClient: Sent IDR_REQUEST to Cemu video server
+09-13 18:10:07.553 I/MicVoiceStreamer: Voice streaming started at 32 kHz -> 192.168.50.104:26764
+09-13 18:10:07.786 I/AudioStreamReceiver: Audio packet received (count=10001, payloadLen=1152)
+09-13 18:10:09.609 W/UdpVideoReceiver: No complete UDP frame for 2000ms (rx=0 malformed=0 done=0 dropped=0 lost=0)
+09-13 18:10:09.610 W/MainActivity: UDP video silent, falling back to TCP
+09-13 18:10:09.610 I/VideoStreamClient: Sent TRANSPORT_TCP to Cemu video server
+09-13 18:10:10.786 I/AudioStreamReceiver: Audio packet received (count=10501, payloadLen=1152)
+09-13 18:10:13.786 I/AudioStreamReceiver: Audio packet received (count=11001, payloadLen=1152)
+09-13 18:10:15.894 I/MainActivity: Discovery stale; clearing found-Cemu card
+09-13 18:10:16.787 I/AudioStreamReceiver: Audio packet received (count=11501, payloadLen=1152)
+09-13 18:10:18.451 V/VideoStreamClient: Sent MIC_BLOW state=true to Cemu
+09-13 18:10:18.770 V/VideoStreamClient: Sent MIC_BLOW state=false to Cemu
+09-13 18:10:19.090 V/VideoStreamClient: Sent MIC_BLOW state=true to Cemu
+09-13 18:10:19.490 V/VideoStreamClient: Sent MIC_BLOW state=false to Cemu
+09-13 18:10:19.788 I/AudioStreamReceiver: Audio packet received (count=12001, payloadLen=1152)
+09-13 18:10:22.551 W/VideoStreamClient: Video stream error/disconnect: Read timed out. Retrying in 1.5s...
+09-13 18:10:22.551 W/MainActivity: Video stream error: Read timed out
+09-13 18:10:22.552 I/MainActivity: Video stream disconnected
+09-13 18:10:22.553 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:10:22.553 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:10:22.555 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:10:22.555 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:10:22.556 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:10:22.558 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:10:22.588 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:10:22.590 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:10:24.052 I/VideoStreamClient: Connecting to Cemu video stream at 192.168.50.104:26761...
+09-13 18:10:24.066 I/VideoStreamClient: Session authenticated with Cemu
+09-13 18:10:24.067 I/VideoStreamClient: Connected to Cemu video server at 192.168.50.104:26761
+09-13 18:10:24.067 I/MainActivity: Video stream connected to 192.168.50.104:26761
+09-13 18:10:24.067 I/VideoStreamClient: Sent TRANSPORT_UDP to Cemu video server
+09-13 18:10:24.068 I/VideoStreamClient: Sent SET_BITRATE=12000000 to Cemu video server
+09-13 18:10:24.068 I/VideoStreamClient: Sent IDR_REQUEST to Cemu video server
+09-13 18:10:24.068 I/VideoStreamClient: Sent IDR_REQUEST to Cemu video server
+09-13 18:10:24.093 I/MicVoiceStreamer: Voice streaming started at 32 kHz -> 192.168.50.104:26764
+09-13 18:10:24.299 I/AudioStreamReceiver: Audio packet received (count=12501, payloadLen=1152)
+09-13 18:10:26.136 W/UdpVideoReceiver: No complete UDP frame for 2000ms (rx=0 malformed=0 done=0 dropped=0 lost=0)
+09-13 18:10:26.137 W/MainActivity: UDP video silent, falling back to TCP
+09-13 18:10:26.137 I/VideoStreamClient: Sent TRANSPORT_TCP to Cemu video server
+09-13 18:10:27.300 I/AudioStreamReceiver: Audio packet received (count=13001, payloadLen=1152)
+09-13 18:10:30.302 I/AudioStreamReceiver: Audio packet received (count=13501, payloadLen=1152)
+09-13 18:10:30.895 I/MainActivity: Discovery stale; clearing found-Cemu card
+09-13 18:10:32.291 V/VideoStreamClient: Sent MIC_BLOW state=true to Cemu
+09-13 18:10:32.571 V/VideoStreamClient: Sent MIC_BLOW state=false to Cemu
+09-13 18:10:33.299 I/AudioStreamReceiver: Audio packet received (count=14001, payloadLen=1152)
+09-13 18:10:36.301 I/AudioStreamReceiver: Audio packet received (count=14501, payloadLen=1152)
+09-13 18:10:39.082 W/VideoStreamClient: Video stream error/disconnect: Read timed out. Retrying in 1.5s...
+09-13 18:10:39.082 W/MainActivity: Video stream error: Read timed out
+09-13 18:10:39.082 I/MainActivity: Video stream disconnected
+09-13 18:10:39.084 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:10:39.085 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:10:39.085 I/DiscoveryResponder: Answered discovery probe from 192.168.50.130
+09-13 18:10:39.086 I/MainActivity: Cemu discovery probe answered for 192.168.50.130
+09-13 18:10:39.086 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:10:39.087 V/DiscoveryClient: Ignoring non-PC discovery response from 192.168.50.130
+09-13 18:10:39.175 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:10:39.176 I/DiscoveryClient: Discovered Cemu at 192.168.50.104 (OnexBorges)
+09-13 18:10:40.584 I/VideoStreamClient: Connecting to Cemu video stream at 192.168.50.104:26761...
+09-13 18:10:40.596 I/VideoStreamClient: Session authenticated with Cemu
+09-13 18:10:40.596 I/VideoStreamClient: Connected to Cemu video server at 192.168.50.104:26761
+09-13 18:10:40.596 I/MainActivity: Video stream connected to 192.168.50.104:26761
+09-13 18:10:40.597 I/VideoStreamClient: Sent TRANSPORT_UDP to Cemu video server
+09-13 18:10:40.598 I/VideoStreamClient: Sent SET_BITRATE=12000000 to Cemu video server
+09-13 18:10:40.598 I/VideoStreamClient: Sent IDR_REQUEST to Cemu video server
+09-13 18:10:40.598 I/VideoStreamClient: Sent IDR_REQUEST to Cemu video server
+09-13 18:10:40.613 I/MicVoiceStreamer: Voice streaming started at 32 kHz -> 192.168.50.104:26764
+09-13 18:10:40.800 I/AudioStreamReceiver: Audio packet received (count=15001, payloadLen=1152)
+09-13 18:10:42.658 W/UdpVideoReceiver: No complete UDP frame for 2000ms (rx=0 malformed=0 done=0 dropped=0 lost=0)
+09-13 18:10:42.659 W/MainActivity: UDP video silent, falling back to TCP
+09-13 18:10:42.660 I/VideoStreamClient: Sent TRANSPORT_TCP to Cemu video server
+09-13 18:10:43.801 I/AudioStreamReceiver: Audio packet received (count=15501, payloadLen=1152)
+09-13 18:10:46.800 I/AudioStreamReceiver: Audio packet received (count=16001, payloadLen=1152)

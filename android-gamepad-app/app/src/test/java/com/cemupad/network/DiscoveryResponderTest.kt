@@ -20,7 +20,7 @@ class DiscoveryResponderTest {
     @Test
     fun testHereResponseFormat() {
         val response = DiscoveryResponder.buildHereResponse("Galaxy-S23-FE")
-        assertEquals("CEMUPAD_HERE:Galaxy-S23-FE:26760:26761:26762", response)
+        assertEquals("CEMUPAD_HERE:Galaxy-S23-FE:26760:26761:26762:phone", response)
     }
 
     @Test
@@ -31,8 +31,8 @@ class DiscoveryResponderTest {
         assertEquals("CemuPad", DiscoveryResponder.sanitizeDeviceName("   "))
         // Colons must never leak into the wire format (field separator)
         val response = DiscoveryResponder.buildHereResponse("A:B:C")
-        assertEquals(5, response.split(":").size)
-        assertEquals("CEMUPAD_HERE:A-B-C:26760:26761:26762", response)
+        assertEquals(6, response.split(":").size)
+        assertEquals("CEMUPAD_HERE:A-B-C:26760:26761:26762:phone", response)
     }
 
     @Test

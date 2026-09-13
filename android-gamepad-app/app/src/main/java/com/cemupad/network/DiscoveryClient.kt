@@ -16,7 +16,8 @@ data class DiscoveredServer(
     val hostname: String,
     val dsuPort: Int,
     val videoPort: Int,
-    val audioPort: Int
+    val audioPort: Int,
+    val isPhone: Boolean = false
 )
 
 /**
@@ -31,8 +32,28 @@ class DiscoveryClient(
         const val DISCOVERY_PORT = 26763
         private const val DISCOVER_MAGIC = "CEMUPAD_DISCOVER"
         private const val RESPONSE_PREFIX = "CEMUPAD_HERE:"
+        const val PHONE_MARKER = "phone"
         private const val BROADCAST_INTERVAL_MS = 2000L
         private const val SOCKET_TIMEOUT_MS = 1000
+
+        /**
+         * True when no discovery response has arrived within [timeoutMs].
+         * Pure function so the found-card expiry is unit-testable.
+         */
+        fun isStale(lastSeenMs: Long, nowMs: Long, timeoutMs: Long): Boolean {
+            return nowMs - lastSeenMs > timeoutMs
+        }
+
+        /**
+         * Whether a discovery response must be ignored: our own broadcasts
+         * looping back, or another phone answering (phones mark their replies
+         * with a trailing "phone" field). Pure function for unit tests.
+         */
+        fun shouldIgnoreResponse(senderIp: String, localIps: Set<String>, isPhone: Boolean): Boolean {
+            if (isPhone) return true
+            if (senderIp.isEmpty()) return true
+            return localIps.contains(senderIp)
+        }
     }
 
     private val isRunning = AtomicBoolean(false)
@@ -81,8 +102,17 @@ class DiscoveryClient(
                     if (text.startsWith(RESPONSE_PREFIX)) {
                         val senderIp = recvPacket.address.hostAddress ?: ""
                         parseResponse(senderIp, text)?.let { server ->
-                            Logger.i(TAG, "Discovered Cemu at ${server.ip} (${server.hostname})")
-                            onServerDiscovered(server)
+                            if (shouldIgnoreResponse(
+                                    senderIp,
+                                    com.cemupad.util.NetworkUtils.getLocalIpAddresses(),
+                                    server.isPhone
+                                )
+                            ) {
+                                Logger.v(TAG, "Ignoring non-PC discovery response from $senderIp")
+                            } else {
+                                Logger.i(TAG, "Discovered Cemu at ${server.ip} (${server.hostname})")
+                                onServerDiscovered(server)
+                            }
                         }
                     }
                 } catch (e: SocketTimeoutException) {
@@ -136,6 +166,7 @@ class DiscoveryClient(
         val dsuPort = parts[1].toIntOrNull() ?: 26760
         val videoPort = parts[2].toIntOrNull() ?: 26761
         val audioPort = parts[3].toIntOrNull() ?: 26762
-        return DiscoveredServer(senderIp, hostname, dsuPort, videoPort, audioPort)
+        val isPhone = parts.size > 4 && parts[4].equals(PHONE_MARKER, ignoreCase = true)
+        return DiscoveredServer(senderIp, hostname, dsuPort, videoPort, audioPort, isPhone)
     }
 }

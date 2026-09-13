@@ -8,6 +8,12 @@ import java.net.NetworkInterface
  */
 object NetworkUtils {
     fun getLocalIpAddress(): String {
+        return getLocalIpAddresses().firstOrNull() ?: "127.0.0.1"
+    }
+
+    /** All local IPv4 addresses (Wi-Fi, tethering, etc.), excluding loopback. */
+    fun getLocalIpAddresses(): Set<String> {
+        val result = mutableSetOf<String>()
         try {
             val interfaces = NetworkInterface.getNetworkInterfaces()
             while (interfaces.hasMoreElements()) {
@@ -17,11 +23,11 @@ object NetworkUtils {
                 while (addresses.hasMoreElements()) {
                     val addr = addresses.nextElement()
                     if (addr is Inet4Address && !addr.isLoopbackAddress) {
-                        return addr.hostAddress ?: "Unknown"
+                        addr.hostAddress?.let { result.add(it) }
                     }
                 }
             }
         } catch (_: Exception) {}
-        return "127.0.0.1"
+        return result
     }
 }
