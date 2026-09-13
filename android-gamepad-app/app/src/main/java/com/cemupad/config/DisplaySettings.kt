@@ -32,7 +32,12 @@ data class DisplaySettings(
     val resolutionPreset: DisplayResolutionPreset = DisplayResolutionPreset.NATIVE_854x480,
     val diagnosticsOverlayEnabled: Boolean = false,
     val showConnectionHelp: Boolean = true,
-    val limitTo30Fps: Boolean = true
+    val limitTo30Fps: Boolean = true,
+    val showVirtualControls: Boolean = false,
+    val virtualControlsOpacity: Float = 0.5f,
+    val audioEnabled: Boolean = true,
+    val audioVolume: Float = 1.0f,
+    val vibrationEnabled: Boolean = true
 )
 
 data class DisplayDimensions(val width: Float, val height: Float)

@@ -34,9 +34,11 @@ class VideoStreamClient(
         const val DEFAULT_PORT = 26761
         const val PACKET_TYPE_VIDEO = 0x01
         const val PACKET_TYPE_CONFIG = 0x02
+        const val PACKET_TYPE_RUMBLE = 0x03
         const val OPCODE_IDR_REQUEST = 0x10
         const val OPCODE_TRANSPORT_UDP = 0x11
         const val OPCODE_TRANSPORT_TCP = 0x12
+        const val OPCODE_MIC_BLOW = 0x13
         private const val CONNECT_TIMEOUT_MS = 5000
         private const val READ_TIMEOUT_MS = 15000
     }
@@ -50,6 +52,7 @@ class VideoStreamClient(
     var onConnected: (() -> Unit)? = null
     var onDisconnected: (() -> Unit)? = null
     var onError: ((Throwable) -> Unit)? = null
+    var onRumbleReceived: ((active: Boolean, intensity: Int, durationMs: Int) -> Unit)? = null
 
     val isConnected: Boolean
         get() = isRunning.get() && socket?.isConnected == true && socket?.isClosed == false
@@ -125,6 +128,31 @@ class VideoStreamClient(
         )
     }
 
+    /**
+     * Sends microphone blow state to Cemu.
+     */
+    fun sendMicBlow(isBlowing: Boolean) {
+        val out = synchronized(this) { outStream }
+        val executor = sendExecutor ?: return
+        if (executor.isShutdown) return
+        try {
+            executor.execute {
+                try {
+                    out?.let {
+                        it.writeByte(OPCODE_MIC_BLOW)
+                        it.writeByte(if (isBlowing) 1 else 0)
+                        it.flush()
+                        Logger.v(TAG, "Sent MIC_BLOW state=$isBlowing to Cemu")
+                    }
+                } catch (e: Exception) {
+                    Logger.w(TAG, "Failed to send MIC_BLOW: ${e.message}")
+                }
+            }
+        } catch (e: Exception) {
+            Logger.w(TAG, "Failed to dispatch MIC_BLOW: ${e.message}")
+        }
+    }
+
     private fun sendOpcode(opcode: Int, name: String) {
         val out = synchronized(this) { outStream }
         val executor = sendExecutor ?: return
@@ -186,8 +214,16 @@ class VideoStreamClient(
                             val payload = ByteArray(payloadSize)
                             inStream.readFully(payload)
 
-                            if (packetType == PACKET_TYPE_VIDEO) {
-                                onFrameReceived(payload, ptsUs)
+                            when (packetType) {
+                                PACKET_TYPE_VIDEO -> onFrameReceived(payload, ptsUs)
+                                PACKET_TYPE_RUMBLE -> {
+                                    if (payload.size >= 4) {
+                                        val active = payload[0] != 0.toByte()
+                                        val intensity = payload[1].toInt() and 0xFF
+                                        val durationMs = (payload[2].toInt() and 0xFF) or ((payload[3].toInt() and 0xFF) shl 8)
+                                        onRumbleReceived?.invoke(active, intensity, durationMs)
+                                    }
+                                }
                             }
                         } catch (e: SocketTimeoutException) {
                             if (idleControlMode) {

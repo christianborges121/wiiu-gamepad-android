@@ -22,6 +22,11 @@ class AppSettingsCodecTest {
         assertFalse(settings.diagnosticsOverlayEnabled)
         assertTrue(settings.showConnectionHelp)
         assertTrue(settings.limitTo30Fps)
+        assertFalse(settings.showVirtualControls)
+        assertEquals(0.5f, settings.virtualControlsOpacity, 0.001f)
+        assertTrue(settings.audioEnabled)
+        assertEquals(1.0f, settings.audioVolume, 0.001f)
+        assertTrue(settings.vibrationEnabled)
     }
 
     @Test
@@ -48,7 +53,12 @@ class AppSettingsCodecTest {
             resolutionPreset = DisplayResolutionPreset.FULL_HD_1920x1080,
             diagnosticsOverlayEnabled = true,
             showConnectionHelp = false,
-            limitTo30Fps = false
+            limitTo30Fps = false,
+            showVirtualControls = true,
+            virtualControlsOpacity = 0.85f,
+            audioEnabled = false,
+            audioVolume = 0.42f,
+            vibrationEnabled = false
         )
 
         val encoded = AppSettingsCodec.encode(original)
@@ -57,7 +67,12 @@ class AppSettingsCodecTest {
             resolutionName = encoded.resolutionName,
             diagnosticsOverlayEnabled = encoded.diagnosticsOverlayEnabled,
             connectionHelpVisible = encoded.connectionHelpVisible,
-            limitTo30Fps = encoded.limitTo30Fps
+            limitTo30Fps = encoded.limitTo30Fps,
+            showVirtualControls = encoded.showVirtualControls,
+            virtualControlsOpacity = encoded.virtualControlsOpacity,
+            audioEnabled = encoded.audioEnabled,
+            audioVolume = encoded.audioVolume,
+            vibrationEnabled = encoded.vibrationEnabled
         )
 
         assertEquals(original, restored)

@@ -6,6 +6,7 @@ import android.view.MotionEvent
 import androidx.annotation.VisibleForTesting
 import com.cemupad.dsu.DSUPacket
 import com.cemupad.dsu.DSUServer
+import kotlin.math.roundToInt
 
 /**
  * Handles physical gamepad events and updates the DSU server controller state.
@@ -40,6 +41,34 @@ class GamepadInputHandler(
     private var l2 = 0
     private var r2 = 0
 
+    fun setVirtualButton(keyCode: Int, isDown: Boolean) {
+        if (isDown) {
+            onKeyDown(keyCode)
+        } else {
+            onKeyUp(keyCode)
+        }
+    }
+
+    fun setVirtualStick(isLeftStick: Boolean, normX: Float, normY: Float) {
+        val mappedX = ((normX + 1f) * 127.5f).roundToInt().coerceIn(0, 255)
+        val mappedY = (((-normY) + 1f) * 127.5f).roundToInt().coerceIn(0, 255)
+
+        if (isLeftStick) {
+            lx = mappedX
+            ly = mappedY
+        } else {
+            rx = mappedX
+            ry = mappedY
+        }
+
+        dsuServer.updateState { state ->
+            state.lx = lx
+            state.ly = ly
+            state.rx = rx
+            state.ry = ry
+        }
+    }
+
     fun handleKeyEvent(event: KeyEvent): Boolean {
         return when (event.action) {
             KeyEvent.ACTION_DOWN -> onKeyDown(event.keyCode, event)
@@ -60,12 +89,16 @@ class GamepadInputHandler(
             KeyEvent.KEYCODE_DPAD_LEFT -> dpadKeyLeft = true
             KeyEvent.KEYCODE_DPAD_RIGHT -> dpadKeyRight = true
 
-            // Face buttons (mapped to Cemu DSU state2 layout)
-            // Cemu: Cross = A, Circle = B, Square = X, Triangle = Y
-            profile.keyA -> state2 = state2 or DSUPacket.State2Flags.CROSS_A
-            profile.keyB -> state2 = state2 or DSUPacket.State2Flags.CIRCLE_B
-            profile.keyX -> state2 = state2 or DSUPacket.State2Flags.SQUARE_X
-            profile.keyY -> state2 = state2 or DSUPacket.State2Flags.TRIANGLE_Y
+            // Face buttons (mapped to Cemu DSU state2 layout):
+            // Cemu controller0.xml maps:
+            // Wii U GamePad A (East) -> DSU Button 13 (Circle)
+            // Wii U GamePad B (South) -> DSU Button 14 (Cross)
+            // Wii U GamePad X (North) -> DSU Button 12 (Triangle)
+            // Wii U GamePad Y (West) -> DSU Button 15 (Square)
+            profile.keyA -> state2 = state2 or DSUPacket.State2Flags.CIRCLE_B
+            profile.keyB -> state2 = state2 or DSUPacket.State2Flags.CROSS_A
+            profile.keyX -> state2 = state2 or DSUPacket.State2Flags.TRIANGLE_Y
+            profile.keyY -> state2 = state2 or DSUPacket.State2Flags.SQUARE_X
 
             // Bumpers & Triggers
             profile.keyL -> state2 = state2 or DSUPacket.State2Flags.L
@@ -108,10 +141,10 @@ class GamepadInputHandler(
             KeyEvent.KEYCODE_DPAD_RIGHT -> dpadKeyRight = false
 
             // Face buttons
-            profile.keyA -> state2 = state2 and DSUPacket.State2Flags.CROSS_A.inv()
-            profile.keyB -> state2 = state2 and DSUPacket.State2Flags.CIRCLE_B.inv()
-            profile.keyX -> state2 = state2 and DSUPacket.State2Flags.SQUARE_X.inv()
-            profile.keyY -> state2 = state2 and DSUPacket.State2Flags.TRIANGLE_Y.inv()
+            profile.keyA -> state2 = state2 and DSUPacket.State2Flags.CIRCLE_B.inv()
+            profile.keyB -> state2 = state2 and DSUPacket.State2Flags.CROSS_A.inv()
+            profile.keyX -> state2 = state2 and DSUPacket.State2Flags.TRIANGLE_Y.inv()
+            profile.keyY -> state2 = state2 and DSUPacket.State2Flags.SQUARE_X.inv()
 
             // Bumpers & Triggers
             profile.keyL -> state2 = state2 and DSUPacket.State2Flags.L.inv()

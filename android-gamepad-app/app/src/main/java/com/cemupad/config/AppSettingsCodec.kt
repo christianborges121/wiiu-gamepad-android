@@ -11,13 +11,23 @@ object AppSettingsCodec {
     const val KEY_DIAGNOSTICS_OVERLAY = "diagnostics_overlay_enabled"
     const val KEY_CONNECTION_HELP = "connection_help_visible"
     const val KEY_LIMIT_30_FPS = "limit_to_30_fps"
+    const val KEY_VIRTUAL_CONTROLS = "show_virtual_controls"
+    const val KEY_VIRTUAL_CONTROLS_OPACITY = "virtual_controls_opacity"
+    const val KEY_AUDIO_ENABLED = "audio_enabled"
+    const val KEY_AUDIO_VOLUME = "audio_volume"
+    const val KEY_VIBRATION_ENABLED = "vibration_enabled"
 
     fun decode(
         fitModeName: String?,
         resolutionName: String?,
         diagnosticsOverlayEnabled: Boolean?,
         connectionHelpVisible: Boolean? = null,
-        limitTo30Fps: Boolean? = null
+        limitTo30Fps: Boolean? = null,
+        showVirtualControls: Boolean? = null,
+        virtualControlsOpacity: Float? = null,
+        audioEnabled: Boolean? = null,
+        audioVolume: Float? = null,
+        vibrationEnabled: Boolean? = null
     ): DisplaySettings {
         val fitMode = fitModeName
             ?.let { name -> DisplayFitMode.values().firstOrNull { it.name == name } }
@@ -30,7 +40,12 @@ object AppSettingsCodec {
             resolutionPreset = resolution,
             diagnosticsOverlayEnabled = diagnosticsOverlayEnabled ?: false,
             showConnectionHelp = connectionHelpVisible ?: true,
-            limitTo30Fps = limitTo30Fps ?: true
+            limitTo30Fps = limitTo30Fps ?: true,
+            showVirtualControls = showVirtualControls ?: false,
+            virtualControlsOpacity = virtualControlsOpacity ?: 0.5f,
+            audioEnabled = audioEnabled ?: true,
+            audioVolume = audioVolume ?: 1.0f,
+            vibrationEnabled = vibrationEnabled ?: true
         )
     }
 
@@ -40,7 +55,12 @@ object AppSettingsCodec {
             resolutionName = settings.resolutionPreset.name,
             diagnosticsOverlayEnabled = settings.diagnosticsOverlayEnabled,
             connectionHelpVisible = settings.showConnectionHelp,
-            limitTo30Fps = settings.limitTo30Fps
+            limitTo30Fps = settings.limitTo30Fps,
+            showVirtualControls = settings.showVirtualControls,
+            virtualControlsOpacity = settings.virtualControlsOpacity,
+            audioEnabled = settings.audioEnabled,
+            audioVolume = settings.audioVolume,
+            vibrationEnabled = settings.vibrationEnabled
         )
     }
 }
@@ -50,5 +70,10 @@ data class EncodedAppSettings(
     val resolutionName: String,
     val diagnosticsOverlayEnabled: Boolean,
     val connectionHelpVisible: Boolean,
-    val limitTo30Fps: Boolean
+    val limitTo30Fps: Boolean,
+    val showVirtualControls: Boolean,
+    val virtualControlsOpacity: Float,
+    val audioEnabled: Boolean,
+    val audioVolume: Float,
+    val vibrationEnabled: Boolean
 )

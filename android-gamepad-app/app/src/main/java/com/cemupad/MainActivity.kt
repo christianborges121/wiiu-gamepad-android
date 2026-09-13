@@ -21,12 +21,17 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.cemupad.audio.AudioStreamReceiver
+import com.cemupad.audio.MicBlowDetector
 import com.cemupad.config.AppSettingsCodec
 import com.cemupad.config.DisplaySettings
 import com.cemupad.dsu.DSUServer
 import com.cemupad.input.GamepadInputHandler
 import com.cemupad.input.MotionHandler
+import com.cemupad.input.RumbleHandler
 import com.cemupad.input.TouchInputHandler
+import com.cemupad.network.DiscoveryClient
+import com.cemupad.network.DiscoveredServer
 import com.cemupad.theme.CemuPadTheme
 import com.cemupad.ui.main.MainScreen
 import com.cemupad.util.Logger
@@ -48,6 +53,12 @@ class MainActivity : ComponentActivity() {
     private lateinit var gamepadHandler: GamepadInputHandler
     private lateinit var touchHandler: TouchInputHandler
     private lateinit var motionHandler: MotionHandler
+    private lateinit var rumbleHandler: RumbleHandler
+    private lateinit var micBlowDetector: MicBlowDetector
+
+    private var audioReceiver: AudioStreamReceiver? = null
+    private var discoveryClient: DiscoveryClient? = null
+    private val discoveredServer = mutableStateOf<DiscoveredServer?>(null)
 
     private var videoDecoder: VideoDecoder? = null
     private var videoClient: VideoStreamClient? = null
@@ -117,6 +128,31 @@ class MainActivity : ComponentActivity() {
                 prefs.getBoolean(AppSettingsCodec.KEY_LIMIT_30_FPS, true)
             } else {
                 null
+            },
+            showVirtualControls = if (prefs.contains(AppSettingsCodec.KEY_VIRTUAL_CONTROLS)) {
+                prefs.getBoolean(AppSettingsCodec.KEY_VIRTUAL_CONTROLS, false)
+            } else {
+                null
+            },
+            virtualControlsOpacity = if (prefs.contains(AppSettingsCodec.KEY_VIRTUAL_CONTROLS_OPACITY)) {
+                prefs.getFloat(AppSettingsCodec.KEY_VIRTUAL_CONTROLS_OPACITY, 0.5f)
+            } else {
+                null
+            },
+            audioEnabled = if (prefs.contains(AppSettingsCodec.KEY_AUDIO_ENABLED)) {
+                prefs.getBoolean(AppSettingsCodec.KEY_AUDIO_ENABLED, true)
+            } else {
+                null
+            },
+            audioVolume = if (prefs.contains(AppSettingsCodec.KEY_AUDIO_VOLUME)) {
+                prefs.getFloat(AppSettingsCodec.KEY_AUDIO_VOLUME, 1.0f)
+            } else {
+                null
+            },
+            vibrationEnabled = if (prefs.contains(AppSettingsCodec.KEY_VIBRATION_ENABLED)) {
+                prefs.getBoolean(AppSettingsCodec.KEY_VIBRATION_ENABLED, true)
+            } else {
+                null
             }
         )
 
@@ -127,11 +163,32 @@ class MainActivity : ComponentActivity() {
         }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        // Initialize DSU server and input handlers
+        // Initialize DSU server, haptics, mic, and input handlers
         dsuServer = DSUServer()
         gamepadHandler = GamepadInputHandler(dsuServer)
         touchHandler = TouchInputHandler(dsuServer)
         motionHandler = MotionHandler(this, dsuServer)
+        rumbleHandler = RumbleHandler(this).apply {
+            isEnabled = displaySettings.value.vibrationEnabled
+        }
+        micBlowDetector = MicBlowDetector(this) { isBlowing ->
+            videoClient?.sendMicBlow(isBlowing)
+        }
+
+        discoveryClient = DiscoveryClient { server ->
+            discoveredServer.value = server
+            if (lastKnownClientIp.isNullOrEmpty() && !isVideoStreaming.value) {
+                Logger.i("MainActivity", "Auto-connecting to discovered Cemu at ${server.ip}")
+                lastKnownClientIp = server.ip
+                getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                    .edit()
+                    .putString(PREF_LAST_CEMU_IP, server.ip)
+                    .apply()
+                runOnUiThread {
+                    startVideoStream(server.ip)
+                }
+            }
+        }
 
         // Hook automatic video stream connection when a Cemu client connects
         dsuServer.onClientConnected = { clientAddr ->
@@ -163,12 +220,28 @@ class MainActivity : ComponentActivity() {
                     MainScreen(
                         dsuServer = dsuServer,
                         touchHandler = touchHandler,
+                        gamepadHandler = gamepadHandler,
+                        discoveredServer = discoveredServer.value,
+                        onConnectToServer = { serverIp ->
+                            lastKnownClientIp = serverIp
+                            getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                                .edit()
+                                .putString(PREF_LAST_CEMU_IP, serverIp)
+                                .apply()
+                            startVideoStream(serverIp)
+                        },
+                        onMicBlowChanged = { isBlowing ->
+                            micBlowDetector.setManualBlow(isBlowing)
+                        },
                         isVideoStreaming = isVideoStreaming.value,
                         videoFps = videoFps.floatValue,
                         displaySettings = displaySettings.value,
                         onDisplaySettingsChanged = { newSettings ->
                             displaySettings.value = newSettings
                             videoDecoder?.maxFps = if (newSettings.limitTo30Fps) 30 else 60
+                            audioReceiver?.isMuted = !newSettings.audioEnabled
+                            audioReceiver?.volume = newSettings.audioVolume
+                            rumbleHandler.isEnabled = newSettings.vibrationEnabled
                             persistDisplaySettings(newSettings)
                         },
                         onSurfaceAvailable = { surface -> handleSurfaceAvailable(surface) },
@@ -184,6 +257,14 @@ class MainActivity : ComponentActivity() {
         acquireWifiLock()
         dsuServer.start()
         motionHandler.start()
+        micBlowDetector.start()
+        audioReceiver = AudioStreamReceiver().apply {
+            isMuted = !displaySettings.value.audioEnabled
+            volume = displaySettings.value.audioVolume
+            start()
+        }
+        rumbleHandler.isEnabled = displaySettings.value.vibrationEnabled
+        discoveryClient?.start()
         startUdpReceiver()
         watchdogHandler.postDelayed(watchdogRunnable, WATCHDOG_INTERVAL_MS)
     }
@@ -203,6 +284,11 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         watchdogHandler.removeCallbacks(watchdogRunnable)
+        discoveryClient?.stop()
+        micBlowDetector.stop()
+        audioReceiver?.stop()
+        audioReceiver = null
+        rumbleHandler.cancel()
         stopUdpReceiver()
         stopVideoStream()
         handleSurfaceDestroyed()
@@ -220,6 +306,11 @@ class MainActivity : ComponentActivity() {
             .putBoolean(AppSettingsCodec.KEY_DIAGNOSTICS_OVERLAY, encoded.diagnosticsOverlayEnabled)
             .putBoolean(AppSettingsCodec.KEY_CONNECTION_HELP, encoded.connectionHelpVisible)
             .putBoolean(AppSettingsCodec.KEY_LIMIT_30_FPS, encoded.limitTo30Fps)
+            .putBoolean(AppSettingsCodec.KEY_VIRTUAL_CONTROLS, encoded.showVirtualControls)
+            .putFloat(AppSettingsCodec.KEY_VIRTUAL_CONTROLS_OPACITY, encoded.virtualControlsOpacity)
+            .putBoolean(AppSettingsCodec.KEY_AUDIO_ENABLED, encoded.audioEnabled)
+            .putFloat(AppSettingsCodec.KEY_AUDIO_VOLUME, encoded.audioVolume)
+            .putBoolean(AppSettingsCodec.KEY_VIBRATION_ENABLED, encoded.vibrationEnabled)
             .apply()
     }
 
@@ -300,6 +391,7 @@ class MainActivity : ComponentActivity() {
             onConnected = {
                 Logger.i("MainActivity", "Video stream connected to $host:26761")
                 isVideoStreaming.value = true
+                discoveryClient?.stop()
                 udpReceiver?.resetStream()
                 idleControlMode = true
                 requestTransport(true)
@@ -308,6 +400,15 @@ class MainActivity : ComponentActivity() {
                 Logger.i("MainActivity", "Video stream disconnected")
                 isVideoStreaming.value = false
                 idleControlMode = false
+                rumbleHandler.cancel()
+                discoveryClient?.start()
+            }
+            onRumbleReceived = { active, intensity, durationMs ->
+                if (active) {
+                    rumbleHandler.rumble(intensity, durationMs.toLong())
+                } else {
+                    rumbleHandler.cancel()
+                }
             }
             onError = { err ->
                 Logger.w("MainActivity", "Video stream error: ${err.message}")
@@ -321,6 +422,7 @@ class MainActivity : ComponentActivity() {
         videoClient?.idleControlMode = false
         videoClient?.stop()
         videoClient = null
+        rumbleHandler.cancel()
         isVideoStreaming.value = false
         videoFps.floatValue = 0f
     }

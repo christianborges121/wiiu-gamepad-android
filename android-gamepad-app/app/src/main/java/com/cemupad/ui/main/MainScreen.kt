@@ -20,21 +20,29 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import com.cemupad.input.GamepadInputHandler
+import com.cemupad.network.DiscoveredServer
+import com.cemupad.ui.controls.VirtualButton
+import com.cemupad.ui.controls.VirtualGamePadOverlay
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -70,6 +78,10 @@ import kotlinx.coroutines.launch
 fun MainScreen(
     dsuServer: DSUServer?,
     touchHandler: TouchInputHandler?,
+    gamepadHandler: GamepadInputHandler? = null,
+    discoveredServer: DiscoveredServer? = null,
+    onConnectToServer: ((String) -> Unit)? = null,
+    onMicBlowChanged: ((Boolean) -> Unit)? = null,
     isVideoStreaming: Boolean = false,
     videoFps: Float = 0f,
     displaySettings: DisplaySettings = DisplaySettings(),
@@ -85,6 +97,11 @@ fun MainScreen(
     var diagnosticsEnabled by remember { mutableStateOf(displaySettings.diagnosticsOverlayEnabled) }
     var showHelp by remember { mutableStateOf(displaySettings.showConnectionHelp) }
     var limitFps by remember { mutableStateOf(displaySettings.limitTo30Fps) }
+    var showVirtualControls by remember { mutableStateOf(displaySettings.showVirtualControls) }
+    var virtualControlsOpacity by remember { mutableFloatStateOf(displaySettings.virtualControlsOpacity) }
+    var audioEnabled by remember { mutableStateOf(displaySettings.audioEnabled) }
+    var audioVolume by remember { mutableFloatStateOf(displaySettings.audioVolume) }
+    var vibrationEnabled by remember { mutableStateOf(displaySettings.vibrationEnabled) }
     var selectedFitMode by remember { mutableStateOf(displaySettings.fitMode) }
     var selectedResolution by remember { mutableStateOf(displaySettings.resolutionPreset) }
     var showFitMenu by remember { mutableStateOf(false) }
@@ -98,6 +115,11 @@ fun MainScreen(
         diagnosticsEnabled = displaySettings.diagnosticsOverlayEnabled
         showHelp = displaySettings.showConnectionHelp
         limitFps = displaySettings.limitTo30Fps
+        showVirtualControls = displaySettings.showVirtualControls
+        virtualControlsOpacity = displaySettings.virtualControlsOpacity
+        audioEnabled = displaySettings.audioEnabled
+        audioVolume = displaySettings.audioVolume
+        vibrationEnabled = displaySettings.vibrationEnabled
     }
 
     fun currentSettings() = DisplaySettings(
@@ -105,7 +127,12 @@ fun MainScreen(
         resolutionPreset = selectedResolution,
         diagnosticsOverlayEnabled = diagnosticsEnabled,
         showConnectionHelp = showHelp,
-        limitTo30Fps = limitFps
+        limitTo30Fps = limitFps,
+        showVirtualControls = showVirtualControls,
+        virtualControlsOpacity = virtualControlsOpacity,
+        audioEnabled = audioEnabled,
+        audioVolume = audioVolume,
+        vibrationEnabled = vibrationEnabled
     )
 
     LaunchedEffect(dsuServer) {
@@ -231,6 +258,109 @@ fun MainScreen(
                         fontSize = 12.sp,
                         lineHeight = 18.sp
                     )
+
+                    HorizontalDivider(color = Color(0xFF2A3348))
+
+                    // --- Audio Settings ---
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("GamePad audio", color = Color.White, fontSize = 16.sp)
+                            Text("Stream 48 kHz GamePad speaker audio", color = Color(0xFF9FB0C6), fontSize = 12.sp)
+                        }
+                        Switch(
+                            checked = audioEnabled,
+                            onCheckedChange = {
+                                audioEnabled = it
+                                onDisplaySettingsChanged(currentSettings().copy(audioEnabled = it))
+                            }
+                        )
+                    }
+
+                    if (audioEnabled) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Volume", color = Color(0xFFEAF2FF), fontSize = 14.sp)
+                                Text("${(audioVolume * 100).toInt()}%", color = Color(0xFF9FB0C6), fontSize = 14.sp)
+                            }
+                            Slider(
+                                value = audioVolume,
+                                onValueChange = {
+                                    audioVolume = it
+                                    onDisplaySettingsChanged(currentSettings().copy(audioVolume = it))
+                                },
+                                valueRange = 0f..1f
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(color = Color(0xFF2A3348))
+
+                    // --- Haptics Settings ---
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("Vibration & rumble", color = Color.White, fontSize = 16.sp)
+                            Text("Haptic rumble on phone & gamepads", color = Color(0xFF9FB0C6), fontSize = 12.sp)
+                        }
+                        Switch(
+                            checked = vibrationEnabled,
+                            onCheckedChange = {
+                                vibrationEnabled = it
+                                onDisplaySettingsChanged(currentSettings().copy(vibrationEnabled = it))
+                            }
+                        )
+                    }
+
+                    HorizontalDivider(color = Color(0xFF2A3348))
+
+                    // --- Virtual Controls Settings ---
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("Virtual controls", color = Color.White, fontSize = 16.sp)
+                            Text("On-screen buttons for handheld play", color = Color(0xFF9FB0C6), fontSize = 12.sp)
+                        }
+                        Switch(
+                            checked = showVirtualControls,
+                            onCheckedChange = {
+                                showVirtualControls = it
+                                onDisplaySettingsChanged(currentSettings().copy(showVirtualControls = it))
+                            }
+                        )
+                    }
+
+                    if (showVirtualControls) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Controls opacity", color = Color(0xFFEAF2FF), fontSize = 14.sp)
+                                Text("${(virtualControlsOpacity * 100).toInt()}%", color = Color(0xFF9FB0C6), fontSize = 14.sp)
+                            }
+                            Slider(
+                                value = virtualControlsOpacity,
+                                onValueChange = {
+                                    virtualControlsOpacity = it
+                                    onDisplaySettingsChanged(currentSettings().copy(virtualControlsOpacity = it))
+                                },
+                                valueRange = 0.15f..1.0f
+                            )
+                        }
+                    }
 
                     Box(modifier = Modifier.fillMaxWidth()) {
                         TextButton(
@@ -476,8 +606,66 @@ fun MainScreen(
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()
                             )
+
+                            if (discoveredServer != null) {
+                                Card(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF16253B)),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(12.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(
+                                            text = "🟢 Cemu Found on Network!",
+                                            color = Color(0xFF00E5FF),
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp
+                                        )
+                                        Text(
+                                            text = "${discoveredServer.hostname} (${discoveredServer.ip})",
+                                            color = Color.White,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontSize = 13.sp
+                                        )
+                                        Button(
+                                            onClick = { onConnectToServer?.invoke(discoveredServer.ip) },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF))
+                                        ) {
+                                            Text("Connect to Cemu", color = Color.Black, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
+                }
+            }
+
+            // Virtual GamePad Overlay
+            if (showVirtualControls && gamepadHandler != null) {
+                VirtualGamePadOverlay(
+                    gamepadHandler = gamepadHandler,
+                    onMicBlowChanged = { blowing -> onMicBlowChanged?.invoke(blowing) },
+                    opacity = virtualControlsOpacity,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else if (isVideoStreaming) {
+                // Floating quick-blow button when virtual controls are hidden
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(16.dp)
+                ) {
+                    VirtualButton(
+                        label = "MIC",
+                        onPressChanged = { down -> onMicBlowChanged?.invoke(down) },
+                        width = 48,
+                        height = 48,
+                        activeColor = Color(0xFF00E5FF)
+                    )
                 }
             }
         }

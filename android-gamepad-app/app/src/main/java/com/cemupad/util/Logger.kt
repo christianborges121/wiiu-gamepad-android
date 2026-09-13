@@ -7,6 +7,22 @@ import android.util.Log
  * and falls back cleanly to standard streams when running under plain JVM unit tests.
  */
 object Logger {
+    fun d(tag: String, msg: String) {
+        try {
+            Log.d(tag, msg)
+        } catch (_: Throwable) {
+            println("[$tag] DEBUG: $msg")
+        }
+    }
+
+    fun v(tag: String, msg: String) {
+        try {
+            Log.v(tag, msg)
+        } catch (_: Throwable) {
+            println("[$tag] VERBOSE: $msg")
+        }
+    }
+
     fun i(tag: String, msg: String) {
         try {
             Log.i(tag, msg)
