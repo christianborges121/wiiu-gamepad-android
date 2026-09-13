@@ -19,6 +19,7 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+          cache: 'gradle'
 
       - name: Grant execute permission for gradlew
         run: chmod +x android-gamepad-app/gradlew
@@ -39,28 +40,3 @@ jobs:
         with:
           name: CemuPad-Android-Release
           path: android-gamepad-app/app/build/outputs/apk/release/*.apk
-
-  build-cemu:
-    name: Build Cemu Windows x64
-    runs-on: windows-2022
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Set up MSVC & CMake
-        uses: ilammy/msvc-dev-cmd@v1
-
-      - name: Configure CMake
-        run: |
-          cmake -B Cemu/build -S Cemu -DCMAKE_BUILD_TYPE=Release
-
-      - name: Build Cemu Target
-        run: |
-          cmake --build Cemu/build --config Release --target CemuBin
-
-      - name: Upload Cemu Executable
-        uses: actions/upload-artifact@v4
-        with:
-          name: Cemu-Streaming-Windows-x64
-          path: Cemu/bin/Cemu_release.exe
