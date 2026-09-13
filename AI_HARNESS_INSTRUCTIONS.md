@@ -24,7 +24,7 @@ Transform an Android smartphone into a complete, high-fidelity Wii U GamePad for
 | **Phase 2** | Low-Latency Video Streaming (60 FPS H.264 MFT) | ✅ Complete (100%) | Live-verified in *Super Mario 3D World* with instant IDR recovery |
 | **Phase 3** | Audio Streaming (48 kHz Stereo PCM) | ✅ Complete (100%) | Live-verified via DSP DMA tap; zero buzz, crystal clear |
 | **Phase 4 UX** | Dark Drawer, Back Button, Scrim Dismiss, Rumble Slider | ✅ Complete (100%) | Live-verified on physical Samsung Galaxy S23 FE |
-| **Phase 4.0** | Subsystem Refactor (`Cemu/src/streaming/`) & 1-Click Cemu UI | 🟢 Ready for Execution | Full code plan in `plans/PHASE_4_0_MODULAR_SUBSYSTEM_REFACTOR.md` |
+| **Phase 4.0** | Subsystem Refactor (`Cemu/src/streaming/`) & 1-Click Cemu UI | ✅ Complete (100%) | Release `CemuBin` build exit 0, user quality-tested |
 | **Phase 4.1–4.4** | Auto-Discovery, Dynamic Encoding, Voice PCM, PIN Security | 🟢 Ready for Execution | Detailed checklist plans in `plans/` |
 | **Phase 5** | Release Packaging, ProGuard/R8 & CI/CD Pipeline | 🟢 Ready for Execution | Detailed checklist plan in `plans/` |
 

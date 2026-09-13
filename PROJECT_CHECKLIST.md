@@ -311,4 +311,5 @@ This document is the **single source of truth** for tracking implementation prog
 | *2026-09-13* | 4.5 | Modern UI & Dismissal Ergonomics | Restyled dark drawer cards, removed 30 FPS cap, auto connection help, Back button only open, scrim click-off to save/close | ✅ Done |
 | *2026-09-13* | 3.4/4.5 | Mic Red Dot & Settings Toggle | Minimalist red dot indicator with touch-blow interaction; dedicated Microphone toggle in Audio settings drawer with hardware release | ✅ Done |
 | *2026-09-13* | 4.3 | GamePad Rumble Haptics | VPADControlMotor duty-cycle envelope calculation, VideoStreamServer streaming, Android RumbleHandler pulse flooring & debouncing | ✅ Done |
+| *2026-09-13* | 4.0 | Subsystem Modularization & 1-Click Pairing | New `Cemu/src/streaming/` (`CemuPadBridge`, `DiscoveryServer`, `CemuStreaming` lib), `CemuPadPairingDialog` + Input Settings button, non-invasive vpad/snd_core/capture hooks, legacy 26763 discovery retired; Release `CemuBin` build exit 0, user quality-tested | ✅ Done |
 

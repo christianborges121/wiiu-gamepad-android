@@ -1,8 +1,45 @@
 # Current harness handoff
 
-Last updated: 2026-09-13 08:33 (America/New_York)
+Last updated: 2026-09-13 (America/New_York) — Phase 4.0 implementation session
 
 Read this file first. Keep this file current at the end of every session so a new harness can resume without the prior chat.
+
+## Where we left off
+
+Phase 4.0 (Subsystem Modularization & 1-Click Pairing) is **implemented AND compile-verified
+(Release `CemuBin` build exit 0, zero warnings from new code, 2026-09-13)**.
+All Section 3 boxes + Section 4.1 in `plans/PHASE_4_0_MODULAR_SUBSYSTEM_REFACTOR.md` are `- [x]`.
+Everything is UNCOMMITTED per user request — user will quality-test (video/audio/rumble parity,
+pairing dialog) before any commit. Section 4.2–4.4 (deploy + live GUI/game verification) left open.
+
+## Just completed (this session)
+
+1. **Reviewed project + harness + all plans** (`AI_HARNESS_INSTRUCTIONS.md`, `plans/`, `PROJECT_CHECKLIST.md`).
+2. **Implemented Phase 4.0 Steps 3.1–3.5 in `Cemu/`** (nested git repo, uncommitted):
+   - NEW `src/streaming/CemuPadBridge.{h,cpp}` — callback-based delegate bridge (no-op when inactive, acyclic links).
+   - NEW `src/streaming/DiscoveryServer.{h,cpp}` — owns UDP 26763 (respond + track + probe).
+   - NEW `src/streaming/CMakeLists.txt` (`CemuStreaming` static lib); wired into `src/CMakeLists.txt` + `CemuBin` link.
+   - NEW `src/gui/wxgui/input/CemuPadPairingDialog.{h,cpp}` + registered in wxgui `CMakeLists.txt`.
+   - `InputSettings2.cpp`: "Auto-Discover CemuPad..." button → dialog → `update_state()` on OK.
+   - `vpad.cpp` / `ax_out.cpp`: additive 1-line `CemuPadBridge` delegate calls (existing paths preserved).
+   - `VideoStreamServer.{h,cpp}`: retired legacy 26763 discovery thread (sole owner is now DiscoveryServer).
+3. **Corrected two plan inaccuracies** (do NOT apply plan snippets literally):
+   - Plan's `AutoConfigureDSUController` misuses `ControllerFactory::CreateController(DSUClient, "ip:port")` — DSU uuid is a numeric slot index. Implementation correctly uses `DSUProviderSettings{ip,port}` + `make_shared<DSUController>(0, settings)` + explicit CemuPad DSU→VPAD mapping (upstream `set_default_mapping` has no DSU branch) + `InputManager::save(0)`.
+   - Plan's `refresh_controllers()` does not exist — implementation calls existing `update_state()`. Plan's `save_controller_profile(0)` does not exist — implementation calls `save(0)`.
+   - Media-file move (`VideoStreamServer`/`VideoEncoder`/`StreamingCapture` → `src/streaming/`) deliberately DEFERRED: moving without a verified build risks breakage + circular lib deps. New code is isolated; move is a documented follow-up.
+4. **Verified what was verifiable**: `gradlew testDebugUnitTest` → BUILD SUCCESSFUL (exit 0, Android untouched); full Cemu-side diff reviewed, no dangling discovery references.
+
+## Next Actionable Step (in order)
+
+1. USER quality testing (no commit until done): deploy `Cemu/bin/Cemu_release.exe` to EmuDeck,
+   open Input Settings → "Auto-Discover CemuPad..." → Pair & Connect → confirm `controller0.xml`
+   + SM3DW smoke test (video 60fps, audio clear, rumble, touch, gyro — parity with pre-Phase-4.0).
+   WARNING: legacy 26763 responder moved from VideoStreamServer to DiscoveryServer; if discovery
+   misbehaves in-game, that is the first suspect.
+2. After user sign-off: commit Cemu repo (`feat(streaming): phase 4.0 subsystem + 1-click pairing`, no push
+   without instruction) — note outer repo + Cemu repo are SEPARATE git repos; plan file lives in outer.
+3. Then continue to Phase 4.1 (Android UDP 26763 responder is still missing — dialog can find nothing
+   until the phone answers probes). Then deferred media-file move follow-up.
 
 ## Where we left off
 

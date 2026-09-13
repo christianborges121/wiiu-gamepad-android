@@ -38,11 +38,11 @@ Cemu/src/streaming/
 
 ## 3. Implementation Checklist & Step-by-Step Code Modifications
 
-- [ ] **Step 3.1: Subsystem Directory & Build Isolation**
-  - [ ] Create `Cemu/src/streaming/` directory.
-  - [ ] Move `VideoStreamServer.*`, `VideoEncoder.*`, and `StreamingCapture.*` into `Cemu/src/streaming/`.
-  - [ ] Create `Cemu/src/streaming/CMakeLists.txt` compiling the `CemuStreaming` static library.
-  - [ ] In `Cemu/src/CMakeLists.txt`, add `add_subdirectory(streaming)` and link `CemuStreaming` to `CemuBin`.
+- [x] **Step 3.1: Subsystem Directory & Build Isolation**
+  - [x] Create `Cemu/src/streaming/` directory.
+  - [ ] Move `VideoStreamServer.*`, `VideoEncoder.*`, and `StreamingCapture.*` into `Cemu/src/streaming/` *(DEFERRED — see deviation note below; new subsystem code is isolated, media servers move in follow-up after user quality testing)*.
+  - [x] Create `Cemu/src/streaming/CMakeLists.txt` compiling the `CemuStreaming` static library.
+  - [x] In `Cemu/src/CMakeLists.txt`, add `add_subdirectory(streaming)` and link `CemuStreaming` to `CemuBin`.
 
 ```cmake
 # Cemu/src/streaming/CMakeLists.txt
@@ -79,11 +79,11 @@ add_subdirectory(streaming)
 ```
 And link `CemuStreaming` to `CemuBin`.
 
-- [ ] **Step 3.2: Implement CemuPadBridge Delegate System**
-  - [ ] Implement `CemuPadBridge.h` singleton and delegate interface.
-  - [ ] Implement `CemuPadBridge.cpp` with lifecycle control.
-  - [ ] Implement `AutoConfigureDSUController(deviceIp, dsuPort)` using Cemu's native `ControllerFactory` and `InputManager`.
-  - [ ] Implement non-invasive delegates: `OnGamepadFrame`, `OnAudioDMA`, `OnVPADRumble`, `OnVPADClearRumble`.
+- [x] **Step 3.2: Implement CemuPadBridge Delegate System**
+  - [x] Implement `CemuPadBridge.h` singleton and delegate interface.
+  - [x] Implement `CemuPadBridge.cpp` with lifecycle control.
+  - [x] Implement `AutoConfigureDSUController(deviceIp, dsuPort)` using Cemu's native `ControllerFactory` and `InputManager`.
+  - [x] Implement non-invasive delegates: `OnGamepadFrame`, `OnAudioDMA`, `OnVPADRumble`, `OnVPADClearRumble`.
 
 #### [`Cemu/src/streaming/CemuPadBridge.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/CemuPadBridge.h)
 ```cpp
@@ -236,10 +236,10 @@ bool CemuPadBridge::AutoConfigureDSUController(const std::string& deviceIp, uint
 }
 ```
 
-- [ ] **Step 3.3: Implement CemuPadPairingDialog in Cemu GUI**
-  - [ ] Implement `Cemu/src/gui/wxgui/input/CemuPadPairingDialog.h` header.
-  - [ ] Implement `Cemu/src/gui/wxgui/input/CemuPadPairingDialog.cpp` with device list, timer polling, and pair action.
-  - [ ] Wire modal pairing action to call `CemuPadBridge::GetInstance().AutoConfigureDSUController(ipStr, 26760)`.
+- [x] **Step 3.3: Implement CemuPadPairingDialog in Cemu GUI**
+  - [x] Implement `Cemu/src/gui/wxgui/input/CemuPadPairingDialog.h` header.
+  - [x] Implement `Cemu/src/gui/wxgui/input/CemuPadPairingDialog.cpp` with device list, timer polling, and pair action.
+  - [x] Wire modal pairing action to call `CemuPadBridge::GetInstance().AutoConfigureDSUController(ipStr, 26760)`.
 
 #### [`Cemu/src/gui/wxgui/input/CemuPadPairingDialog.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/gui/wxgui/input/CemuPadPairingDialog.h)
 ```cpp
@@ -386,10 +386,10 @@ void CemuPadPairingDialog::OnPairClicked(wxCommandEvent&)
 }
 ```
 
-- [ ] **Step 3.4: Add the "Auto-Discover CemuPad..." Button to InputSettings2.cpp**
-  - [ ] Include `CemuPadPairingDialog.h` in `Cemu/src/gui/wxgui/input/InputSettings2.cpp`.
-  - [ ] Add `auto_discover_btn` to `controller_btn_sizer` next to the "Add" button.
-  - [ ] Bind click event to display `CemuPadPairingDialog` and refresh the controller list upon successful pairing.
+- [x] **Step 3.4: Add the "Auto-Discover CemuPad..." Button to InputSettings2.cpp**
+  - [x] Include `CemuPadPairingDialog.h` in `Cemu/src/gui/wxgui/input/InputSettings2.cpp`.
+  - [x] Add `auto_discover_btn` to `controller_btn_sizer` next to the "Add" button.
+  - [x] Bind click event to display `CemuPadPairingDialog` and refresh the controller list upon successful pairing.
 
 In [`Cemu/src/gui/wxgui/input/InputSettings2.cpp`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/gui/wxgui/input/InputSettings2.cpp):
 Directly next to the existing **"Add"** button for controllers:
@@ -408,10 +408,10 @@ auto_discover_btn->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
 controller_btn_sizer->Add(auto_discover_btn, 0, wxALL, 5);
 ```
 
-- [ ] **Step 3.5: Clean Up Core Cemu Files (Non-Invasive 1-Line Hooks)**
-  - [ ] Update `vpad.cpp`: Forward rumble calls to `CemuPadBridge::GetInstance().OnVPADRumble(...)` and `OnVPADClearRumble(...)`.
-  - [ ] Update `snd_core.cpp`: Forward DRC audio DMA samples to `CemuPadBridge::GetInstance().OnAudioDMA(...)`.
-  - [ ] Update `StreamingCapture.cpp`: Forward Vulkan readback frame to `CemuPadBridge::GetInstance().OnGamepadFrame(...)`.
+- [x] **Step 3.5: Clean Up Core Cemu Files (Non-Invasive 1-Line Hooks)**
+  - [x] Update `vpad.cpp`: Forward rumble calls to `CemuPadBridge::GetInstance().OnVPADRumble(...)` and `OnVPADClearRumble(...)`.
+  - [x] Update `snd_core.cpp`: Forward DRC audio DMA samples to `CemuPadBridge::GetInstance().OnAudioDMA(...)`.
+  - [x] Update `StreamingCapture.cpp`: Forward Vulkan readback frame to `CemuPadBridge::GetInstance().OnGamepadFrame(...)`.
 
 1. **[`Cemu/src/Cafe/OS/libs/vpad/vpad.cpp`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/Cafe/OS/libs/vpad/vpad.cpp)**:
    In `vpadExport_VPADControlMotor`:
@@ -434,12 +434,15 @@ controller_btn_sizer->Add(auto_discover_btn, 0, wxALL, 5);
 
 ## 4. Verification & Testing Checklist
 
-- [ ] **4.1 Automated Build Verification**
-  - [ ] Run CMake configure and compile the `Cemu` target:
+- [x] **4.1 Automated Build Verification**
+  - [x] Run CMake configure and compile (verified 2026-09-13, exit 0, zero warnings from new code):
     ```powershell
     cmake -B Cemu/build -S Cemu -DCMAKE_BUILD_TYPE=Release
-    cmake --build Cemu/build --config Release --target Cemu
+    cmake --build Cemu/build --config Release --target CemuBin
     ```
+    Note: executable target is `CemuBin` (plan text `--target Cemu` is inaccurate; `Cemu.vcxproj` does not exist).
+    Output: `Cemu/bin/Cemu_release.exe`. `CemuStreaming.lib`, `CemuPadPairingDialog.cpp`,
+    `CemuPadBridge.cpp`, `DiscoveryServer.cpp`, `StreamingCapture.cpp` all compiled clean.
 - [ ] **4.2 Binary Deployment**
   - [ ] Stop any running Cemu process and deploy:
     ```powershell
