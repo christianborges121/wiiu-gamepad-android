@@ -337,6 +337,76 @@ See `investigation/2026-09-12-ux/` and `investigation/HANDOFF.md`. Persistence
 and overlay restyle are implemented and installed. Next harness should continue
 from the user's latest UX request, not from reconnect unless asked.
 
+## Autonomous Development & Test Harness Workflows
+
+Any AI harness working in this repository can test, exercise, and validate the streaming pipeline completely autonomously using the following mechanisms.
+
+### 1. Autonomous Video Recording & Visual Inspection
+You can capture video of the running Android client to analyze framerates, jitter, tearing, and compression/motion artifacts:
+- **Record Video via ADB**:
+  ```powershell
+  adb shell screenrecord --time-limit 5 --bit-rate 4000000 /sdcard/motion_test.mp4
+  adb pull /sdcard/motion_test.mp4 "C:\Users\chris\.gemini\antigravity-ide\brain\<conversation-id>\motion_test.mp4"
+  ```
+- **Inspect Video Frames**:
+  Calling `view_file` on the local `.mp4` file natively decodes and renders timestamped frames (e.g. `00:00`, `00:01`, `00:02`...) directly into the AI context, allowing visual inspection of rendering quality, HUD stats, and motion artifacts without needing third-party tools.
+
+### 2. Autonomous Input Injection & Simulation
+You do not need to wait for physical human interaction to navigate menus or exercise in-game movement:
+- **Button Injection (Broadcast Intent)**:
+  `MainActivity` exposes a dedicated debug broadcast receiver (`com.cemupad.INJECT_INPUT`):
+  ```powershell
+  adb shell am broadcast -a com.cemupad.INJECT_INPUT --es button A
+  adb shell am broadcast -a com.cemupad.INJECT_INPUT --es button START --el duration 200
+  ```
+  Supported button names: `A`, `B`, `X`, `Y`, `L`, `R`, `ZL`, `ZR`, `PLUS`, `MINUS`, `HOME`, `L3`, `R3`, `UP`, `DOWN`, `LEFT`, `RIGHT`.
+- **Touch Digitizer Interaction**:
+  The phone screen (e.g. Galaxy S23 FE 2340x1080 landscape) maps into the GamePad's 16:9 active viewport:
+  ```powershell
+  # Hold tap for 200ms (ensures the 100 Hz DSU push loop catches the touch frame)
+  adb shell input swipe <x> <y> <x> <y> 200
+  ```
+- **Android System Keys**:
+  ```powershell
+  adb shell input keyevent 4 # KEYCODE_BACK (dismisses navigation drawers / dialogs)
+  ```
+
+### 3. Concurrent Motion Testing Workflow
+To evaluate motion artifacts or gameplay fluidity autonomously:
+1. Launch `screenrecord` in the background (using `run_command` with small `WaitMsBeforeAsync` or async task):
+   ```powershell
+   adb shell screenrecord --time-limit 5 --bit-rate 6000000 /sdcard/motion_test.mp4
+   ```
+2. Concurrently inject inputs (e.g., repeatedly tapping D-pad or stick movements or A/B buttons to move character/cursor).
+3. Wait for `screenrecord` to complete, pull the video, and view it with `view_file`.
+
+### 4. Headless & Automated Cemu Lifecycle Management
+- **Compile & Deploy Cemu**:
+  ```powershell
+  cmake --build build --config Release --target CemuBin -j 8
+  copy /y "C:\Projects\wiiu-gamepad-android\Cemu\bin\Cemu_release.exe" "C:\Users\chris\AppData\Roaming\EmuDeck\Emulators\cemu\Cemu.exe"
+  ```
+- **Launch Cemu with Game**:
+  ```powershell
+  cmd.exe /c 'cd /d C:\Users\chris\AppData\Roaming\EmuDeck\Emulators\cemu && Cemu.exe -g "D:\Emulation\roms\wiiu\<Game>.wua"'
+  ```
+- **Clean Process Termination**:
+  ```powershell
+  taskkill /F /IM Cemu.exe
+  ```
+
+### 5. Diagnostics & Log Telemetry
+- **Cemu Engine Logs**:
+  ```powershell
+  Get-Content "C:\Users\chris\AppData\Roaming\EmuDeck\Emulators\cemu\log.txt" -Tail 50
+  ```
+- **Android App & Pipeline Logs**:
+  ```powershell
+  adb logcat -d -s VideoDecoder FrameReassembler UdpStreamReceiver CemuPadApp AudioStreamReceiver
+  ```
+
+---
+
 ## Engineering Rules
 
 - Start from the narrowest concrete code path and nearby test.
