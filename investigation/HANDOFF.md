@@ -1,6 +1,6 @@
 # Current harness handoff
 
-Last updated: 2026-09-12 13:10 (America/New_York)
+Last updated: 2026-09-12 23:35 (America/New_York)
 
 Read this file first. Then read the dated folders it points to. Keep this file
 current at the end of every session so a new harness can resume without the
@@ -8,35 +8,19 @@ prior chat.
 
 ## Where we left off
 
-Phase 2 color verification is largely done: Wind Waker HD hues verified
-(packed A2B10G10R10 path) and Mario 3D World hues verified at 60 FPS
-(RGBA path, full-speed streaming). Hyrule Warriors is blocked (title
-won't run). Brightness parity is parked. Android decoder hardening
-(Annex B validation, SPS/PPS-tracked IDR recovery, telemetry) is
-implemented, tested, and installed; needs a game session to observe
-live. Cemu is currently off.
-
-Do not restart from Phase 0 or from the reconnect investigation as if they were
-unfinished implementation. Those records are evidence. The next verification
-is whatever game session the user has up, most likely Hyrule Warriors colors.
+Black screen on video streaming is resolved: Cemu Winsock `SO_RCVTIMEO` socket
+inheritance bug and Android `idleControlMode` timing fixed. Live Super Mario 3D
+World session verified streaming at 60 FPS over UDP with zero errors.
 
 ## Just completed (this session)
 
-1. Wind Waker HD color verified live: inventory screen streams at 30 FPS
-   with correct blue/white/parchment/yellow (packed A2B10G10R10 path
-   works, no format-64 failure). See
-   `investigation/2026-09-12-color/01-wind-waker.md`.
-2. Connection-help drawer toggle: new persisted `showConnectionHelp`
-   setting hides the startup card; live-verified on the phone including
-   force-stop persistence. See `investigation/2026-09-12-ux/04-connection-help-toggle.md`.
-3. Resolution presets now drive the SurfaceView buffer size
-   (`DisplayLayout.surfaceBufferSize`); live-verified both directions via
-   `surfaceChanged` (1920x1080 / 854x480). Fixed a stale-closure stomp and
-   made the drawer scrollable. See
-   `investigation/2026-09-12-ux/05-resolution-preset-surface.md`.
-4. Earlier: overlay defaults off, overlay/fit/resolution persist, overlay
-   restyled to one top-left line, checklist reconciled, version control
-   started (private app repo, public attached Cemu fork).
+1. Black screen root cause identified and resolved:
+   - Cemu: reset `SO_RCVTIMEO` to 0 on accepted client sockets and ignore non-fatal timeouts in `ClientRxThreadFunc`.
+   - Android: enable `idleControlMode` immediately upon negotiating UDP transport in `MainActivity.kt`.
+   - Deployed updated `Cemu.exe` and debug APK wirelessly.
+   - In-game live verification: Super Mario 3D World streaming 60 FPS without disconnects.
+   - See `investigation/2026-09-12-video/05-black-screen-so-rcvtimeo-fix.md`.
+2. Code review and 15 resolution plans completed and indexed in `resolution_plans/`.
 
 ## Device
 

@@ -304,12 +304,13 @@ class MainActivity : ComponentActivity() {
                 Logger.i("MainActivity", "Video stream connected to $host:26761")
                 isVideoStreaming.value = true
                 udpReceiver?.resetStream()
+                idleControlMode = true
                 requestTransport(true)
             }
             onDisconnected = {
                 Logger.i("MainActivity", "Video stream disconnected")
                 isVideoStreaming.value = false
-                videoClient?.idleControlMode = false
+                idleControlMode = false
             }
             onError = { err ->
                 Logger.w("MainActivity", "Video stream error: ${err.message}")
