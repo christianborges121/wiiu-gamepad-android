@@ -441,14 +441,37 @@ controller_btn_sizer->Add(auto_discover_btn, 0, wxALL, 5);
     cmake --build Cemu/build --config Release --target Cemu
     ```
 - [ ] **4.2 Binary Deployment**
-  - [ ] Copy compiled executable to EmuDeck emulator directory:
+  - [ ] Stop any running Cemu process and deploy:
     ```powershell
+    Stop-Process -Name Cemu -Force -ErrorAction SilentlyContinue
     Copy-Item c:\Projects\wiiu-gamepad-android\Cemu\build\bin\Release\Cemu.exe C:\Users\chris\AppData\Roaming\EmuDeck\Emulators\cemu\Cemu.exe -Force
     ```
-- [ ] **4.3 Live Cemu GUI Verification**
-  - [ ] Launch Cemu and open `Options > Input Settings`.
+- [ ] **4.3 Live Cemu GUI & 1-Click Pairing Verification**
+  - [ ] Launch Cemu standalone:
+    ```powershell
+    Start-Process "C:\Users\chris\AppData\Roaming\EmuDeck\Emulators\cemu\Cemu.exe" -WorkingDirectory "C:\Users\chris\AppData\Roaming\EmuDeck\Emulators\cemu"
+    ```
+  - [ ] Open `Options > Input Settings`.
   - [ ] Confirm **"Auto-Discover CemuPad..."** button appears next to the Add button.
-  - [ ] Click button → verify pairing dialog opens and scans UDP 26763.
-  - [ ] Select detected phone and click **"Pair & Connect"**.
-  - [ ] Verify `controllerProfiles/controller0.xml` is saved with DSU client `<phone_ip>:26760`.
-  - [ ] Launch game (*Super Mario 3D World*) → verify video, audio, touch, gyro, and rumble immediately work without manual intervention.
+  - [ ] Click button → verify dialog scans UDP `26763` and lists the active Android phone.
+  - [ ] Select phone and click **"Pair & Connect"**.
+  - [ ] Confirm `C:\Users\chris\AppData\Roaming\EmuDeck\Emulators\cemu\controllerProfiles\controller0.xml` is populated with `InputAPI::DSUClient` on `<phone_ip>:26760`.
+- [ ] **4.4 Direct Game Launch & Live Telemetry Verification**
+  - [ ] Launch *Super Mario 3D World* via command line:
+    ```powershell
+    Stop-Process -Name Cemu -Force -ErrorAction SilentlyContinue
+    Start-Process "C:\Users\chris\AppData\Roaming\EmuDeck\Emulators\cemu\Cemu.exe" -ArgumentList '-g "D:\Emulation\roms\wiiu\SUPER MARIO 3D WORLD (US).wua"' -WorkingDirectory "C:\Users\chris\AppData\Roaming\EmuDeck\Emulators\cemu"
+    ```
+  - [ ] Inspect host Cemu log file:
+    ```powershell
+    Get-Content "C:\Users\chris\AppData\Roaming\EmuDeck\Emulators\cemu\log.txt" -Tail 30
+    ```
+  - [ ] Inspect Android phone logs:
+    ```powershell
+    adb logcat -d -s CemuPad:*
+    ```
+  - [ ] Capture phone screenshot to verify rendering:
+    ```powershell
+    adb exec-out screencap -p > c:\Projects\wiiu-gamepad-android\phone_screen.png
+    ```
+  - [ ] Verify video stream, audio, touch, gyro, and rumble immediately work without manual intervention.
