@@ -30,8 +30,10 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -180,6 +182,7 @@ fun VirtualButton(
     height: Int = 44,
     activeColor: Color = Color(0xFF00E5FF)
 ) {
+    val haptic = LocalHapticFeedback.current
     var isPressed by remember { mutableStateOf(false) }
 
     Box(
@@ -191,6 +194,7 @@ fun VirtualButton(
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
                     isPressed = true
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     onPressChanged(true)
                     waitForUpOrCancellation()
                     isPressed = false
@@ -286,6 +290,7 @@ fun VirtualDPad(
     var down by remember { mutableStateOf(false) }
     var left by remember { mutableStateOf(false) }
     var right by remember { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
 
     fun updateTouch(pos: Offset, isUp: Boolean) {
         if (isUp) {
@@ -297,14 +302,25 @@ fun VirtualDPad(
             val dist = sqrt(dx * dx + dy * dy)
             val deadzone = center * 0.22f
             val threshold = center * 0.28f
+            val newUp: Boolean
+            val newDown: Boolean
+            val newLeft: Boolean
+            val newRight: Boolean
             if (dist < deadzone) {
-                up = false; down = false; left = false; right = false
+                newUp = false; newDown = false; newLeft = false; newRight = false
             } else {
-                up = dy < -threshold
-                down = dy > threshold
-                left = dx < -threshold
-                right = dx > threshold
+                newUp = dy < -threshold
+                newDown = dy > threshold
+                newLeft = dx < -threshold
+                newRight = dx > threshold
             }
+            if ((!up && newUp) || (!down && newDown) || (!left && newLeft) || (!right && newRight)) {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            }
+            up = newUp
+            down = newDown
+            left = newLeft
+            right = newRight
         }
         onDirectionChanged(up, down, left, right)
     }
@@ -404,6 +420,7 @@ private fun FaceButton(
     onPressChanged: (Boolean) -> Unit,
     accentColor: Color
 ) {
+    val haptic = LocalHapticFeedback.current
     var isPressed by remember { mutableStateOf(false) }
 
     Box(
@@ -415,6 +432,7 @@ private fun FaceButton(
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
                     isPressed = true
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     onPressChanged(true)
                     waitForUpOrCancellation()
                     isPressed = false

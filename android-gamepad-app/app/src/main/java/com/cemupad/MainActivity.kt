@@ -258,6 +258,11 @@ class MainActivity : ComponentActivity() {
                 prefs.getBoolean(AppSettingsCodec.KEY_VIBRATION_ENABLED, true)
             } else {
                 null
+            },
+            stickDeadzone = if (prefs.contains(AppSettingsCodec.KEY_STICK_DEADZONE)) {
+                prefs.getFloat(AppSettingsCodec.KEY_STICK_DEADZONE, 0.08f)
+            } else {
+                null
             }
         )
 
@@ -347,6 +352,7 @@ class MainActivity : ComponentActivity() {
                             audioReceiver?.isMuted = !newSettings.audioEnabled
                             audioReceiver?.volume = newSettings.audioVolume
                             rumbleHandler.isEnabled = newSettings.vibrationEnabled
+                            gamepadHandler.deadzone = newSettings.stickDeadzone
                             persistDisplaySettings(newSettings)
                         },
                         onCalibrateGyro = {
@@ -367,6 +373,7 @@ class MainActivity : ComponentActivity() {
         acquireWifiLock()
         dsuServer.start()
         motionHandler.start()
+        gamepadHandler.deadzone = displaySettings.value.stickDeadzone
         micBlowDetector.start()
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
@@ -433,6 +440,7 @@ class MainActivity : ComponentActivity() {
             .putBoolean(AppSettingsCodec.KEY_AUDIO_ENABLED, encoded.audioEnabled)
             .putFloat(AppSettingsCodec.KEY_AUDIO_VOLUME, encoded.audioVolume)
             .putBoolean(AppSettingsCodec.KEY_VIBRATION_ENABLED, encoded.vibrationEnabled)
+            .putFloat(AppSettingsCodec.KEY_STICK_DEADZONE, encoded.stickDeadzone)
             .apply()
     }
 
@@ -442,6 +450,7 @@ class MainActivity : ComponentActivity() {
         decoder.maxFps = if (displaySettings.value.limitTo30Fps) 30 else 60
         if (decoder.init()) {
             videoDecoder = decoder
+            videoClient?.requestIDR()
         }
     }
 
@@ -487,6 +496,10 @@ class MainActivity : ComponentActivity() {
         }
         udpReceiver = receiver
         receiver.start()
+        if (videoClient?.isConnected == true) {
+            receiver.resetStream()
+            videoClient?.requestIDR()
+        }
     }
 
     private fun stopUdpReceiver() {
@@ -518,6 +531,7 @@ class MainActivity : ComponentActivity() {
                 udpReceiver?.resetStream()
                 idleControlMode = true
                 requestTransport(true)
+                requestIDR()
             }
             onDisconnected = {
                 Logger.i("MainActivity", "Video stream disconnected")

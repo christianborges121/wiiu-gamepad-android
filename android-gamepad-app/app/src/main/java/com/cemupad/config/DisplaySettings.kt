@@ -37,7 +37,8 @@ data class DisplaySettings(
     val virtualControlsOpacity: Float = 0.5f,
     val audioEnabled: Boolean = true,
     val audioVolume: Float = 1.0f,
-    val vibrationEnabled: Boolean = true
+    val vibrationEnabled: Boolean = true,
+    val stickDeadzone: Float = 0.08f
 )
 
 data class DisplayDimensions(val width: Float, val height: Float)

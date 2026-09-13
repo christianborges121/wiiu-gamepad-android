@@ -41,6 +41,9 @@ class GamepadInputHandler(
     private var l2 = 0
     private var r2 = 0
 
+    // Configurable stick deadzone
+    var deadzone: Float = 0.08f
+
     fun setVirtualButton(keyCode: Int, isDown: Boolean) {
         if (isDown) {
             onKeyDown(keyCode)
@@ -50,8 +53,15 @@ class GamepadInputHandler(
     }
 
     fun setVirtualStick(isLeftStick: Boolean, normX: Float, normY: Float) {
-        val mappedX = ((normX + 1f) * 127.5f).roundToInt().coerceIn(0, 255)
-        val mappedY = (((-normY) + 1f) * 127.5f).roundToInt().coerceIn(0, 255)
+        val mag = kotlin.math.sqrt(normX * normX + normY * normY)
+        val (filteredX, filteredY) = if (mag < deadzone || mag == 0f) {
+            0f to 0f
+        } else {
+            val scale = (mag - deadzone) / (1f - deadzone)
+            (normX / mag * scale) to (normY / mag * scale)
+        }
+        val mappedX = ((filteredX + 1f) * 127.5f).roundToInt().coerceIn(0, 255)
+        val mappedY = (((-filteredY) + 1f) * 127.5f).roundToInt().coerceIn(0, 255)
 
         if (isLeftStick) {
             lx = mappedX
@@ -180,15 +190,15 @@ class GamepadInputHandler(
         // Left Analog Stick
         val rawLX = event.getAxisValue(profile.axisLX)
         val rawLY = event.getAxisValue(profile.axisLY)
-        lx = ControllerProfile.normalizeAxis(rawLX, invertY = false, deadzone = profile.deadzone)
+        lx = ControllerProfile.normalizeAxis(rawLX, invertY = false, deadzone = deadzone)
         // Stick Y inverted: UP is 255, DOWN is 0
-        ly = ControllerProfile.normalizeAxis(rawLY, invertY = true, deadzone = profile.deadzone)
+        ly = ControllerProfile.normalizeAxis(rawLY, invertY = true, deadzone = deadzone)
 
         // Right Analog Stick (Z and RZ on Android)
         val rawRX = event.getAxisValue(profile.axisRX)
         val rawRY = event.getAxisValue(profile.axisRY)
-        rx = ControllerProfile.normalizeAxis(rawRX, invertY = false, deadzone = profile.deadzone)
-        ry = ControllerProfile.normalizeAxis(rawRY, invertY = true, deadzone = profile.deadzone)
+        rx = ControllerProfile.normalizeAxis(rawRX, invertY = false, deadzone = deadzone)
+        ry = ControllerProfile.normalizeAxis(rawRY, invertY = true, deadzone = deadzone)
 
         // Analog Triggers (GAS/BRAKE or RTRIGGER/LTRIGGER)
         var rawL2 = event.getAxisValue(profile.axisLTrigger)

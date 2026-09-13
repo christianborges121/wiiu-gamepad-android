@@ -16,6 +16,7 @@ object AppSettingsCodec {
     const val KEY_AUDIO_ENABLED = "audio_enabled"
     const val KEY_AUDIO_VOLUME = "audio_volume"
     const val KEY_VIBRATION_ENABLED = "vibration_enabled"
+    const val KEY_STICK_DEADZONE = "stick_deadzone"
 
     fun decode(
         fitModeName: String?,
@@ -27,7 +28,8 @@ object AppSettingsCodec {
         virtualControlsOpacity: Float? = null,
         audioEnabled: Boolean? = null,
         audioVolume: Float? = null,
-        vibrationEnabled: Boolean? = null
+        vibrationEnabled: Boolean? = null,
+        stickDeadzone: Float? = null
     ): DisplaySettings {
         val fitMode = fitModeName
             ?.let { name -> DisplayFitMode.values().firstOrNull { it.name == name } }
@@ -45,7 +47,8 @@ object AppSettingsCodec {
             virtualControlsOpacity = virtualControlsOpacity ?: 0.5f,
             audioEnabled = audioEnabled ?: true,
             audioVolume = audioVolume ?: 1.0f,
-            vibrationEnabled = vibrationEnabled ?: true
+            vibrationEnabled = vibrationEnabled ?: true,
+            stickDeadzone = stickDeadzone ?: 0.08f
         )
     }
 
@@ -60,7 +63,8 @@ object AppSettingsCodec {
             virtualControlsOpacity = settings.virtualControlsOpacity,
             audioEnabled = settings.audioEnabled,
             audioVolume = settings.audioVolume,
-            vibrationEnabled = settings.vibrationEnabled
+            vibrationEnabled = settings.vibrationEnabled,
+            stickDeadzone = settings.stickDeadzone
         )
     }
 }
@@ -75,5 +79,6 @@ data class EncodedAppSettings(
     val virtualControlsOpacity: Float,
     val audioEnabled: Boolean,
     val audioVolume: Float,
-    val vibrationEnabled: Boolean
+    val vibrationEnabled: Boolean,
+    val stickDeadzone: Float
 )

@@ -104,6 +104,7 @@ fun MainScreen(
     var audioEnabled by remember { mutableStateOf(displaySettings.audioEnabled) }
     var audioVolume by remember { mutableFloatStateOf(displaySettings.audioVolume) }
     var vibrationEnabled by remember { mutableStateOf(displaySettings.vibrationEnabled) }
+    var stickDeadzone by remember { mutableFloatStateOf(displaySettings.stickDeadzone) }
     var selectedFitMode by remember { mutableStateOf(displaySettings.fitMode) }
     var selectedResolution by remember { mutableStateOf(displaySettings.resolutionPreset) }
     var showFitMenu by remember { mutableStateOf(false) }
@@ -122,6 +123,7 @@ fun MainScreen(
         audioEnabled = displaySettings.audioEnabled
         audioVolume = displaySettings.audioVolume
         vibrationEnabled = displaySettings.vibrationEnabled
+        stickDeadzone = displaySettings.stickDeadzone
     }
 
     fun currentSettings() = DisplaySettings(
@@ -134,7 +136,8 @@ fun MainScreen(
         virtualControlsOpacity = virtualControlsOpacity,
         audioEnabled = audioEnabled,
         audioVolume = audioVolume,
-        vibrationEnabled = vibrationEnabled
+        vibrationEnabled = vibrationEnabled,
+        stickDeadzone = stickDeadzone
     )
 
     LaunchedEffect(dsuServer) {
@@ -393,6 +396,27 @@ fun MainScreen(
                             )
                         }
                     }
+
+                    // --- Stick Deadzone ---
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Stick deadzone", color = Color(0xFFEAF2FF), fontSize = 14.sp)
+                            Text("${(stickDeadzone * 100).toInt()}%", color = Color(0xFF9FB0C6), fontSize = 14.sp)
+                        }
+                        Slider(
+                            value = stickDeadzone,
+                            onValueChange = {
+                                stickDeadzone = it
+                                onDisplaySettingsChanged(currentSettings().copy(stickDeadzone = it))
+                            },
+                            valueRange = 0.02f..0.25f
+                        )
+                    }
+
+                    HorizontalDivider(color = Color(0xFF2A3348))
 
                     Box(modifier = Modifier.fillMaxWidth()) {
                         TextButton(

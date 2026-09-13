@@ -55,6 +55,7 @@ class UdpVideoReceiver(
 
     fun start() {
         if (isRunning.getAndSet(true)) return
+        resetStream()
         workerThread = Thread({
             runReceiveLoop()
         }, "CemuPad-UdpVideo").apply {
