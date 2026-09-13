@@ -177,8 +177,13 @@ class AudioStreamReceiver(
 
                     val payloadLen = len - HEADER_SIZE
                     val track = audioTrack
-                    if (track != null && !isMuted) {
-                        track.write(recvBuffer, HEADER_SIZE, payloadLen, AudioTrack.WRITE_NON_BLOCKING)
+                    if (track != null && !isMuted && payloadLen > 0) {
+                        var written = 0
+                        while (written < payloadLen && isRunning.get()) {
+                            val res = track.write(recvBuffer, HEADER_SIZE + written, payloadLen - written, AudioTrack.WRITE_BLOCKING)
+                            if (res <= 0) break
+                            written += res
+                        }
                     }
                 } catch (e: SocketTimeoutException) {
                     // Normal idle timeout
