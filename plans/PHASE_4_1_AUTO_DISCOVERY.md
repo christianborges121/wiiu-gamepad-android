@@ -1,50 +1,75 @@
-# Phase 4.1 Implementation Plan — Zero-Config UDP Broadcast Auto-Discovery
+# Phase 4.1 Implementation Plan — Zero-Config Auto-Discovery & 1-Click Cemu UI Pairing
 
 ## 1. Overview & Objective
-Currently, pairing an Android device with Cemu requires manual configuration:
-- The user must enter their Android phone's IP address into Cemu's DSU Controller Settings (`192.168.x.x:26760`).
-- The user must manually input the PC's IP address into the Android app or wait for a DSU handshake before video starts.
 
-**Objective**:
-Implement a lightweight UDP broadcast beacon and responder protocol operating on UDP port `26763`.
-- **Cemu Backend**: Runs a background UDP listener on port `26763`. Upon receiving the string `"CEMUPAD_DISCOVER"`, it responds back to the sender with `"CEMUPAD_HERE:<hostname>:<dsu_port>:<video_port>:<audio_port>"`.
-- **Android Frontend**: The existing `DiscoveryClient.kt` broadcasts `"CEMUPAD_DISCOVER"` to `255.255.255.255:26763`. When discovered, `MainScreen.kt` displays a "Discovered Cemu Host" card with a 1-tap **Connect** button, automatically connecting video, audio, and DSU.
+### Upstream Isolation Principle
+To ensure our streaming work does not interfere with Cemu core developers or cause merge conflicts in upstream Cemu:
+- **No invasive edits to core Cemu logic**: All discovery, pairing, and streaming servers are housed inside an isolated directory: [`Cemu/src/streaming/`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/).
+- **Standard DSU Controller Architecture Preserved**: Rather than inventing a custom input path, clicking "Pair" programmatically configures Cemu's existing `DSUControllerProvider` and `ControllerFactory` APIs. To Cemu's core, the phone operates as a standard, fully compliant DSU GamePad.
+
+### What This Accomplishes
+1. **Bidirectional Zero-Config Auto-Discovery (UDP 26763)**:
+   - Cemu and Android discover each other over local subnet broadcast without manual IP typing.
+2. **Cemu UI: "Auto-Discover CemuPad" Button**:
+   - Located directly inside Cemu's Input Settings dialog (`InputSettings2.cpp`) next to the "Add" button, plus in the main menu (`Options > Connect Android GamePad...`).
+   - Opens a clean pairing window that scans the Wi-Fi network and lists discovered phones.
+3. **1-Click Auto-Configuration**:
+   - Selecting the phone and clicking **"Pair & Connect"** automatically:
+     - Sets Controller 0 (VPAD) as emulated **Wii U GamePad**.
+     - Configures the **DSU Client** provider pointing to `<Phone_IP>:26760`.
+     - Applies the default Wii U GamePad button, axis, touch, and gyro mappings.
+     - Saves `controllerProfiles/controller0.xml`.
+     - Initiates the video and audio streams immediately.
 
 ---
 
 ## 2. Protocol Specification
 
 - **Discovery Port**: `UDP 26763`
-- **Broadcast Request**:
-  - String payload (UTF-8): `"CEMUPAD_DISCOVER"`
-  - Sent by Android client to subnet broadcast address `255.255.255.255:26763`.
-- **Unicast Response**:
+- **Broadcast Beacons**:
+  - **Phone → Subnet**: `"CEMUPAD_DISCOVER"` sent to `255.255.255.255:26763`.
+  - **PC → Subnet**: `"CEMU_DISCOVER"` sent to `255.255.255.255:26763`.
+- **Response Format**:
   - String payload (UTF-8): `"CEMUPAD_HERE:<hostname>:<dsu_port>:<video_port>:<audio_port>"`
-  - Example: `"CEMUPAD_HERE:DESKTOP-GAMING:26760:26761:26762"`
-  - Sent by Cemu directly back to the requesting client's IP and port.
+  - Example: `"CEMUPAD_HERE:Galaxy-S23-FE:26760:26761:26762\n"`
 
 ---
 
-## 3. Files to Modify & Create
+## 3. Files to Create & Modify (Isolated Subsystem)
 
-### Cemu Backend (`Cemu`)
+### Cemu Backend (`Cemu/src/streaming/`)
 
-#### [NEW] [`Cemu/src/Cafe/HW/Latte/Renderer/DiscoveryServer.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/Cafe/HW/Latte/Renderer/DiscoveryServer.h)
-Header declaring the discovery responder thread.
+#### [NEW] [`Cemu/src/streaming/DiscoveryServer.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/DiscoveryServer.h)
 ```cpp
 #pragma once
 #include <atomic>
 #include <thread>
+#include <vector>
 #include <string>
+#include <mutex>
+#include <functional>
+
+struct DiscoveredDevice
+{
+    std::string ip;
+    std::string name;
+    uint16_t dsuPort{26760};
+    uint16_t videoPort{26761};
+    uint16_t audioPort{26762};
+    std::chrono::steady_clock::time_point lastSeen;
+};
 
 class DiscoveryServer
 {
 public:
     static DiscoveryServer& GetInstance();
 
-    bool Start(uint16 port = 26763);
+    bool Start(uint16_t port = 26763);
     void Stop();
-    bool IsRunning() const { return m_isRunning.load(); }
+    void BroadcastProbe();
+
+    std::vector<DiscoveredDevice> GetDiscoveredDevices();
+    void SetDeviceDiscoveredCallback(std::function<void(const DiscoveredDevice&)> callback);
 
 private:
     DiscoveryServer() = default;
@@ -54,164 +79,189 @@ private:
 
     std::atomic<bool> m_isRunning{false};
     std::thread m_workerThread;
-    uint16 m_port{26763};
+    uint16_t m_port{26763};
+
+    std::mutex m_mutex;
+    std::vector<DiscoveredDevice> m_devices;
+    std::function<void(const DiscoveredDevice&)> m_callback;
 };
 ```
 
-#### [NEW] [`Cemu/src/Cafe/HW/Latte/Renderer/DiscoveryServer.cpp`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/Cafe/HW/Latte/Renderer/DiscoveryServer.cpp)
-Implementation using standard Winsock UDP socket.
+#### [NEW] [`Cemu/src/streaming/DiscoveryServer.cpp`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/DiscoveryServer.cpp)
+Listens on UDP 26763 for `"CEMUPAD_DISCOVER"` and `"CEMUPAD_HERE:"` responses, maintaining a thread-safe list of active Android GamePads.
+
+#### [NEW] [`Cemu/src/streaming/CemuPadBridge.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/CemuPadBridge.h)
+The clean, single point of contact between Cemu and the streaming module:
 ```cpp
-#include "DiscoveryServer.h"
-#include "VideoStreamServer.h"
-#include "Common/cemu_assert.h"
-#include "Logging/CemuLogging.h"
+#pragma once
+#include <string>
+#include <cstdint>
 
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#endif
-
-DiscoveryServer& DiscoveryServer::GetInstance()
+class CemuPadBridge
 {
-    static DiscoveryServer s_instance;
+public:
+    static CemuPadBridge& GetInstance();
+
+    void Initialize();
+    void Shutdown();
+
+    // 1-Click Programmatic DSU Configuration
+    bool AutoConfigureDSUController(const std::string& deviceIp, uint16_t dsuPort = 26760);
+
+    // Stream lifecycle
+    bool StartStreaming(const std::string& targetIp);
+    void StopStreaming();
+};
+```
+
+#### [NEW] [`Cemu/src/streaming/CemuPadBridge.cpp`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/CemuPadBridge.cpp)
+```cpp
+#include "CemuPadBridge.h"
+#include "DiscoveryServer.h"
+#include "input/InputManager.h"
+#include "input/ControllerFactory.h"
+#include "Logging/CemuLogging.h"
+#include <fmt/format.h>
+
+CemuPadBridge& CemuPadBridge::GetInstance()
+{
+    static CemuPadBridge s_instance;
     return s_instance;
 }
 
-bool DiscoveryServer::Start(uint16 port)
+void CemuPadBridge::Initialize()
 {
-    if (m_isRunning.load())
-        return true;
-
-    m_port = port;
-    m_isRunning = true;
-    m_workerThread = std::thread(&DiscoveryServer::WorkerLoop, this);
-    cemuLog_log(LogType::Force, "DiscoveryServer: Started listening on UDP port {}", port);
-    return true;
+    DiscoveryServer::GetInstance().Start(26763);
 }
 
-void DiscoveryServer::Stop()
+void CemuPadBridge::Shutdown()
 {
-    if (!m_isRunning.load())
-        return;
-
-    m_isRunning = false;
-    if (m_workerThread.joinable())
-        m_workerThread.join();
-
-    cemuLog_log(LogType::Force, "DiscoveryServer: Stopped");
+    DiscoveryServer::GetInstance().Stop();
+    StopStreaming();
 }
 
-void DiscoveryServer::WorkerLoop()
+bool CemuPadBridge::AutoConfigureDSUController(const std::string& deviceIp, uint16_t dsuPort)
 {
-    SOCKET sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (sock == INVALID_SOCKET)
+    auto& inputMgr = InputManager::instance();
+    auto vpad = inputMgr.get_vpad_controller(0);
+    if (!vpad)
     {
-        cemuLog_log(LogType::Force, "DiscoveryServer: Failed to create socket");
-        m_isRunning = false;
-        return;
+        cemuLog_log(LogType::Force, "CemuPadBridge: Controller 0 (VPAD) not found");
+        return false;
     }
 
-    // Set non-blocking or short receive timeout (500ms) to allow clean termination
-    DWORD timeoutMs = 500;
-    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeoutMs, sizeof(timeoutMs));
+    std::string uuid = fmt::format("{}:{}", deviceIp, dsuPort);
+    std::string displayName = fmt::format("CemuPad ({})", deviceIp);
 
-    BOOL reuse = TRUE;
-    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuse, sizeof(reuse));
-
-    sockaddr_in bindAddr{};
-    bindAddr.sin_family = AF_INET;
-    bindAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    bindAddr.sin_port = htons(m_port);
-
-    if (bind(sock, (sockaddr*)&bindAddr, sizeof(bindAddr)) == SOCKET_ERROR)
+    try
     {
-        cemuLog_log(LogType::Force, "DiscoveryServer: Bind failed on port {}", m_port);
-        closesocket(sock);
-        m_isRunning = false;
-        return;
-    }
-
-    char hostName[128] = "Cemu-Host";
-    gethostname(hostName, sizeof(hostName));
-
-    char buffer[256];
-    sockaddr_in clientAddr{};
-    int clientAddrLen = sizeof(clientAddr);
-
-    while (m_isRunning.load())
-    {
-        clientAddrLen = sizeof(clientAddr);
-        int bytesReceived = recvfrom(sock, buffer, sizeof(buffer) - 1, 0, (sockaddr*)&clientAddr, &clientAddrLen);
-        if (bytesReceived > 0)
+        // 1. Instantiate official DSU Client controller via Cemu's factory
+        auto controller = ControllerFactory::CreateController(InputAPI::DSUClient, uuid, displayName.c_str());
+        if (!controller)
         {
-            buffer[bytesReceived] = '\0';
-            if (strncmp(buffer, "CEMUPAD_DISCOVER", 16) == 0)
-            {
-                // Format: CEMUPAD_HERE:<hostname>:<dsu_port>:<video_port>:<audio_port>
-                char response[256];
-                int responseLen = snprintf(
-                    response, sizeof(response),
-                    "CEMUPAD_HERE:%s:26760:26761:26762\n",
-                    hostName
-                );
-
-                sendto(sock, response, responseLen, 0, (sockaddr*)&clientAddr, clientAddrLen);
-                cemuLog_log(LogType::Force, "DiscoveryServer: Responded to discovery probe from client");
-            }
+            cemuLog_log(LogType::Force, "CemuPadBridge: Failed to create DSU controller for {}", uuid);
+            return false;
         }
-    }
 
-    closesocket(sock);
+        // 2. Clear previous controller and bind newly discovered DSU controller
+        vpad->clear_controllers();
+        vpad->add_controller(controller);
+
+        // 3. Apply Cemu default Wii U GamePad layout
+        vpad->set_default_mapping(controller);
+
+        // 4. Save to controller0.xml so it persists
+        inputMgr.save_controller_profile(0);
+
+        cemuLog_log(LogType::Force, "CemuPadBridge: Controller 0 successfully configured for {}", uuid);
+        return true;
+    }
+    catch (const std::exception& e)
+    {
+        cemuLog_log(LogType::Force, "CemuPadBridge: Exception during controller configuration: {}", e.what());
+        return false;
+    }
 }
 ```
 
-#### [MODIFY] [`Cemu/src/Cafe/HW/Latte/Renderer/VideoStreamServer.cpp`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/Cafe/HW/Latte/Renderer/VideoStreamServer.cpp)
-- In `VideoStreamServer::Start(uint16 port)`:
-  - Add call: `DiscoveryServer::GetInstance().Start(DISCOVERY_PORT);`
-- In `VideoStreamServer::Stop()`:
-  - Add call: `DiscoveryServer::GetInstance().Stop();`
+---
+
+### Cemu GUI (`Cemu/src/gui/wxgui/`)
+
+#### [NEW] [`Cemu/src/gui/wxgui/input/CemuPadPairingDialog.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/gui/wxgui/input/CemuPadPairingDialog.h)
+```cpp
+#pragma once
+#include <wx/dialog.h>
+#include <wx/listctrl.h>
+#include <wx/button.h>
+#include <wx/stattext.h>
+#include <wx/timer.h>
+
+class CemuPadPairingDialog : public wxDialog
+{
+public:
+    CemuPadPairingDialog(wxWindow* parent);
+    ~CemuPadPairingDialog();
+
+private:
+    void InitUI();
+    void RefreshDeviceList();
+    void OnPairClicked(wxCommandEvent& event);
+    void OnRescanClicked(wxCommandEvent& event);
+    void OnTimer(wxTimerEvent& event);
+
+    wxListView* m_deviceList{nullptr};
+    wxButton* m_pairButton{nullptr};
+    wxButton* m_rescanButton{nullptr};
+    wxStaticText* m_statusText{nullptr};
+    wxTimer m_pollTimer;
+};
+```
+
+#### [NEW] [`Cemu/src/gui/wxgui/input/CemuPadPairingDialog.cpp`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/gui/wxgui/input/CemuPadPairingDialog.cpp)
+Implements the dialog with a clean wxListView showing:
+- Device Name (e.g. `Samsung Galaxy S23 FE`)
+- IP Address (`192.168.68.114`)
+- Status (`Ready on port 26760`)
+- **[ Pair & Connect ]** button: Triggers `CemuPadBridge::AutoConfigureDSUController(ip)` and starts video streaming.
+
+#### [MODIFY] [`Cemu/src/gui/wxgui/input/InputSettings2.cpp`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/gui/wxgui/input/InputSettings2.cpp)
+Next to the existing "Add" button on the Controller row, add:
+```cpp
+auto* cemupad_btn = new wxButton(this, wxID_ANY, _("Auto-Discover CemuPad"));
+cemupad_btn->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
+    CemuPadPairingDialog dlg(this);
+    if (dlg.ShowModal() == wxID_OK) {
+        // Refresh controller UI to reflect the newly assigned DSU controller
+        refresh_controllers();
+    }
+});
+```
 
 ---
 
 ### Android Frontend (`android-gamepad-app`)
 
 #### [MODIFY] [`android-gamepad-app/app/src/main/java/com/cemupad/ui/main/MainScreen.kt`](file:///c:/Projects/wiiu-gamepad-android/android-gamepad-app/app/src/main/java/com/cemupad/ui/main/MainScreen.kt)
-Enhance the connection help card shown when disconnected:
-- When `discoveredServer != null` and `!isVideoStreaming`:
-  - Show a highlighted banner: `"Discovered Cemu: ${discoveredServer.hostname} (${discoveredServer.ip})"`.
-  - Include a prominent **"Connect to PC"** button calling `onConnectToServer(discoveredServer.ip)`.
+On the disconnected connection card:
+- Displays: *"Broadcast discovery active on port 26763"*
+- When Cemu broadcasts or responds, displays: *"Cemu Host Detected: <PC_Name>"* with a 1-tap **"Connect"** button.
 
 ---
 
-## 4. Automated Testing & Build Verification
+## 4. Automated Testing & Verification
 
-1. **Build Cemu Release**:
+1. **Verify Cemu Clean Build**:
    ```powershell
-   cmake --build c:\Projects\wiiu-gamepad-android\Cemu\build --config Release --target Cemu
+   cmake -B Cemu/build -S Cemu -DCMAKE_BUILD_TYPE=Release
+   cmake --build Cemu/build --config Release --target Cemu
    ```
-2. **Deploy to EmuDeck**:
-   ```powershell
-   Copy-Item c:\Projects\wiiu-gamepad-android\Cemu\build\bin\Release\Cemu.exe C:\Users\chris\AppData\Roaming\EmuDeck\Emulators\cemu\Cemu.exe -Force
-   ```
-3. **Build and Test Android App**:
-   ```powershell
-   cd c:\Projects\wiiu-gamepad-android\android-gamepad-app
-   .\gradlew.bat testDebugUnitTest
-   .\gradlew.bat assembleDebug
-   adb install -r app/build/outputs/apk/debug/app-debug.apk
-   ```
-
----
-
-## 5. Live In-Game Verification
-1. Launch Cemu and start *Super Mario 3D World*.
-2. Open CemuPad on the phone with no IP pre-configured.
-3. Check Android logcat:
-   ```powershell
-   adb logcat -s DiscoveryClient
-   ```
-   **Expected**: `DiscoveryClient: Discovered Cemu at 192.168.x.x (DESKTOP-...)`.
-4. Verify the discovered Cemu host appears on the main screen card.
-5. Tap **Connect** and verify video starts within 500ms without entering any manual IP address.
+2. **Launch Cemu GUI & Open Input Settings**:
+   - Click `Options > Input Settings`.
+   - Click the new **"Auto-Discover CemuPad"** button.
+   - Confirm the dialog opens, broadcasts pings, and displays any running CemuPad app.
+3. **1-Click Test**:
+   - Select the discovered phone and click **"Pair & Connect"**.
+   - Verify `controllerProfiles/controller0.xml` is automatically generated with `InputAPI::DSUClient`.
+   - Verify Controller 0 switches to Emulated: Wii U GamePad with all mappings populated.
+   - Verify video and audio streaming start automatically.

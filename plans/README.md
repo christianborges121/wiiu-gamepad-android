@@ -10,7 +10,8 @@ Each document is fully self-contained and formatted specifically so that any AI 
 
 | Plan Document | Target Feature | Primary Tech Stack | Status |
 |:---|:---|:---|:---:|
-| [**PHASE_4_1_AUTO_DISCOVERY.md**](file:///c:/Projects/wiiu-gamepad-android/plans/PHASE_4_1_AUTO_DISCOVERY.md) | Zero-Config UDP Broadcast Auto-Discovery | C++ Winsock / Kotlin UDP Datagram | Ready for Execution |
+| [**MODULAR_CEMUPAD_SUBSYSTEM_PLAN.md**](file:///c:/Projects/wiiu-gamepad-android/plans/MODULAR_CEMUPAD_SUBSYSTEM_PLAN.md) | **Subsystem Isolation & 1-Click Cemu UI Pairing** | C++ Module Architecture / wxWidgets / Cemu InputManager | **Architectural Foundation** |
+| [**PHASE_4_1_AUTO_DISCOVERY.md**](file:///c:/Projects/wiiu-gamepad-android/plans/PHASE_4_1_AUTO_DISCOVERY.md) | Zero-Config Auto-Discovery & Cemu UI Pairing Dialog | C++ Winsock / wxWidgets / Kotlin UDP Datagram | Ready for Execution |
 | [**PHASE_4_2_DYNAMIC_VIDEO_ENCODING.md**](file:///c:/Projects/wiiu-gamepad-android/plans/PHASE_4_2_DYNAMIC_VIDEO_ENCODING.md) | Dynamic Bitrate & Resolution Encoder Controls | C++ Windows Media Foundation / Jetpack Compose | Ready for Execution |
 | [**PHASE_4_3_VOICE_PCM_STREAMING.md**](file:///c:/Projects/wiiu-gamepad-android/plans/PHASE_4_3_VOICE_PCM_STREAMING.md) | Direct 32 kHz Voice PCM Microphone Streaming | C++ Cafe OS `mic.cpp` / Android `AudioRecord` | Ready for Execution |
 | [**PHASE_4_4_SESSION_SECURITY_AND_PIN.md**](file:///c:/Projects/wiiu-gamepad-android/plans/PHASE_4_4_SESSION_SECURITY_AND_PIN.md) | Session Security, Host Selection & PIN Pairing | TCP Control Protocol / Crypto / Jetpack Compose | Ready for Execution |
