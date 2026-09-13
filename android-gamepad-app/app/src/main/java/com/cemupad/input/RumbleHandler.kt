@@ -35,6 +35,9 @@ class RumbleHandler(context: Context) {
     var isEnabled = true
 
     @Volatile
+    var intensityScale: Float = 1.0f
+
+    @Volatile
     private var isRumbling = false
 
     @Volatile
@@ -44,12 +47,12 @@ class RumbleHandler(context: Context) {
      * Triggers vibration with the specified intensity (0-255) and duration (ms).
      */
     fun rumble(intensity: Int, durationMs: Long = 60L) {
-        if (!isEnabled || intensity <= 0 || durationMs <= 0) {
+        if (!isEnabled || intensityScale <= 0f || intensity <= 0 || durationMs <= 0) {
             cancel(force = true)
             return
         }
 
-        val clampedIntensity = intensity.coerceIn(1, 255)
+        val clampedIntensity = (intensity.coerceIn(1, 255) * intensityScale.coerceIn(0f, 1f)).toInt().coerceIn(1, 255)
         val effectiveDuration = maxOf(durationMs, MIN_PULSE_DURATION_MS)
         isRumbling = true
         lastRumbleStartTime = SystemClock.uptimeMillis()
@@ -60,7 +63,8 @@ class RumbleHandler(context: Context) {
                 if (v.hasVibrator()) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         val amplitude = if (v.hasAmplitudeControl()) {
-                            maxOf(clampedIntensity, MIN_AMPLITUDE_FLOOR)
+                            val minFloor = (MIN_AMPLITUDE_FLOOR * intensityScale.coerceIn(0f, 1f)).toInt().coerceAtLeast(1)
+                            maxOf(clampedIntensity, minFloor)
                         } else {
                             VibrationEffect.DEFAULT_AMPLITUDE
                         }
@@ -93,6 +97,36 @@ class RumbleHandler(context: Context) {
             Logger.i(TAG, "Rumble started: intensity=$clampedIntensity, duration=${effectiveDuration}ms")
         } catch (e: Exception) {
             Logger.w(TAG, "Rumble dispatch failed: ${e.message}")
+        }
+    }
+
+    /**
+     * Triggers a brief preview pulse at the specified or current intensity scale.
+     */
+    fun preview(scale: Float = intensityScale) {
+        if (!isEnabled || scale <= 0f) return
+        val effectiveScale = scale.coerceIn(0f, 1f)
+        val previewIntensity = (255 * effectiveScale).toInt().coerceIn(1, 255)
+        val durationMs = 40L
+        try {
+            vibrator?.let { v ->
+                if (v.hasVibrator()) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        val amplitude = if (v.hasAmplitudeControl()) {
+                            val minFloor = (MIN_AMPLITUDE_FLOOR * effectiveScale).toInt().coerceAtLeast(1)
+                            maxOf(previewIntensity, minFloor)
+                        } else {
+                            VibrationEffect.DEFAULT_AMPLITUDE
+                        }
+                        v.vibrate(VibrationEffect.createOneShot(durationMs, amplitude))
+                    } else {
+                        @Suppress("DEPRECATION")
+                        v.vibrate(durationMs)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Logger.w(TAG, "Preview vibration failed: ${e.message}")
         }
     }
 

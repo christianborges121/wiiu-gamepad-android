@@ -92,6 +92,7 @@ fun MainScreen(
     videoFps: Float = 0f,
     displaySettings: DisplaySettings = DisplaySettings(),
     onDisplaySettingsChanged: (DisplaySettings) -> Unit = {},
+    onPreviewVibration: ((Float) -> Unit)? = null,
     onCalibrateGyro: (() -> Unit)? = null,
     onSurfaceAvailable: ((Surface) -> Unit)? = null,
     onSurfaceDestroyed: (() -> Unit)? = null,
@@ -107,6 +108,7 @@ fun MainScreen(
     var audioEnabled by remember { mutableStateOf(displaySettings.audioEnabled) }
     var audioVolume by remember { mutableFloatStateOf(displaySettings.audioVolume) }
     var vibrationEnabled by remember { mutableStateOf(displaySettings.vibrationEnabled) }
+    var vibrationIntensity by remember { mutableFloatStateOf(displaySettings.vibrationIntensity) }
     var stickDeadzone by remember { mutableFloatStateOf(displaySettings.stickDeadzone) }
     var micEnabled by remember { mutableStateOf(displaySettings.micEnabled) }
     var selectedFitMode by remember { mutableStateOf(displaySettings.fitMode) }
@@ -125,6 +127,7 @@ fun MainScreen(
         audioEnabled = displaySettings.audioEnabled
         audioVolume = displaySettings.audioVolume
         vibrationEnabled = displaySettings.vibrationEnabled
+        vibrationIntensity = displaySettings.vibrationIntensity
         stickDeadzone = displaySettings.stickDeadzone
         micEnabled = displaySettings.micEnabled
     }
@@ -140,6 +143,7 @@ fun MainScreen(
         audioEnabled = audioEnabled,
         audioVolume = audioVolume,
         vibrationEnabled = vibrationEnabled,
+        vibrationIntensity = vibrationIntensity,
         stickDeadzone = stickDeadzone,
         micEnabled = micEnabled
     )
@@ -454,6 +458,36 @@ fun MainScreen(
                                     },
                                     colors = switchColors
                                 )
+                            }
+
+                            if (vibrationEnabled) {
+                                HorizontalDivider(color = Color(0xFF222B3D))
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text("Intensity", color = Color(0xFF9FB0C6), fontSize = 13.sp)
+                                        Text(
+                                            if (vibrationIntensity <= 0f) "Off" else "${(vibrationIntensity * 100).toInt()}%",
+                                            color = if (vibrationIntensity <= 0f) Color(0xFF9FB0C6) else Color(0xFF00E5FF),
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                    Slider(
+                                        value = vibrationIntensity,
+                                        onValueChange = {
+                                            vibrationIntensity = it
+                                            onDisplaySettingsChanged(currentSettings().copy(vibrationIntensity = it))
+                                        },
+                                        onValueChangeFinished = {
+                                            onPreviewVibration?.invoke(vibrationIntensity)
+                                        },
+                                        colors = sliderColors,
+                                        valueRange = 0f..1f
+                                    )
+                                }
                             }
 
                             HorizontalDivider(color = Color(0xFF222B3D))

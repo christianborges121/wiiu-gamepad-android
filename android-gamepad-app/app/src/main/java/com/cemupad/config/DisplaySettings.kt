@@ -38,6 +38,7 @@ data class DisplaySettings(
     val audioEnabled: Boolean = true,
     val audioVolume: Float = 1.0f,
     val vibrationEnabled: Boolean = true,
+    val vibrationIntensity: Float = 1.0f,
     val stickDeadzone: Float = 0.08f,
     val micEnabled: Boolean = true
 )

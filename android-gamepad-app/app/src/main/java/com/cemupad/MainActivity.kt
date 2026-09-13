@@ -259,6 +259,11 @@ class MainActivity : ComponentActivity() {
             } else {
                 null
             },
+            vibrationIntensity = if (prefs.contains(AppSettingsCodec.KEY_VIBRATION_INTENSITY)) {
+                prefs.getFloat(AppSettingsCodec.KEY_VIBRATION_INTENSITY, 1.0f)
+            } else {
+                null
+            },
             stickDeadzone = if (prefs.contains(AppSettingsCodec.KEY_STICK_DEADZONE)) {
                 prefs.getFloat(AppSettingsCodec.KEY_STICK_DEADZONE, 0.08f)
             } else {
@@ -285,6 +290,7 @@ class MainActivity : ComponentActivity() {
         motionHandler = MotionHandler(this, dsuServer)
         rumbleHandler = RumbleHandler(this).apply {
             isEnabled = displaySettings.value.vibrationEnabled
+            intensityScale = displaySettings.value.vibrationIntensity
         }
         micBlowDetector = MicBlowDetector(this) { isBlowing ->
             videoClient?.sendMicBlow(isBlowing)
@@ -357,6 +363,7 @@ class MainActivity : ComponentActivity() {
                             audioReceiver?.isMuted = !newSettings.audioEnabled
                             audioReceiver?.volume = newSettings.audioVolume
                             rumbleHandler.isEnabled = newSettings.vibrationEnabled
+                            rumbleHandler.intensityScale = newSettings.vibrationIntensity
                             gamepadHandler.deadzone = newSettings.stickDeadzone
                             if (newSettings.micEnabled) {
                                 if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
@@ -369,6 +376,9 @@ class MainActivity : ComponentActivity() {
                                 videoClient?.sendMicBlow(false)
                             }
                             persistDisplaySettings(newSettings)
+                        },
+                        onPreviewVibration = { scale ->
+                            rumbleHandler.preview(scale)
                         },
                         onCalibrateGyro = {
                             if (::motionHandler.isInitialized) {
@@ -403,6 +413,7 @@ class MainActivity : ComponentActivity() {
             start()
         }
         rumbleHandler.isEnabled = displaySettings.value.vibrationEnabled
+        rumbleHandler.intensityScale = displaySettings.value.vibrationIntensity
         discoveryClient?.start()
         startUdpReceiver()
         val filter = IntentFilter("com.cemupad.INJECT_INPUT")
@@ -459,6 +470,7 @@ class MainActivity : ComponentActivity() {
             .putBoolean(AppSettingsCodec.KEY_AUDIO_ENABLED, encoded.audioEnabled)
             .putFloat(AppSettingsCodec.KEY_AUDIO_VOLUME, encoded.audioVolume)
             .putBoolean(AppSettingsCodec.KEY_VIBRATION_ENABLED, encoded.vibrationEnabled)
+            .putFloat(AppSettingsCodec.KEY_VIBRATION_INTENSITY, encoded.vibrationIntensity)
             .putFloat(AppSettingsCodec.KEY_STICK_DEADZONE, encoded.stickDeadzone)
             .putBoolean(AppSettingsCodec.KEY_MIC_ENABLED, encoded.micEnabled)
             .apply()

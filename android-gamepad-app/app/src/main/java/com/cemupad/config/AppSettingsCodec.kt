@@ -16,6 +16,7 @@ object AppSettingsCodec {
     const val KEY_AUDIO_ENABLED = "audio_enabled"
     const val KEY_AUDIO_VOLUME = "audio_volume"
     const val KEY_VIBRATION_ENABLED = "vibration_enabled"
+    const val KEY_VIBRATION_INTENSITY = "vibration_intensity"
     const val KEY_STICK_DEADZONE = "stick_deadzone"
     const val KEY_MIC_ENABLED = "mic_enabled"
 
@@ -30,6 +31,7 @@ object AppSettingsCodec {
         audioEnabled: Boolean? = null,
         audioVolume: Float? = null,
         vibrationEnabled: Boolean? = null,
+        vibrationIntensity: Float? = null,
         stickDeadzone: Float? = null,
         micEnabled: Boolean? = null
     ): DisplaySettings {
@@ -50,6 +52,7 @@ object AppSettingsCodec {
             audioEnabled = audioEnabled ?: true,
             audioVolume = audioVolume ?: 1.0f,
             vibrationEnabled = vibrationEnabled ?: true,
+            vibrationIntensity = (vibrationIntensity ?: 1.0f).coerceIn(0f, 1f),
             stickDeadzone = stickDeadzone ?: 0.08f,
             micEnabled = micEnabled ?: true
         )
@@ -67,6 +70,7 @@ object AppSettingsCodec {
             audioEnabled = settings.audioEnabled,
             audioVolume = settings.audioVolume,
             vibrationEnabled = settings.vibrationEnabled,
+            vibrationIntensity = settings.vibrationIntensity,
             stickDeadzone = settings.stickDeadzone,
             micEnabled = settings.micEnabled
         )
@@ -84,6 +88,7 @@ data class EncodedAppSettings(
     val audioEnabled: Boolean,
     val audioVolume: Float,
     val vibrationEnabled: Boolean,
+    val vibrationIntensity: Float,
     val stickDeadzone: Float,
     val micEnabled: Boolean
 )

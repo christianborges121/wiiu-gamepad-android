@@ -27,6 +27,7 @@ class AppSettingsCodecTest {
         assertTrue(settings.audioEnabled)
         assertEquals(1.0f, settings.audioVolume, 0.001f)
         assertTrue(settings.vibrationEnabled)
+        assertEquals(1.0f, settings.vibrationIntensity, 0.001f)
         assertTrue(settings.micEnabled)
     }
 
@@ -61,6 +62,7 @@ class AppSettingsCodecTest {
             audioEnabled = false,
             audioVolume = 0.42f,
             vibrationEnabled = false,
+            vibrationIntensity = 0.35f,
             micEnabled = false
         )
 
@@ -76,6 +78,7 @@ class AppSettingsCodecTest {
             audioEnabled = encoded.audioEnabled,
             audioVolume = encoded.audioVolume,
             vibrationEnabled = encoded.vibrationEnabled,
+            vibrationIntensity = encoded.vibrationIntensity,
             stickDeadzone = encoded.stickDeadzone,
             micEnabled = encoded.micEnabled
         )
