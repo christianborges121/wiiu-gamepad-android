@@ -325,5 +325,6 @@ This document is the **single source of truth** for tracking implementation prog
 | *2026-09-13* | 4.3 | Voice PCM Streaming (code) | Bridge mic queue, UDP 26764 receiver, `mic.cpp` consume path, Android `MicVoiceStreamer` + wiring; gradle + `CemuBin` green, deployed; **live mic test deferred to end of project** (no voice game handy) | 🟡 Code done |
 | *2026-09-13* | 4.4 | Session PIN (code, UI disabled) | PIN API + server auth gating + client handshake + pairing checkbox, all build-verified; UI removed per user decision (complicates flow), open-session default; re-enable is UI-only | 🟡 Disabled |
 | *2026-09-13* | 4.1-fix | Discovery re-pair fix | Dual-destination responder replies, dialog re-probe + 30s expiry; live-verified re-pair | ✅ Done |
-| *2026-09-13* | 6 | Input Mapping Wizard (code) | Detector, capture engine, per-device store, wizard UI, drawer + edge-swipe + connect-card UX; 88+ unit tests green, deployed; live controller pass in progress | 🟡 In progress |
 | *2026-09-13* | 5 | Release Minification & CI/CD | ProGuard/R8 keep rules, minification (1.2MB APK), GitHub Actions workflow for APK & Cemu Windows binary | ✅ Done |
+| *2026-09-13* | 4.5 | Cross-Platform Cemu Host (POSIX) | Added POSIX socket headers, portable `SOCKET`/`CloseSocket`/`SetSocketNonBlocking`/`SetSocketRecvTimeout`, detached threads, `kSendFlags`; verified MSVC & multi-platform CI | 🟡 CI in progress |
+
