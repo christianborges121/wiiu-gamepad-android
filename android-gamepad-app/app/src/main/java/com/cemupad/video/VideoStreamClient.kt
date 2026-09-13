@@ -7,6 +7,7 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.net.InetSocketAddress
 import java.net.Socket
+import java.net.SocketTimeoutException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.atomic.AtomicBoolean
@@ -51,6 +52,14 @@ class VideoStreamClient(
 
     val isConnected: Boolean
         get() = isRunning.get() && socket?.isConnected == true && socket?.isClosed == false
+
+    /**
+     * When video flows over UDP, this TCP connection is control-only and
+     * legitimately idle for long stretches. Read timeouts then must not
+     * tear it down (tearing it down drops the client server-side and
+     * starves the encoder). Server death is still covered by DSU pruning.
+     */
+    @Volatile var idleControlMode: Boolean = false
 
     fun start() {
         if (isRunning.getAndSet(true)) return
@@ -105,14 +114,16 @@ class VideoStreamClient(
     }
 
     private fun sendOpcode(opcode: Int, name: String) {
+        // Snapshot the stream under lock, then write WITHOUT holding it: a
+        // write to a dead peer can block indefinitely (no write timeout on
+        // plain sockets), and must never park other threads on the monitor.
+        val out = synchronized(this) { outStream }
         Thread {
             try {
-                synchronized(this) {
-                    outStream?.let {
-                        it.writeByte(opcode)
-                        it.flush()
-                        Logger.i(TAG, "Sent $name to Cemu video server")
-                    }
+                out?.let {
+                    it.writeByte(opcode)
+                    it.flush()
+                    Logger.i(TAG, "Sent $name to Cemu video server")
                 }
             } catch (e: Exception) {
                 Logger.w(TAG, "Failed to send $name: ${e.message}")
@@ -145,22 +156,29 @@ class VideoStreamClient(
                     val headerBuf = ByteArray(13) // 1 (type) + 4 (size) + 8 (pts)
 
                     while (isRunning.get()) {
-                        inStream.readFully(headerBuf)
-                        val headerWrap = ByteBuffer.wrap(headerBuf).order(ByteOrder.LITTLE_ENDIAN)
-                        val packetType = headerWrap.get().toInt() and 0xFF
-                        val payloadSize = headerWrap.getInt()
-                        val ptsUs = headerWrap.getLong()
+                        try {
+                            inStream.readFully(headerBuf)
+                            val headerWrap = ByteBuffer.wrap(headerBuf).order(ByteOrder.LITTLE_ENDIAN)
+                            val packetType = headerWrap.get().toInt() and 0xFF
+                            val payloadSize = headerWrap.getInt()
+                            val ptsUs = headerWrap.getLong()
 
-                        if (payloadSize <= 0 || payloadSize > 4 * 1024 * 1024) {
-                            Logger.w(TAG, "Invalid payload size: $payloadSize bytes. Reconnecting...")
-                            break
-                        }
+                            if (payloadSize <= 0 || payloadSize > 4 * 1024 * 1024) {
+                                Logger.w(TAG, "Invalid payload size: $payloadSize bytes. Reconnecting...")
+                                break
+                            }
 
-                        val payload = ByteArray(payloadSize)
-                        inStream.readFully(payload)
+                            val payload = ByteArray(payloadSize)
+                            inStream.readFully(payload)
 
-                        if (packetType == PACKET_TYPE_VIDEO) {
-                            onFrameReceived(payload, ptsUs)
+                            if (packetType == PACKET_TYPE_VIDEO) {
+                                onFrameReceived(payload, ptsUs)
+                            }
+                        } catch (e: SocketTimeoutException) {
+                            if (idleControlMode) {
+                                continue
+                            }
+                            throw e
                         }
                     }
                 } catch (e: InterruptedException) {
@@ -202,12 +220,23 @@ class VideoStreamClient(
     }
 
     private fun closeSocket() {
+        // Snapshot under lock, close outside it: close() must never wait
+        // behind a stuck sender, or the retry loop parks here forever.
+        val s: Socket?
+        val o: DataOutputStream?
         synchronized(this) {
-            try {
-                outStream = null
-                socket?.close()
-            } catch (_: Exception) {}
+            s = socket
+            o = outStream
             socket = null
+            outStream = null
+        }
+        try {
+            o?.close()
+        } catch (_: Exception) {
+        }
+        try {
+            s?.close()
+        } catch (_: Exception) {
         }
     }
 }

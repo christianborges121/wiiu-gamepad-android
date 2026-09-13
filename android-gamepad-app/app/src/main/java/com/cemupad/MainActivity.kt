@@ -34,6 +34,7 @@ import com.cemupad.video.UdpVideoReceiver
 import com.cemupad.video.VideoDecoder
 import com.cemupad.video.VideoStreamClient
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
 class MainActivity : ComponentActivity() {
 
@@ -52,6 +53,7 @@ class MainActivity : ComponentActivity() {
     private var videoClient: VideoStreamClient? = null
     private var udpReceiver: UdpVideoReceiver? = null
     private val udpActive = AtomicBoolean(false)
+    private val lastFedPtsUs = AtomicLong(-1L)
     private var activeSurface: Surface? = null
     private var lastKnownClientIp: String? = null
 
@@ -64,16 +66,27 @@ class MainActivity : ComponentActivity() {
     // Watchdog: worker loops must never die silently. If a DSU or video
     // thread died while supposed to run (e.g. an uncaught throwable),
     // restart it so Cemu restarts are picked up without reopening the app.
+    // Also covers the stable deadlock where DSU stays subscribed but no
+    // video client exists (nothing would otherwise recreate it).
     private val watchdogHandler = Handler(Looper.getMainLooper())
     private val watchdogRunnable = object : Runnable {
         override fun run() {
             try {
                 if (::dsuServer.isInitialized) {
                     dsuServer.ensureThreads()
+                    val peerIp = dsuServer.activeClientAddress?.address?.hostAddress
+                        ?.takeIf { it != "127.0.0.1" }
+                        ?: lastKnownClientIp
+                    if (peerIp != null && videoClient == null) {
+                        Logger.i("MainActivity", "Watchdog: DSU subscribed but no video client; starting video to $peerIp")
+                        startVideoStream(peerIp)
+                    }
                 }
                 videoClient?.restartIfStalled()
                 udpReceiver?.restartIfStalled()
-            } catch (_: Exception) {
+            } catch (t: Throwable) {
+                // A watchdog must never die: log and continue watching.
+                Logger.w("MainActivity", "Watchdog pass failed: ${t.message}")
             }
             watchdogHandler.postDelayed(this, WATCHDOG_INTERVAL_MS)
         }
@@ -229,6 +242,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleVideoFrame(nalData: ByteArray, ptsUs: Long) {
+        // Drop exact duplicates (dual-transport overlap during switch-over);
+        // legitimate streams never repeat a PTS back-to-back.
+        if (ptsUs == lastFedPtsUs.getAndSet(ptsUs)) return
         videoDecoder?.decodeFrame(nalData, ptsUs)
         isVideoStreaming.value = true
         videoDecoder?.let { videoFps.floatValue = it.currentFps }
@@ -238,15 +254,24 @@ class MainActivity : ComponentActivity() {
         if (udpReceiver != null) return
         val receiver = UdpVideoReceiver(
             onFrameReceived = { nalData, ptsUs ->
-                udpActive.set(true)
+                if (!udpActive.getAndSet(true)) {
+                    // First ordered frame of a UDP burst: sync point, and
+                    // the TCP connection becomes control-only from here.
+                    videoClient?.idleControlMode = true
+                    videoClient?.requestIDR()
+                }
                 handleVideoFrame(nalData, ptsUs)
             }
         )
+        receiver.onRequestIdr = {
+            videoClient?.requestIDR()
+        }
         receiver.onUdpSilence = {
             // UDP went quiet (lossy path or dead sender): fall back to TCP
             // video and stay there until the next reconnect.
             if (udpActive.getAndSet(false)) {
                 Logger.w("MainActivity", "UDP video silent, falling back to TCP")
+                videoClient?.idleControlMode = false
                 videoClient?.requestTransport(false)
             }
         }
@@ -278,11 +303,13 @@ class MainActivity : ComponentActivity() {
             onConnected = {
                 Logger.i("MainActivity", "Video stream connected to $host:26761")
                 isVideoStreaming.value = true
+                udpReceiver?.resetStream()
                 requestTransport(true)
             }
             onDisconnected = {
                 Logger.i("MainActivity", "Video stream disconnected")
                 isVideoStreaming.value = false
+                videoClient?.idleControlMode = false
             }
             onError = { err ->
                 Logger.w("MainActivity", "Video stream error: ${err.message}")
@@ -293,6 +320,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun stopVideoStream() {
+        videoClient?.idleControlMode = false
         videoClient?.stop()
         videoClient = null
         isVideoStreaming.value = false

@@ -33,6 +33,7 @@ class UdpVideoReceiver(
     private val reassembler = FrameReassembler()
     private val sequencer = UdpFrameSequencer()
     private var lastIdrRequestMs = 0L
+    @Volatile private var silenceReported = false
 
     var onUdpSilence: (() -> Unit)? = null
     var onRequestIdr: (() -> Unit)? = null
@@ -42,6 +43,7 @@ class UdpVideoReceiver(
     fun resetStream() {
         sequencer.onTransportStart()
         lastIdrRequestMs = 0L
+        silenceReported = false
     }
 
     val stats get() = reassembler.stats
@@ -97,7 +99,7 @@ class UdpVideoReceiver(
             socket = sock
             Logger.i(TAG, "UDP video listening on 0.0.0.0:$port")
             var lastCompleteMs = System.currentTimeMillis()
-            var silenceReported = false
+            silenceReported = false
             val buf = ByteArray(UdpVideoPacket.HEADER_SIZE + UdpVideoPacket.MAX_PAYLOAD + 64)
             val packet = DatagramPacket(buf, buf.size)
 
@@ -105,7 +107,6 @@ class UdpVideoReceiver(
                 try {
                     packet.length = buf.size
                     sock.receive(packet)
-                    silenceReported = false
                     for (out in sequencer.onOffer(reassembler.offer(buf, packet.length))) {
                         when (out) {
                             is UdpFrameSequencer.Out.Feed -> {
