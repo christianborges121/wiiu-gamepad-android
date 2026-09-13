@@ -230,7 +230,7 @@ class MainActivity : ComponentActivity() {
                 null
             },
             limitTo30Fps = if (prefs.contains(AppSettingsCodec.KEY_LIMIT_30_FPS)) {
-                prefs.getBoolean(AppSettingsCodec.KEY_LIMIT_30_FPS, true)
+                prefs.getBoolean(AppSettingsCodec.KEY_LIMIT_30_FPS, false)
             } else {
                 null
             },

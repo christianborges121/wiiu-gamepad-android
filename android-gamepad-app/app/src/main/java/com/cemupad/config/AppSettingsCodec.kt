@@ -42,7 +42,7 @@ object AppSettingsCodec {
             resolutionPreset = resolution,
             diagnosticsOverlayEnabled = diagnosticsOverlayEnabled ?: false,
             showConnectionHelp = connectionHelpVisible ?: true,
-            limitTo30Fps = limitTo30Fps ?: true,
+            limitTo30Fps = limitTo30Fps ?: false,
             showVirtualControls = showVirtualControls ?: false,
             virtualControlsOpacity = virtualControlsOpacity ?: 0.5f,
             audioEnabled = audioEnabled ?: true,

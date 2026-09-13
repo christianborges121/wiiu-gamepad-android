@@ -32,7 +32,7 @@ data class DisplaySettings(
     val resolutionPreset: DisplayResolutionPreset = DisplayResolutionPreset.NATIVE_854x480,
     val diagnosticsOverlayEnabled: Boolean = false,
     val showConnectionHelp: Boolean = true,
-    val limitTo30Fps: Boolean = true,
+    val limitTo30Fps: Boolean = false,
     val showVirtualControls: Boolean = false,
     val virtualControlsOpacity: Float = 0.5f,
     val audioEnabled: Boolean = true,

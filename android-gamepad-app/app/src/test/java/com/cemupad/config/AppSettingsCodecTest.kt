@@ -21,7 +21,7 @@ class AppSettingsCodecTest {
         assertEquals(DisplayResolutionPreset.NATIVE_854x480, settings.resolutionPreset)
         assertFalse(settings.diagnosticsOverlayEnabled)
         assertTrue(settings.showConnectionHelp)
-        assertTrue(settings.limitTo30Fps)
+        assertFalse(settings.limitTo30Fps)
         assertFalse(settings.showVirtualControls)
         assertEquals(0.5f, settings.virtualControlsOpacity, 0.001f)
         assertTrue(settings.audioEnabled)
