@@ -187,9 +187,32 @@ class VideoDecoder(
 
         try {
             val normalizedNal = normalizeAvcBitstream(nalData)
-            val params = AvcNalUnits.describe(AvcNalUnits.parseAnnexB(normalizedNal))
-            if (params.hasSps) spsSeen = true
-            if (params.hasPps) ppsSeen = true
+
+            // Lightweight SPS/PPS detection: scan only the first few NAL start codes
+            // instead of fully parsing the Annex-B stream (avoids list allocations on
+            // every frame). We only need to know if SPS (type 7) and PPS (type 8) are
+            // present for the parameter-set watchdog.
+            if (!spsSeen || !ppsSeen) {
+                var i = 0
+                while (i + 4 < normalizedNal.size && i < 128) {
+                    if (normalizedNal[i] == 0.toByte() && normalizedNal[i + 1] == 0.toByte()) {
+                        val off = when {
+                            normalizedNal[i + 2] == 1.toByte() -> i + 3
+                            i + 3 < normalizedNal.size && normalizedNal[i + 2] == 0.toByte() && normalizedNal[i + 3] == 1.toByte() -> i + 4
+                            else -> -1
+                        }
+                        if (off in 0 until normalizedNal.size) {
+                            when (normalizedNal[off].toInt() and 0x1F) {
+                                7 -> spsSeen = true
+                                8 -> ppsSeen = true
+                            }
+                            i = off + 1
+                            continue
+                        }
+                    }
+                    i++
+                }
+            }
 
             // NOTE: no PTS rate limiting here. Dropping P-frames ahead of a
             // stateful H.264 decoder corrupts its reference chain (ghosting

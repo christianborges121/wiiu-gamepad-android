@@ -98,15 +98,16 @@ class FrameReassembler(
                 part!!.copyInto(out, pos)
                 pos += part.size
             }
-            val isKeyframe = slot.isIdr || AvcNalUnits.describe(AvcNalUnits.parseAnnexB(out)).hasIdr
-            events += OfferResult.FrameComplete(
-                CompletedFrame(
-                    data = out,
-                    ptsUs = slot.ptsUs,
-                    isIdr = isKeyframe,
-                    frameId = slot.frameId
-                )
-            )
+			// Trust the IDR flag from the UDP header (set by Cemu's encoder);
+			// re-parsing the full Annex-B payload adds unnecessary CPU on every frame.
+			events += OfferResult.FrameComplete(
+				CompletedFrame(
+					data = out,
+					ptsUs = slot.ptsUs,
+					isIdr = slot.isIdr,
+					frameId = slot.frameId
+				)
+			)
         }
         return events
     }
