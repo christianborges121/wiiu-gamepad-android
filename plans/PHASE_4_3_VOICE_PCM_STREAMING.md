@@ -29,9 +29,9 @@ Stream real-time 32 kHz 16-bit signed mono PCM microphone audio from Android dir
 
 ## 3. Implementation Checklist & Step-by-Step Code Modifications
 
-- [ ] **Step 3.1: Implement CemuPadBridge Mic Sample Delegate**
-  - [ ] Add `FeedMicSamples(samples, sampleCount)` in `Cemu/src/streaming/CemuPadBridge.h`.
-  - [ ] Implement `FeedMicSamples` in `Cemu/src/streaming/CemuPadBridge.cpp` forwarding directly to `mic_feedSamples(0, samples, count)`.
+- [x] **Step 3.1: Implement CemuPadBridge Mic Sample Delegate** *(adapted for correctness: plan's direct `FeedMicSamples→mic_feedSamples` from the network thread races with `mic_updateOnAXFrame`'s AX-thread writer on the same ringbuffer `writeIndex`. Implemented instead as a thread-safe `QueueMicSamples`/`DequeueMicSamples`/`ClearMicQueue` handoff — network thread enqueues, audio thread consumes; ringbuffer keeps a single writer)*
+  - [x] Add `QueueMicSamples` / `DequeueMicSamples` / `ClearMicQueue` in `Cemu/src/streaming/CemuPadBridge.h` (1s cap, drop-oldest).
+  - [x] Consume queued phone PCM in `mic.cpp:mic_updateOnAXFrame` (preferred when mic/blow active and queue non-empty; synthetic tone fallback preserved), keeping `mic_feedSamples` as the sole ringbuffer writer.
 
 #### [MODIFY] [`Cemu/src/streaming/CemuPadBridge.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/CemuPadBridge.h)
 Add delegate method to feed raw mic samples into Cafe OS `mic.cpp`:
@@ -52,10 +52,10 @@ void CemuPadBridge::FeedMicSamples(const int16_t* samples, size_t sampleCount)
 }
 ```
 
-- [ ] **Step 3.2: Implement VideoStreamServer UDP 26764 Mic Receiver Loop**
-  - [ ] Define `MIC_PORT = 26764` in `Cemu/src/streaming/VideoStreamServer.h`.
-  - [ ] Implement `RunMicReceiverLoop` in `Cemu/src/streaming/VideoStreamServer.cpp`.
-  - [ ] Extract PCM samples from packets and forward to `CemuPadBridge::GetInstance().FeedMicSamples(...)`.
+- [x] **Step 3.2: Implement VideoStreamServer UDP 26764 Mic Receiver Loop**
+  - [x] Define `MIC_PORT = 26764` in `Cemu/src/Cafe/HW/Latte/Renderer/VideoStreamServer.h` (files still under `Cafe/` — media move deferred).
+  - [x] Implement `MicRxThreadFunc` in `VideoStreamServer.cpp` (500ms-timeout socket, header validation, drop malformed).
+  - [x] Extract PCM samples from packets and forward to `CemuPadBridge::QueueMicSamples(...)`.
 
 #### [MODIFY] [`Cemu/src/streaming/VideoStreamServer.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/VideoStreamServer.h)
 Add port definition:
@@ -93,10 +93,10 @@ void VideoStreamServer::RunMicReceiverLoop()
 }
 ```
 
-- [ ] **Step 3.3: Implement Android 32 kHz Voice PCM Streamer**
-  - [ ] Create `MicVoiceStreamer.kt` in `android-gamepad-app/app/src/main/java/com/cemupad/audio/`.
-  - [ ] Record 32 kHz 16-bit mono audio with `AudioRecord`.
-  - [ ] Stream 320-sample chunks (10ms) via UDP datagrams to port `26764`.
+- [x] **Step 3.3: Implement Android 32 kHz Voice PCM Streamer** *(plus 32kHz-support check, permission guards, pure packet builder for tests)*
+  - [x] Create `MicVoiceStreamer.kt` in `android-gamepad-app/app/src/main/java/com/cemupad/audio/`.
+  - [x] Record 32 kHz 16-bit mono audio with `AudioRecord`.
+  - [x] Stream 320-sample chunks (10ms) via UDP datagrams to port `26764`.
 
 #### [NEW] [`android-gamepad-app/app/src/main/java/com/cemupad/audio/MicVoiceStreamer.kt`](file:///c:/Projects/wiiu-gamepad-android/android-gamepad-app/app/src/main/java/com/cemupad/audio/MicVoiceStreamer.kt)
 Handles recording and UDP packet streaming:
@@ -201,9 +201,9 @@ class MicVoiceStreamer(
 }
 ```
 
-- [ ] **Step 3.4: Wire Microphone Streaming in MainActivity**
-  - [ ] Initialize `MicVoiceStreamer` on connection in `MainActivity.kt`.
-  - [ ] Toggle streaming dynamically when user enables/disables microphone in settings.
+- [x] **Step 3.4: Wire Microphone Streaming in MainActivity** *(starts on video connect when mic toggle is on, stops with the stream, toggles live with the setting)*
+  - [x] Initialize `MicVoiceStreamer` on connection in `MainActivity.kt`.
+  - [x] Toggle streaming dynamically when user enables/disables microphone in settings.
 
 #### [MODIFY] [`android-gamepad-app/app/src/main/java/com/cemupad/MainActivity.kt`](file:///c:/Projects/wiiu-gamepad-android/android-gamepad-app/app/src/main/java/com/cemupad/MainActivity.kt)
 - Instantiate `micVoiceStreamer = MicVoiceStreamer(serverIp)` when video connects.
@@ -213,16 +213,16 @@ class MicVoiceStreamer(
 
 ## 4. Verification & Testing Checklist
 
-- [ ] **4.1 Android Unit Testing**
-  - [ ] Run Gradle unit tests:
+- [x] **4.1 Android Unit Testing** *(green, incl. new `MicVoiceStreamerTest` 4/4)*
+  - [x] Run Gradle unit tests:
     ```powershell
     cd c:\Projects\wiiu-gamepad-android\android-gamepad-app
     .\gradlew.bat testDebugUnitTest
     ```
-- [ ] **4.2 Cemu Release Build Verification**
-  - [ ] Build Cemu target:
+- [x] **4.2 Cemu Release Build Verification** *(verified 2026-09-13, `CemuBin` Release exit 0, no new warnings)*
+  - [x] Build Cemu target:
     ```powershell
-    cmake --build c:\Projects\wiiu-gamepad-android\Cemu\build --config Release --target Cemu
+    cmake --build c:\Projects\wiiu-gamepad-android\Cemu\build --config Release --target CemuBin
     ```
 - [ ] **4.3 Live Device Audio Verification**
   - [ ] Speak into the phone's microphone with mic setting enabled.

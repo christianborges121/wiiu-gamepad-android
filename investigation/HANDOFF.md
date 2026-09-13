@@ -34,6 +34,27 @@ Phase 4.2 is **code-complete and compile-verified but UNCOMMITTED** (awaiting us
 - `plans/PHASE_4_2_DYNAMIC_VIDEO_ENCODING.md` Section 3 + 4.1/4.2 flipped; live check 4.3 (12 Mbps
   + 720p in-game, Cemu log lines, decoder re-sync) left for user.
 
+Deployed 2026-09-13 ~10:53 AM (Phase 4.3 batch): `Cemu/bin/Cemu_release.exe` (10:50 build,
+mic queue + 26764 receiver) → EmuDeck `Cemu.exe` (prev backed up `Cemu.exe.bak-20260913-1050);
+fresh phone APK (10:48, voice streamer) installed; Cemu GUI running. NOTE: `Voice mic listening`
+log line appears only after a game loads (`StreamingCapture::Initialize` runs on `LatteThread`).
+
+Phase 4.3 is **code-complete and compile-verified but UNCOMMITTED and UNDEPLOYED**
+(user session live — do NOT overwrite EmuDeck exe or reinstall phone APK unasked):
+- C++ (queue-handoff design — plan's direct `FeedMicSamples` would race the AX-thread writer on the
+  mic ringbuffer `writeIndex`): `CemuPadBridge` mic queue (1s cap, drop-oldest),
+  `VideoStreamServer::MicRxThreadFunc` on UDP 26764 with header validation, `mic.cpp` consumes
+  queued PCM when mic/blow active (synth-tone fallback preserved, `mic_feedSamples` stays sole
+  writer); `CemuBin` Release exit 0, no new warnings.
+- Android (`MicVoiceStreamer` 32 kHz/320-sample datagrams with permission + device-support guards,
+  MainActivity start-on-connect/stop-on-disconnect/live-toggle with mic setting, `MicVoiceStreamerTest`
+  4/4, full suite + assemble green).
+- Plan Section 3 + 4.1/4.2 flipped with adaptation notes; live check 4.3 open (needs deploy + voice
+  mini-game test). Caveats: voice streamer is a SECOND recorder next to the blow detector (watch
+  Samsung); hardcoded `Initialized (854x480…)` log line still misleading — fix in a later C++ batch.
+- TO DEPLOY for live test: stop Cemu → copy `Cemu/bin/Cemu_release.exe` → EmuDeck `Cemu.exe`;
+  `adb install -r` fresh phone APK; speak into mic in a voice mini-game.
+
 ## Just completed (this session)
 
 1. **Reviewed project + harness + all plans** (`AI_HARNESS_INSTRUCTIONS.md`, `plans/`, `PROJECT_CHECKLIST.md`).

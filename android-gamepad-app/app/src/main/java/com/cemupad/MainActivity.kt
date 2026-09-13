@@ -30,6 +30,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.cemupad.audio.AudioStreamReceiver
 import com.cemupad.audio.MicBlowDetector
+import com.cemupad.audio.MicVoiceStreamer
 import com.cemupad.config.AppSettingsCodec
 import com.cemupad.config.DisplaySettings
 import com.cemupad.dsu.DSUServer
@@ -67,6 +68,7 @@ class MainActivity : ComponentActivity() {
     private var audioReceiver: AudioStreamReceiver? = null
     private var discoveryClient: DiscoveryClient? = null
     private var discoveryResponder: DiscoveryResponder? = null
+    private var micVoiceStreamer: MicVoiceStreamer? = null
     private val discoveredServer = mutableStateOf<DiscoveredServer?>(null)
 
     private var videoDecoder: VideoDecoder? = null
@@ -382,12 +384,18 @@ class MainActivity : ComponentActivity() {
                             if (newSettings.micEnabled) {
                                 if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
                                     micBlowDetector.start()
+                                    // (Re)start voice PCM when the toggle flips on mid-session.
+                                    if (videoClient?.isConnected == true) {
+                                        val host = lastKnownClientIp
+                                        if (!host.isNullOrEmpty()) startVoiceStream(host)
+                                    }
                                 } else {
                                     requestAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                                 }
                             } else {
                                 micBlowDetector.stop()
                                 videoClient?.sendMicBlow(false)
+                                stopVoiceStream()
                             }
                             // Forward dynamic encoder changes to Cemu (no-op when unchanged).
                             if (newSettings.videoBitrateMbps != oldSettings.videoBitrateMbps) {
@@ -596,6 +604,7 @@ class MainActivity : ComponentActivity() {
                 if (preset.width > 0 && preset.height > 0) {
                     videoClient?.sendResolution(preset.width, preset.height)
                 }
+                startVoiceStream(host)
                 requestIDR()
             }
             onDisconnected = {
@@ -622,12 +631,29 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun stopVideoStream() {
+        stopVoiceStream()
         videoClient?.idleControlMode = false
         videoClient?.stop()
         videoClient = null
         rumbleHandler.cancel(force = true)
         isVideoStreaming.value = false
         videoFps.floatValue = 0f
+    }
+
+    /**
+     * Starts 32 kHz voice PCM streaming to Cemu when the microphone toggle is
+     * on. Requires RECORD_AUDIO (checked inside the streamer); safe no-op
+     * otherwise. Runs alongside the blow detector's own recorder.
+     */
+    private fun startVoiceStream(host: String) {
+        stopVoiceStream()
+        if (!displaySettings.value.micEnabled) return
+        micVoiceStreamer = MicVoiceStreamer(this, host).apply { start() }
+    }
+
+    private fun stopVoiceStream() {
+        micVoiceStreamer?.stop()
+        micVoiceStreamer = null
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
