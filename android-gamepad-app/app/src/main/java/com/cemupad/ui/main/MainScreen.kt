@@ -162,9 +162,15 @@ fun MainScreen(
         }
     }
 
+    LaunchedEffect(drawerState.isOpen) {
+        if (!drawerState.isOpen) {
+            onDisplaySettingsChanged(currentSettings())
+        }
+    }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
-        gesturesEnabled = false,
+        gesturesEnabled = drawerState.isOpen,
         drawerContent = {
             ModalDrawerSheet(
                 drawerContainerColor = Color(0xFF0F141E),
