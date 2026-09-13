@@ -92,11 +92,22 @@ class DiscoveryResponder(
                     if (!isProbePacket(text)) continue
 
                     val senderIp = recvPacket.address?.hostAddress ?: ""
-                    val reply = DatagramPacket(
+                    // Reply to the sender's port (ephemeral listeners) AND to the
+                    // well-known discovery port: PC probes originate from a
+                    // transient socket, so a sender-port-only reply would land
+                    // where nobody listens and the PC dialog would stay empty.
+                    val replyToSender = DatagramPacket(
                         responseData, responseData.size,
                         recvPacket.address, recvPacket.port
                     )
-                    socket.send(reply)
+                    socket.send(replyToSender)
+                    if (recvPacket.port != DISCOVERY_PORT) {
+                        val replyToDiscoveryPort = DatagramPacket(
+                            responseData, responseData.size,
+                            recvPacket.address, DISCOVERY_PORT
+                        )
+                        socket.send(replyToDiscoveryPort)
+                    }
                     Logger.i(TAG, "Answered discovery probe from $senderIp")
                     if (senderIp.isNotEmpty()) {
                         try {

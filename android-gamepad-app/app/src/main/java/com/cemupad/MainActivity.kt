@@ -9,10 +9,12 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.Surface
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -31,6 +33,15 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.cemupad.audio.AudioStreamReceiver
 import com.cemupad.audio.MicBlowDetector
 import com.cemupad.audio.MicVoiceStreamer
+import com.cemupad.input.CaptureEngine
+import com.cemupad.input.ControllerDetector
+import com.cemupad.input.DetectedProfile
+import com.cemupad.input.DeviceProfileStore
+import com.cemupad.input.MappableControl
+import com.cemupad.ui.mapping.MappingPromptUi
+import com.cemupad.ui.mapping.MappingTestRow
+import com.cemupad.ui.mapping.MappingWizardActions
+import com.cemupad.ui.mapping.MappingWizardScreen
 import com.cemupad.config.AppSettingsCodec
 import com.cemupad.config.DisplaySettings
 import com.cemupad.dsu.DSUServer
@@ -55,6 +66,7 @@ class MainActivity : ComponentActivity() {
     companion object {
         private const val PREFS_NAME = "cemupad_connection"
         private const val PREF_LAST_CEMU_IP = "last_cemu_ip"
+        private const val PREF_AUTH_TOKEN = "auth_token"
         private const val WATCHDOG_INTERVAL_MS = 5000L
     }
 
@@ -69,6 +81,32 @@ class MainActivity : ComponentActivity() {
     private var discoveryClient: DiscoveryClient? = null
     private var discoveryResponder: DiscoveryResponder? = null
     private var micVoiceStreamer: MicVoiceStreamer? = null
+
+    // First-connect input mapping wizard (Phase 6)
+    private lateinit var deviceProfileStore: DeviceProfileStore
+    private val captureEngine = CaptureEngine()
+    private val promptedDescriptors = mutableSetOf<String>()
+    private var lastProfileDescriptor: String? = null
+    private var lastDetectedProfile: DetectedProfile? = null
+    private val activeGamepadDescriptor = mutableStateOf<String?>(null)
+    private val activeGamepadName = mutableStateOf<String?>(null)
+    private val mappingPrompt = mutableStateOf<MappingPromptUi?>(null)
+    private val wizardScreen = mutableStateOf<MappingWizardScreen?>(null)
+    private val captureTick = mutableStateOf(0)
+    private val captureFlash = mutableStateOf<String?>(null)
+    private var lastShownHatDir: String? = null
+    private val testHistoryKeys = mutableSetOf<Int>()
+    private val testHistoryDirs = mutableSetOf<String>()
+
+    /** Active hat D-pad directions in priority order (UP/DOWN/LEFT/RIGHT). */
+    private fun activeHatDirs(hatX: Float, hatY: Float): List<String> {
+        val dirs = mutableListOf<String>()
+        if (hatY < -0.5f) dirs.add("UP")
+        if (hatY > 0.5f) dirs.add("DOWN")
+        if (hatX < -0.5f) dirs.add("LEFT")
+        if (hatX > 0.5f) dirs.add("RIGHT")
+        return dirs
+    }
     private val discoveredServer = mutableStateOf<DiscoveredServer?>(null)
 
     private var videoDecoder: VideoDecoder? = null
@@ -326,6 +364,10 @@ class MainActivity : ComponentActivity() {
             Logger.i("MainActivity", "Cemu discovery probe answered for $senderIp")
         }
 
+        deviceProfileStore = DeviceProfileStore(
+            getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        )
+
         // Hook automatic video stream connection when a Cemu client connects
         dsuServer.onClientConnected = { clientAddr ->
             val clientIp = clientAddr.address.hostAddress ?: ""
@@ -415,6 +457,55 @@ class MainActivity : ComponentActivity() {
                                 motionHandler.calibrateGyro()
                             }
                         },
+                        mappingPrompt = mappingPrompt.value,
+                        onMappingSetup = {
+                            mappingPrompt.value?.let { prompt ->
+                                mappingPrompt.value = null
+                                openWizardForDescriptor(prompt.descriptor)
+                            }
+                        },
+                        onMappingDismiss = { mappingPrompt.value = null },
+                        activeControllerName = activeGamepadName.value,
+                        onOpenInputMapping = {
+                            val known = activeGamepadDescriptor.value
+                            if (known != null) {
+                                openWizardForDescriptor(known)
+                            } else {
+                                // No input seen yet: scan attached devices directly.
+                                val found = try {
+                                    ControllerDetector.firstGamepad()
+                                } catch (_: Exception) {
+                                    null
+                                }
+                                if (found != null) {
+                                    val desc = found.first.descriptor ?: ""
+                                    if (desc.isEmpty()) {
+                                        Toast.makeText(
+                                            this@MainActivity,
+                                            "Controller has no descriptor",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    } else {
+                                        activeGamepadDescriptor.value = desc
+                                        activeGamepadName.value = found.first.name ?: "Controller"
+                                        lastDetectedProfile = found.second
+                                        gamepadHandler.profile = deviceProfileStore.activeFor(
+                                            desc, found.second?.profile
+                                        )
+                                        lastProfileDescriptor = desc
+                                        openWizardForDescriptor(desc)
+                                    }
+                                } else {
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        "No gamepad detected — press any controller button first",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+                        },
+                        wizardScreen = wizardScreen.value,
+                        wizardActions = wizardActions(),
                         onSurfaceAvailable = { surface -> handleSurfaceAvailable(surface) },
                         onSurfaceDestroyed = { handleSurfaceDestroyed() }
                     )
@@ -587,6 +678,22 @@ class MainActivity : ComponentActivity() {
                 if (!udpActive.get()) {
                     handleVideoFrame(nalData, ptsUs)
                 }
+            },
+            getAuthCredential = {
+                getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getLong(PREF_AUTH_TOKEN, 0L)
+            },
+            onAuthToken = { token ->
+                getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                    .edit()
+                    .putLong(PREF_AUTH_TOKEN, token)
+                    .apply()
+            },
+            onPinRequired = {
+                // PIN UI disabled 2026-09-13: fail closed instead of prompting.
+                // (No enable path exists server-side, so this is unreachable
+                // unless a PIN-requiring build appears.)
+                Logger.w("MainActivity", "Server demanded PIN; PIN UI disabled, aborting video connection")
+                videoClient?.cancelAuth()
             }
         ).apply {
             onConnected = {
@@ -656,19 +763,351 @@ class MainActivity : ComponentActivity() {
         micVoiceStreamer = null
     }
 
+    /**
+     * Keys that always pass through to the system, even with the wizard open.
+     * Everything else is wizard/capture input while a wizard screen shows.
+     */
+    private fun isSystemPassthroughKey(event: KeyEvent): Boolean {
+        return when (event.keyCode) {
+            KeyEvent.KEYCODE_VOLUME_UP,
+            KeyEvent.KEYCODE_VOLUME_DOWN,
+            KeyEvent.KEYCODE_VOLUME_MUTE,
+            KeyEvent.KEYCODE_POWER -> true
+            else -> false
+        }
+    }
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (::gamepadHandler.isInitialized && gamepadHandler.handleKeyEvent(event)) {
+        // Wizard open: eat-first (Dolphin MotionAlertDialog rule). Every key
+        // except volume/power goes to the wizard and is consumed, so nothing
+        // leaks to focus traversal. Back semantics are Dolphin-style: short
+        // Back is bindable input in capture mode and a no-op elsewhere; only
+        // LONG-press Back exits the wizard.
+        val wizard = wizardScreen.value
+        if (wizard != null && !isSystemPassthroughKey(event)) {
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                Logger.i(
+                    "WizardKeys",
+                    "key action=${event.action} code=${event.keyCode} " +
+                        "name=${KeyEvent.keyCodeToString(event.keyCode)} source=${event.source} " +
+                        "screen=${wizard.javaClass.simpleName}"
+                )
+                if (event.keyCode == KeyEvent.KEYCODE_BACK && event.isLongPress) {
+                    captureEngine.cancel()
+                    wizardScreen.value = null
+                    return true
+                }
+                if (wizard is MappingWizardScreen.Capturing) {
+                    when (captureEngine.recordKey(event.keyCode)) {
+                        CaptureEngine.RecordResult.Conflict ->
+                            captureFlash.value = "Already assigned — press another button"
+                        CaptureEngine.RecordResult.Ignored -> {}
+                        else -> captureFlash.value = null
+                    }
+                    captureTick.value++
+                    refreshCaptureScreen()
+                    return true
+                }
+                if (wizard is MappingWizardScreen.Testing) {
+                    testHistoryKeys.add(event.keyCode)
+                    wizardScreen.value = wizard.copy(
+                        lastKeyCode = event.keyCode,
+                        lastPressedLabel = KeyEvent.keyCodeToString(event.keyCode),
+                        // A key press supersedes any lingering hat direction.
+                        lastDpadDir = null,
+                        historyKeys = testHistoryKeys.toSet(),
+                        historyDirs = testHistoryDirs.toSet()
+                    )
+                }
+            } else if (wizard is MappingWizardScreen.Capturing) {
+                // Swallow releases in capture mode so nothing leaks into gameplay.
+                return true
+            }
             return true
+        }
+        if (::gamepadHandler.isInitialized) {
+            if (event.action == KeyEvent.ACTION_DOWN || event.action == KeyEvent.ACTION_UP) {
+                resolveGamepadProfile(event.deviceId)
+            }
+            if (gamepadHandler.handleKeyEvent(event)) {
+                return true
+            }
         }
         return super.dispatchKeyEvent(event)
     }
 
     override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
-        if (::gamepadHandler.isInitialized && gamepadHandler.onGenericMotionEvent(event)) {
+        // Test screen: surface hat D-pad activity (keys alone can't show it —
+        // hat-driven rows carry keyCode 0). Change-gated to avoid recompose storms.
+        (wizardScreen.value as? MappingWizardScreen.Testing)?.let { testing ->
+            val dirs = activeHatDirs(
+                event.getAxisValue(MotionEvent.AXIS_HAT_X),
+                event.getAxisValue(MotionEvent.AXIS_HAT_Y)
+            )
+            val dir = dirs.firstOrNull()
+            if (dir != null && dir != lastShownHatDir) {
+                lastShownHatDir = dir
+                testHistoryDirs.add(dir)
+                wizardScreen.value = testing.copy(
+                    lastKeyCode = null,
+                    lastPressedLabel = "D-Pad ${dir.lowercase().replaceFirstChar { it.uppercase() }} (hat)",
+                    lastDpadDir = dir,
+                    historyKeys = testHistoryKeys.toSet(),
+                    historyDirs = testHistoryDirs.toSet()
+                )
+            } else if (dir == null) {
+                lastShownHatDir = null
+            }
+        }
+        if (wizardScreen.value is MappingWizardScreen.Capturing) {
+            val before = captureEngine.current
+            // Hat first: many pads (incl. Backbone) report the D-pad only as
+            // HAT_X/HAT_Y with no key events at all.
+            val hatX = event.getAxisValue(MotionEvent.AXIS_HAT_X)
+            val hatY = event.getAxisValue(MotionEvent.AXIS_HAT_Y)
+            if (hatX != 0f || hatY != 0f) {
+                captureEngine.recordHat(MotionEvent.AXIS_HAT_X, hatX)
+                captureEngine.recordHat(MotionEvent.AXIS_HAT_Y, hatY)
+            }
+            val axes = stickCaptureAxes.associateWith { event.getAxisValue(it) }
+            captureEngine.recordAxes(axes)
+            if (captureEngine.current != before) captureFlash.value = null
+            captureTick.value++
+            refreshCaptureScreen()
             return true
+        }
+        if (::gamepadHandler.isInitialized) {
+            resolveGamepadProfile(event.deviceId)
+            if (gamepadHandler.onGenericMotionEvent(event)) {
+                return true
+            }
         }
         return super.dispatchGenericMotionEvent(event)
     }
+
+    /**
+     * Binds the first-seen gamepad to its stored/detected/default profile and
+     * raises the setup banner once per unknown device per session.
+     */
+    private fun resolveGamepadProfile(deviceId: Int) {
+        if (!::gamepadHandler.isInitialized || !::deviceProfileStore.isInitialized) return
+        val device = try {
+            InputDevice.getDevice(deviceId)
+        } catch (_: Exception) {
+            null
+        } ?: return
+        val sources = device.sources
+        val isPad = (sources and InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD ||
+            (sources and InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
+        if (!isPad) return
+        val descriptor = device.descriptor ?: return
+        if (descriptor.isEmpty()) return
+
+        activeGamepadDescriptor.value = descriptor
+        activeGamepadName.value = device.name ?: "Controller"
+        if (lastProfileDescriptor != descriptor) {
+            lastDetectedProfile = try {
+                ControllerDetector.detect(device)
+            } catch (_: Exception) {
+                null
+            }
+            gamepadHandler.profile = deviceProfileStore.activeFor(
+                descriptor, lastDetectedProfile?.profile
+            )
+            lastProfileDescriptor = descriptor
+        }
+        if (!deviceProfileStore.has(descriptor) && !promptedDescriptors.contains(descriptor)) {
+            promptedDescriptors.add(descriptor)
+            val detected = lastDetectedProfile
+            mappingPrompt.value = MappingPromptUi(
+                descriptor = descriptor,
+                deviceName = device.name ?: "Controller",
+                matchLabel = detected?.matchedOn,
+                confidence = detected?.confidence
+            )
+        }
+    }
+
+    private fun openWizardForDescriptor(descriptor: String) {
+        mappingPrompt.value = null
+        val device = findDeviceByDescriptor(descriptor)
+        val detected = try {
+            device?.let { ControllerDetector.detect(it) }
+        } catch (_: Exception) {
+            null
+        } ?: lastDetectedProfile?.takeIf { lastProfileDescriptor == descriptor }
+        if (deviceProfileStore.has(descriptor)) {
+            testHistoryKeys.clear()
+            testHistoryDirs.clear()
+            wizardScreen.value = MappingWizardScreen.Testing(
+                profileName = deviceProfileStore.load(descriptor)?.displayName ?: "Saved layout",
+                rows = testRowsFor(gamepadHandler.profile),
+                lastKeyCode = null
+            )
+        } else {
+            wizardScreen.value = MappingWizardScreen.Detected(
+                deviceName = device?.name ?: activeGamepadName.value ?: "Controller",
+                matchLabel = detected?.matchedOn,
+                confidence = detected?.confidence
+            )
+        }
+    }
+
+    private fun findDeviceByDescriptor(descriptor: String): InputDevice? {
+        for (id in InputDevice.getDeviceIds()) {
+            try {
+                val device = InputDevice.getDevice(id) ?: continue
+                if (device.descriptor == descriptor) return device
+            } catch (_: Exception) {
+            }
+        }
+        return null
+    }
+
+    private fun testRowsFor(profile: com.cemupad.input.ControllerProfile): List<MappingTestRow> {
+        return listOf(
+            MappingTestRow("A", profile.keyA),
+            MappingTestRow("B", profile.keyB),
+            MappingTestRow("X", profile.keyX),
+            MappingTestRow("Y", profile.keyY),
+            MappingTestRow("D-Pad Up", profile.keyDpadUp, "UP"),
+            MappingTestRow("D-Pad Down", profile.keyDpadDown, "DOWN"),
+            MappingTestRow("D-Pad Left", profile.keyDpadLeft, "LEFT"),
+            MappingTestRow("D-Pad Right", profile.keyDpadRight, "RIGHT"),
+            MappingTestRow("L", profile.keyL),
+            MappingTestRow("R", profile.keyR),
+            MappingTestRow("ZL", profile.keyZL),
+            MappingTestRow("ZR", profile.keyZR),
+            MappingTestRow("Plus", profile.keyPlus),
+            MappingTestRow("Minus", profile.keyMinus),
+            MappingTestRow("Home", profile.keyHome),
+            MappingTestRow("Stick L Press", profile.keyL3),
+            MappingTestRow("Stick R Press", profile.keyR3)
+        )
+    }
+
+    private fun startCapture() {
+        captureEngine.start(base = if (::gamepadHandler.isInitialized) gamepadHandler.profile else null)
+        captureFlash.value = null
+        refreshCaptureScreen()
+    }
+
+    private fun refreshCaptureScreen() {
+        val target = captureEngine.current
+        if (target == null) {
+            if (captureEngine.isFinished && !captureEngine.isCancelled) {
+                val total = MappableControl.ORDER.size
+                val skipped = captureEngine.skippedTargets().size
+                wizardScreen.value = MappingWizardScreen.Done(
+                    assigned = total - skipped,
+                    skipped = skipped
+                )
+            }
+            return
+        }
+        val (done, total) = captureEngine.progress
+        wizardScreen.value = MappingWizardScreen.Capturing(
+            targetLabel = target.label,
+            done = done,
+            total = total,
+            flash = captureFlash.value,
+            isStickTarget = target.kind == com.cemupad.input.CaptureKind.STICK
+        )
+    }
+
+    private fun wizardActions() = MappingWizardActions(
+        onConfirmDetected = {
+            testHistoryKeys.clear()
+            testHistoryDirs.clear()
+            wizardScreen.value = MappingWizardScreen.Testing(
+                profileName = gamepadHandler.profile.displayName,
+                rows = testRowsFor(gamepadHandler.profile),
+                lastKeyCode = null
+            )
+        },
+        onRemap = { startCapture() },
+        onSaveTest = {
+            val descriptor = activeGamepadDescriptor.value ?: return@MappingWizardActions
+            deviceProfileStore.save(
+                gamepadHandler.profile.copy(deviceDescriptor = descriptor)
+            )
+            wizardScreen.value = null
+        },
+        onWizardClose = { wizardScreen.value = null },
+        onResetDefault = {
+            // Scrambled-profile recovery: drop the stored mapping and fall back
+            // to a fresh detected-or-default profile, applied immediately.
+            val descriptor = activeGamepadDescriptor.value
+            if (descriptor != null) {
+                deviceProfileStore.clear(descriptor)
+                val device = findDeviceByDescriptor(descriptor)
+                val detected = try {
+                    device?.let { ControllerDetector.detect(it) }
+                } catch (_: Exception) {
+                    null
+                }
+                lastDetectedProfile = detected
+                gamepadHandler.profile = deviceProfileStore.activeFor(descriptor, detected?.profile)
+                lastProfileDescriptor = descriptor
+            }
+            wizardScreen.value = null
+        },
+        onCaptureSkip = {
+            captureEngine.skip()
+            captureFlash.value = null
+            refreshCaptureScreen()
+        },
+        onCaptureBack = {
+            captureEngine.back()
+            captureFlash.value = null
+            refreshCaptureScreen()
+        },
+        onCaptureCancel = {
+            captureEngine.cancel()
+            wizardScreen.value = null
+        },
+        onCaptureConfirmStick = {
+            if (captureEngine.confirmStick() == CaptureEngine.RecordResult.Ignored) {
+                captureFlash.value = "Wiggle the stick further, then confirm"
+            } else {
+                captureFlash.value = null
+            }
+            refreshCaptureScreen()
+        },
+        onCaptureTick = {
+            if (captureEngine.checkTimeout()) {
+                captureEngine.skip()
+                captureFlash.value = "Skipped (no input)"
+            }
+            refreshCaptureScreen()
+        },
+        onSaveCapture = {
+            val descriptor = activeGamepadDescriptor.value
+            val built = captureEngine.buildProfile(gamepadHandler.profile)
+            if (descriptor != null && built != null) {
+                val bound = built.copy(deviceDescriptor = descriptor)
+                deviceProfileStore.save(bound)
+                gamepadHandler.profile = bound
+            }
+            wizardScreen.value = null
+        },
+        onDiscardCapture = { wizardScreen.value = null }
+    )
+
+    private val stickCaptureAxes = intArrayOf(
+        MotionEvent.AXIS_X,
+        MotionEvent.AXIS_Y,
+        MotionEvent.AXIS_Z,
+        MotionEvent.AXIS_RZ,
+        MotionEvent.AXIS_RX,
+        MotionEvent.AXIS_RY,
+        MotionEvent.AXIS_HAT_X,
+        MotionEvent.AXIS_HAT_Y,
+        MotionEvent.AXIS_BRAKE,
+        MotionEvent.AXIS_GAS,
+        MotionEvent.AXIS_LTRIGGER,
+        MotionEvent.AXIS_RTRIGGER
+    )
 
     @Suppress("DEPRECATION")
     private fun updateDisplayRotation() {

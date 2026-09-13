@@ -27,7 +27,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 class VideoStreamClient(
     var host: String,
     var port: Int = DEFAULT_PORT,
-    private val onFrameReceived: (nalData: ByteArray, ptsUs: Long) -> Unit
+    private val onFrameReceived: (nalData: ByteArray, ptsUs: Long) -> Unit,
+    private val getAuthCredential: () -> Long = { 0L },
+    private val onAuthToken: (token: Long) -> Unit = {},
+    private val onPinRequired: () -> Unit = {}
 ) {
     companion object {
         const val TAG = "VideoStreamClient"
@@ -41,8 +44,35 @@ class VideoStreamClient(
         const val OPCODE_MIC_BLOW = 0x13
         const val OPCODE_SET_BITRATE = 0x14
         const val OPCODE_SET_RESOLUTION = 0x15
+        const val OPCODE_AUTH_REQUEST = 0x30
+        const val AUTH_STATUS_OK = 0x00
         private const val CONNECT_TIMEOUT_MS = 5000
         private const val READ_TIMEOUT_MS = 15000
+        private const val AUTH_TIMEOUT_MS = 8000
+        private const val PIN_WAIT_SECONDS = 90L
+
+        /**
+         * Builds the 9-byte AUTH_REQUEST packet: [0x30][uint64 credential LE].
+         * Pure function for unit tests.
+         */
+        fun buildAuthRequest(credential: Long): ByteArray {
+            return ByteBuffer.allocate(9).order(ByteOrder.LITTLE_ENDIAN).apply {
+                put(OPCODE_AUTH_REQUEST.toByte())
+                putLong(credential)
+            }.array()
+        }
+
+        /**
+         * Parses the 9-byte AUTH_RESPONSE into (success, token), or null when
+         * the buffer is too short. Pure function for unit tests.
+         */
+        fun parseAuthResponse(data: ByteArray): Pair<Boolean, Long>? {
+            if (data.size < 9) return null
+            val buf = ByteBuffer.wrap(data, 0, 9).order(ByteOrder.LITTLE_ENDIAN)
+            val status = buf.get().toInt() and 0xFF
+            val token = buf.long
+            return Pair(status == AUTH_STATUS_OK, token)
+        }
 
         /**
          * Builds the 5-byte little-endian SET_BITRATE packet: [0x14][uint32 bps].
@@ -73,6 +103,9 @@ class VideoStreamClient(
     private var sendExecutor: java.util.concurrent.ExecutorService? = null
     private var socket: Socket? = null
     private var outStream: DataOutputStream? = null
+    // One-shot handoff for a user-typed PIN while the worker parks on auth.
+    // Empty string = user cancelled.
+    private val pinQueue = java.util.concurrent.LinkedBlockingQueue<String>(1)
 
     var onConnected: (() -> Unit)? = null
     var onDisconnected: (() -> Unit)? = null
@@ -215,6 +248,20 @@ class VideoStreamClient(
         }
     }
 
+    /**
+     * Delivers a user-typed 4-digit PIN to a worker parked on auth.
+     */
+    fun submitPin(pin: String) {
+        pinQueue.offer(pin)
+    }
+
+    /**
+     * Aborts a parked PIN wait (user cancelled the dialog).
+     */
+    fun cancelAuth() {
+        pinQueue.offer("")
+    }
+
     private fun sendOpcode(opcode: Int, name: String) {
         val out = synchronized(this) { outStream }
         val executor = sendExecutor ?: return
@@ -236,6 +283,58 @@ class VideoStreamClient(
         }
     }
 
+    /**
+     * Blocking session authentication, executed on the worker thread BEFORE
+     * the frame reader starts (the 9-byte auth response is unframed and must
+     * never reach the frame parser). Returns true when streaming may proceed.
+     */
+    private fun performAuth(
+        sock: Socket,
+        out: DataOutputStream,
+        inp: java.io.DataInputStream
+    ): Boolean {
+        if (exchangeAuth(out, inp, getAuthCredential())) return true
+
+        // Cached credential rejected: Cemu requires the session PIN.
+        onPinRequired()
+        val pin = try {
+            pinQueue.poll(PIN_WAIT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
+        } catch (e: InterruptedException) {
+            return false
+        }
+        if (pin.isNullOrEmpty()) {
+            Logger.i(TAG, "PIN entry cancelled or timed out; aborting connection")
+            return false
+        }
+        val pinValue = pin.filter { it.isDigit() }.toLongOrNull() ?: return false
+        return exchangeAuth(out, inp, pinValue)
+    }
+
+    private fun exchangeAuth(
+        out: DataOutputStream,
+        inp: java.io.DataInputStream,
+        credential: Long
+    ): Boolean {
+        return try {
+            out.write(buildAuthRequest(credential))
+            out.flush()
+            val response = ByteArray(9)
+            inp.readFully(response)
+            val (ok, token) = parseAuthResponse(response) ?: return false
+            if (ok) {
+                if (token != 0L) onAuthToken(token)
+                Logger.i(TAG, "Session authenticated with Cemu")
+                true
+            } else {
+                Logger.w(TAG, "Session authentication denied by Cemu")
+                false
+            }
+        } catch (e: Exception) {
+            Logger.w(TAG, "Session authentication failed: ${e.message}")
+            false
+        }
+    }
+
     private fun runClientLoop() {
         try {
             while (isRunning.get()) {
@@ -251,13 +350,32 @@ class VideoStreamClient(
                         outStream = DataOutputStream(BufferedOutputStream(sock.getOutputStream()))
                     }
 
+                    val inStream = DataInputStream(BufferedInputStream(sock.getInputStream(), 64 * 1024))
+
+                    // Authenticate before any framed traffic: the 9-byte auth
+                    // response is unframed and must precede the frame reader.
+                    // A short timeout keeps a dead peer from hanging connect.
+                    sock.soTimeout = AUTH_TIMEOUT_MS
+                    val out = synchronized(this) { outStream }
+                    if (out == null) {
+                        closeSocket()
+                        Thread.sleep(1500)
+                        continue
+                    }
+                    if (!performAuth(sock, out, inStream)) {
+                        closeSocket()
+                        Thread.sleep(1500)
+                        continue
+                    }
+                    pinQueue.clear() // drop any late PIN submissions
+                    sock.soTimeout = READ_TIMEOUT_MS
+
                     Logger.i(TAG, "Connected to Cemu video server at $host:$port")
                     onConnected?.invoke()
 
                     // Request initial IDR keyframe immediately upon connection
                     requestIDR()
 
-                    val inStream = DataInputStream(BufferedInputStream(sock.getInputStream(), 64 * 1024))
                     val headerBuf = ByteArray(13) // 1 (type) + 4 (size) + 8 (pts)
 
                     while (isRunning.get()) {

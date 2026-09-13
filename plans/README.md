@@ -17,6 +17,7 @@ Each document is fully self-contained and formatted specifically so that any AI 
 | [**PHASE_4_3_VOICE_PCM_STREAMING.md**](file:///c:/Projects/wiiu-gamepad-android/plans/PHASE_4_3_VOICE_PCM_STREAMING.md) | Direct 32 kHz Voice PCM Microphone Streaming | C++ Cafe OS `mic.cpp` / Android `AudioRecord` | Ready for Execution |
 | [**PHASE_4_4_SESSION_SECURITY_AND_PIN.md**](file:///c:/Projects/wiiu-gamepad-android/plans/PHASE_4_4_SESSION_SECURITY_AND_PIN.md) | Session Security, Host Selection & PIN Pairing | TCP Control Protocol / Crypto / Jetpack Compose | Ready for Execution |
 | [**PHASE_5_RELEASE_AND_PACKAGING.md**](file:///c:/Projects/wiiu-gamepad-android/plans/PHASE_5_RELEASE_AND_PACKAGING.md) | Release Hardening, ProGuard/R8 & CI/CD Pipeline | Gradle / ProGuard / GitHub Actions CI | Ready for Execution |
+| [**PHASE_6_INPUT_MAPPING_WIZARD.md**](file:///c:/Projects/wiiu-gamepad-android/plans/PHASE_6_INPUT_MAPPING_WIZARD.md) | First-Connect Input Mapping Wizard (deduce → verify → manual capture, in-app) | Kotlin / Compose / Android InputDevice | 🟡 In Progress (live controller testing) |
 
 | [**AI_HARNESS_TESTING_GUIDE.md**](file:///c:/Projects/wiiu-gamepad-android/plans/AI_HARNESS_TESTING_GUIDE.md) | **Autonomous Testing, Debugging & Log Inspection Harness** | PowerShell / ADB Screencap / Cemu CLI / Logcat | **Operational Manual** |
 

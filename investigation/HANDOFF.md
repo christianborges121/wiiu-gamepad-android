@@ -34,10 +34,49 @@ Phase 4.2 is **code-complete and compile-verified but UNCOMMITTED** (awaiting us
 - `plans/PHASE_4_2_DYNAMIC_VIDEO_ENCODING.md` Section 3 + 4.1/4.2 flipped; live check 4.3 (12 Mbps
   + 720p in-game, Cemu log lines, decoder re-sync) left for user.
 
-Deployed 2026-09-13 ~10:53 AM (Phase 4.3 batch): `Cemu/bin/Cemu_release.exe` (10:50 build,
-mic queue + 26764 receiver) → EmuDeck `Cemu.exe` (prev backed up `Cemu.exe.bak-20260913-1050);
-fresh phone APK (10:48, voice streamer) installed; Cemu GUI running. NOTE: `Voice mic listening`
-log line appears only after a game loads (`StreamingCapture::Initialize` runs on `LatteThread`).
+Deployed 2026-09-13 ~11:50 AM (Phase 6 phone APK only — Android-only phase): installed +
+launched, pid confirmed, no crashes. UNCOMMITTED.
+Older deploys: 11:25 AM (PIN UI removed, bak-20260913-1230), 11:20 AM (discovery fix),
+11:11 AM (4.4 batch), 10:53 AM (4.3 batch), 10:20 AM (4.2 batch).
+
+Phase 6 is **code-complete and unit-verified but UNCOMMITTED and UNDEPLOYED**:
+Phase 6 wizard focus fix (deployed ~12:10): gamepad keys are swallowed while any wizard
+screen is open (unrecognized pads fell through to Compose focus nav — the Close-button
+jumping); Test screen shows last-pressed key name even with zero row matches; Back closes
+non-capture screens. Rebuilt green, phone APK reinstalled + app launched. UNCOMMITTED.
+UX batch (deployed, UNCOMMITTED): desensitized edge-swipe drawer restore (pointerInteropFilter,
+48dp zone + 96dp travel + drift abort — awaitPointerEvent/composed gone in this BOM),
+rewritten 4-step connect card without ports/IP, new NETWORK drawer card with tech details,
+found-card hostname-only. Phone APK reinstalled + launched.
+Dolphin investigation done (`investigation/2026-09-13-wizard-keys/01-dolphin-mapping-investigation.md`,
+clone at `AppData/Local/Temp/opencode/dolphin` — deletable): resolution plan P1–P5 written,
+P1/P2/P4 IMPLEMENTED + deployed (eat-first dispatch, BACK bindable in capture, long-press
+Back exits, BACK-binds test, 11/11 CaptureEngine green, full suite + assemble green, phone
+reinstalled + launched). UNCOMMITTED. P5 (user B-press log run) still open.
+SCOPING ROOT CAUSE FOUND (empty WizardKeys log = proof): Compose AlertDialog opens a separate
+Window whose keys bypass Activity.dispatchKeyEvent entirely — all activity-level capture was
+dead code while the wizard showed. Converted wizard to an in-window overlay (same window,
+explicit buttons only, no scrim dismiss); rebuilt green, phone reinstalled + launched, log
+cleared. UNCOMMITTED. Awaiting user retry (open Map → Remap → press B).
+- `ControllerDetector` (PID table + name fallback + generic-axis heuristic, EXACT/HEURISTIC),
+  `ControllerProfile` +dpad/hat/descriptor fields (handler now profile-driven, defaults = legacy),
+  `InputMappingCodec` + `DeviceProfileStore` (per-descriptor persistence, stored→detected→default),
+  `CaptureEngine` (19 targets, conflict/skip/back/timeout, hat+trigger+stick logic),
+  `MappingWizard` UI (Detected/Test/Capture/Done + banner + drawer row), MainActivity routing
+  (capture intercept, Back-steps-back, first-sight prompt, drawer entry).
+- 88/88 unit tests green (22 new: Detector 4, Codec 4, Store 4 w/ fake prefs, Capture 10) +
+  `assembleDebug` exit 0. Adaptations in plan (banner vs Snackbar, no Y-inversion detection).
+- Plan Section 3 + 4.1 flipped; live checks 4.2 (physical controller pass) + 4.3 (Cemu confirm)
+  open — needs phone APK install + real pad.
+- Self-inflicted breaks fixed along the way: whitespace-eaten newlines (2×), dropped
+  InputDevice import, `return@execute` in thread body, duplicate companion object.
+- ROOT CAUSE of empty dialog: phone stops broadcasting once video streams; PC probes came from
+  a transient socket so phone replies landed on an unlistened ephemeral port; entries expired
+  in 10s. Phone now also unicasts replies to sender-IP:26763; dialog re-probes every 5s.
+- KNOWN GAP (future): removing the input controller does not stop video/audio — sessions are
+  independent, phone auto-reconnects; no session-teardown path exists yet. Re-pair is the
+  workaround (now functional).
+Older deploys: 11:11 AM (4.4 batch), 10:53 AM (4.3 batch), 10:20 AM (4.2 batch).
 
 Phase 4.3 is **code-complete and compile-verified but UNCOMMITTED and UNDEPLOYED**
 (user session live — do NOT overwrite EmuDeck exe or reinstall phone APK unasked):
@@ -54,6 +93,18 @@ Phase 4.3 is **code-complete and compile-verified but UNCOMMITTED and UNDEPLOYED
   Samsung); hardcoded `Initialized (854x480…)` log line still misleading — fix in a later C++ batch.
 - TO DEPLOY for live test: stop Cemu → copy `Cemu/bin/Cemu_release.exe` → EmuDeck `Cemu.exe`;
   `adb install -r` fresh phone APK; speak into mic in a voice mini-game.
+
+Phase 4.4 is **code-complete and compile-verified but UNCOMMITTED and UNDEPLOYED**:
+- `CemuPadBridge` PIN API (random 4-digit, token store cap 8, open-session auto-approve so enabling
+  PIN later keeps paired phones working); `VideoStreamServer` AUTH `0x30`/`0x31` with unauthorized
+  gating on video TCP+UDP/rumble/audio + payload-consuming alignment; pairing dialog gains
+  "Require PIN" checkbox + PIN readout (the only enable path — no Cemu settings UI exists).
+- Android blocking auth BEFORE the frame reader (unframed 9-byte response), 90s PIN latch + cancel,
+  wrong-PIN retry via reconnect, token in SharedPreferences, `PinPairingDialog` in `MainScreen`;
+  `SessionAuthTest` 4/4, full suite + assemble green; `CemuBin` Release exit 0, no new warnings.
+- Plan Section 3 + 4.1/4.2 flipped with adaptation notes; live checks 4.3 (0000 rejected) / 4.4 (valid
+  PIN + token reconnect) open — need deploy + enable PIN in pairing dialog.
+- Adaptations: AUTH accepted anytime (token rotation); fail-closed gate; dialog hides on connect.
 
 ## Just completed (this session)
 

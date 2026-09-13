@@ -94,10 +94,10 @@ class GamepadInputHandler(
         var handled = true
         when (keyCode) {
             // D-Pad
-            KeyEvent.KEYCODE_DPAD_UP -> dpadKeyUp = true
-            KeyEvent.KEYCODE_DPAD_DOWN -> dpadKeyDown = true
-            KeyEvent.KEYCODE_DPAD_LEFT -> dpadKeyLeft = true
-            KeyEvent.KEYCODE_DPAD_RIGHT -> dpadKeyRight = true
+            profile.keyDpadUp -> dpadKeyUp = true
+            profile.keyDpadDown -> dpadKeyDown = true
+            profile.keyDpadLeft -> dpadKeyLeft = true
+            profile.keyDpadRight -> dpadKeyRight = true
 
             // Face buttons (mapped to Cemu DSU state2 layout):
             // Cemu controller0.xml maps:
@@ -145,10 +145,10 @@ class GamepadInputHandler(
         var handled = true
         when (keyCode) {
             // D-Pad
-            KeyEvent.KEYCODE_DPAD_UP -> dpadKeyUp = false
-            KeyEvent.KEYCODE_DPAD_DOWN -> dpadKeyDown = false
-            KeyEvent.KEYCODE_DPAD_LEFT -> dpadKeyLeft = false
-            KeyEvent.KEYCODE_DPAD_RIGHT -> dpadKeyRight = false
+            profile.keyDpadUp -> dpadKeyUp = false
+            profile.keyDpadDown -> dpadKeyDown = false
+            profile.keyDpadLeft -> dpadKeyLeft = false
+            profile.keyDpadRight -> dpadKeyRight = false
 
             // Face buttons
             profile.keyA -> state2 = state2 and DSUPacket.State2Flags.CIRCLE_B.inv()
@@ -232,6 +232,14 @@ class GamepadInputHandler(
 
     @VisibleForTesting
     internal fun updateHatState(hatX: Float, hatY: Float) {
+        if (!profile.hatAsDpad) {
+            dpadHatLeft = false
+            dpadHatRight = false
+            dpadHatUp = false
+            dpadHatDown = false
+            syncState()
+            return
+        }
         dpadHatLeft = hatX < -0.5f
         dpadHatRight = hatX > 0.5f
         dpadHatUp = hatY < -0.5f
@@ -276,7 +284,9 @@ class GamepadInputHandler(
             keyCode == profile.keyZL || keyCode == profile.keyZR ||
             keyCode == profile.keyPlus || keyCode == profile.keyMinus ||
             keyCode == profile.keyHome || keyCode == profile.keyL3 ||
-            keyCode == profile.keyR3) {
+            keyCode == profile.keyR3 || keyCode == profile.keyDpadUp ||
+            keyCode == profile.keyDpadDown || keyCode == profile.keyDpadLeft ||
+            keyCode == profile.keyDpadRight) {
             return true
         }
         return (source and InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD ||

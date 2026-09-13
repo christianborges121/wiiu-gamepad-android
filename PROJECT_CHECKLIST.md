@@ -315,4 +315,7 @@ This document is the **single source of truth** for tracking implementation prog
 | *2026-09-13* | 4.1 | Zero-Config Auto-Discovery | Android `DiscoveryResponder` (UDP 26763 answers PC probes), `DiscoveryServer` records broadcast senders, MainScreen discovery card; gradle green + `CemuBin` rebuild exit 0 | ✅ Done |
 | *2026-09-13* | 4.2 | Dynamic Bitrate & Resolution | Opcodes `0x14`/`0x15`, `VideoEncoder` live bitrate + allowlisted resolution reconfig, drawer bitrate dropdown + encoder command on preset change + connect-sync; 63/63 tests green, `CemuBin` exit 0, live-verified 4→12 Mbps + 1080p re-sync | ✅ Done |
 | *2026-09-13* | 4.3 | Voice PCM Streaming (code) | Bridge mic queue, UDP 26764 receiver, `mic.cpp` consume path, Android `MicVoiceStreamer` + wiring; gradle + `CemuBin` green, deployed; **live mic test deferred to end of project** (no voice game handy) | 🟡 Code done |
+| *2026-09-13* | 4.4 | Session PIN (code, UI disabled) | PIN API + server auth gating + client handshake + pairing checkbox, all build-verified; UI removed per user decision (complicates flow), open-session default; re-enable is UI-only | 🟡 Disabled |
+| *2026-09-13* | 4.1-fix | Discovery re-pair fix | Dual-destination responder replies, dialog re-probe + 30s expiry; live-verified re-pair | ✅ Done |
+| *2026-09-13* | 6 | Input Mapping Wizard (code) | Detector, capture engine, per-device store, wizard UI, drawer + edge-swipe + connect-card UX; 88+ unit tests green, deployed; live controller pass in progress | 🟡 In progress |
 

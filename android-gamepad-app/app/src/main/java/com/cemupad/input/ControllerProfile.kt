@@ -33,7 +33,16 @@ data class ControllerProfile(
     val axisRX: Int = MotionEvent.AXIS_Z,
     val axisRY: Int = MotionEvent.AXIS_RZ,
     val axisLTrigger: Int = MotionEvent.AXIS_BRAKE,
-    val axisRTrigger: Int = MotionEvent.AXIS_GAS
+    val axisRTrigger: Int = MotionEvent.AXIS_GAS,
+    // D-Pad (keys and/or hat axis; defaults preserve legacy behavior)
+    val keyDpadUp: Int = KeyEvent.KEYCODE_DPAD_UP,
+    val keyDpadDown: Int = KeyEvent.KEYCODE_DPAD_DOWN,
+    val keyDpadLeft: Int = KeyEvent.KEYCODE_DPAD_LEFT,
+    val keyDpadRight: Int = KeyEvent.KEYCODE_DPAD_RIGHT,
+    val hatAsDpad: Boolean = true,
+    // Device binding (empty = generic default, applies to any pad)
+    val deviceDescriptor: String = "",
+    val displayName: String = name
 ) {
     companion object {
         val DEFAULT = ControllerProfile(name = "Standard Gamepad")

@@ -3,6 +3,7 @@ package com.cemupad.ui.main
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.view.MotionEvent as AndroidMotionEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
@@ -55,7 +56,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.draw.clipToBounds
@@ -73,6 +79,11 @@ import com.cemupad.config.DisplayFitMode
 import com.cemupad.config.DisplayLayout
 import com.cemupad.config.DisplayResolutionPreset
 import com.cemupad.config.DisplaySettings
+import com.cemupad.ui.mapping.MappingPromptBanner
+import com.cemupad.ui.mapping.MappingPromptUi
+import com.cemupad.ui.mapping.MappingWizard
+import com.cemupad.ui.mapping.MappingWizardActions
+import com.cemupad.ui.mapping.MappingWizardScreen
 import com.cemupad.dsu.DSUServer
 import com.cemupad.input.TouchInputHandler
 import com.cemupad.ui.TouchSurfaceView
@@ -96,6 +107,13 @@ fun MainScreen(
     onCalibrateGyro: (() -> Unit)? = null,
     onSurfaceAvailable: ((Surface) -> Unit)? = null,
     onSurfaceDestroyed: (() -> Unit)? = null,
+    mappingPrompt: MappingPromptUi? = null,
+    onMappingSetup: (() -> Unit)? = null,
+    onMappingDismiss: (() -> Unit)? = null,
+    activeControllerName: String? = null,
+    onOpenInputMapping: (() -> Unit)? = null,
+    wizardScreen: MappingWizardScreen? = null,
+    wizardActions: MappingWizardActions = MappingWizardActions(),
     modifier: Modifier = Modifier
 ) {
     var ipAddress by remember { mutableStateOf("127.0.0.1") }
@@ -120,6 +138,8 @@ fun MainScreen(
     var videoHolder by remember { mutableStateOf<SurfaceHolder?>(null) }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    val edgeSwipeState = remember { EdgeSwipeState() }
+    val swipeDensity = LocalDensity.current
     LaunchedEffect(displaySettings) {
         selectedFitMode = displaySettings.fitMode
         selectedResolution = displaySettings.resolutionPreset
@@ -179,6 +199,9 @@ fun MainScreen(
             onDisplaySettingsChanged(currentSettings())
         }
     }
+
+    // NOTE (2026-09-13): PIN prompt removed — feature disabled. Session auth
+    // handshake in VideoStreamClient stays open-session (auto-approve).
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -386,6 +409,59 @@ fun MainScreen(
                                         onDisplaySettingsChanged(currentSettings().copy(diagnosticsOverlayEnabled = enabled))
                                     },
                                     colors = switchColors
+                                )
+                            }
+                        }
+                    }
+
+                    // --- NETWORK SECTION (technical details) ---
+                    Text(
+                        text = "NETWORK",
+                        color = Color(0xFF00E5FF),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.2.sp
+                    )
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF161D2B)),
+                        border = BorderStroke(1.dp, Color(0xFF222B3D))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Phone IP", color = Color(0xFFEAF2FF), fontSize = 14.sp)
+                                Text(
+                                    ipAddress,
+                                    color = Color(0xFF00E5FF),
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 13.sp
+                                )
+                            }
+
+                            HorizontalDivider(color = Color(0xFF222B3D))
+
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text("Ports", color = Color(0xFFEAF2FF), fontSize = 14.sp)
+                                Text(
+                                    "DSU ${dsuServer?.port ?: 26760} · Video 26761 · Audio 26762",
+                                    color = Color(0xFF9FB0C6),
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 13.sp
+                                )
+                                Text(
+                                    "Discovery broadcast on UDP 26763",
+                                    color = Color(0xFF9FB0C6),
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 13.sp
                                 )
                             }
                         }
@@ -628,6 +704,34 @@ fun MainScreen(
                                     Text(if (isCalibrated) "Calibrated ✓" else "Calibrate", fontSize = 12.sp, maxLines = 1)
                                 }
                             }
+
+                            HorizontalDivider(color = Color(0xFF222B3D))
+
+                            // Physical controller input mapping
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("Physical controller", color = Color(0xFFEAF2FF), fontSize = 14.sp)
+                                    Text(
+                                        activeControllerName ?: "No gamepad seen yet",
+                                        color = Color(0xFF9FB0C6),
+                                        fontSize = 12.sp,
+                                        maxLines = 1
+                                    )
+                                }
+                                OutlinedButton(
+                                    onClick = { onOpenInputMapping?.invoke() },
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEAF2FF)),
+                                    border = BorderStroke(1.dp, Color(0xFF2A3446))
+                                ) {
+                                    Text("Map", fontSize = 12.sp, maxLines = 1)
+                                }
+                            }
                         }
                     }
                 }
@@ -635,7 +739,19 @@ fun MainScreen(
         }
     ) {
         BoxWithConstraints(
-            modifier = modifier.fillMaxSize().background(Color.Black).clipToBounds(),
+            modifier = modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .clipToBounds()
+                .edgeSwipeToOpen(
+                    enabled = !drawerState.isOpen,
+                    state = edgeSwipeState,
+                    edgePx = with(swipeDensity) { 48.dp.toPx() },
+                    needPx = with(swipeDensity) { 96.dp.toPx() },
+                    maxDriftPx = with(swipeDensity) { 64.dp.toPx() }
+                ) {
+                    scope.launch { drawerState.open() }
+                },
             contentAlignment = Alignment.Center
         ) {
             val density = LocalDensity.current
@@ -775,47 +891,48 @@ fun MainScreen(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Connect Cemu and wait for the Wii U GamePad stream to load.",
-                                color = Color(0xFFEAF2FF),
-                                fontSize = 14.sp,
+                                text = "Not connected yet.",
+                                color = Color(0xFF00E5FF),
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()
                             )
-                            Text(
-                                text = "Local IP: $ipAddress",
-                                color = Color(0xFF00E5FF),
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
+                            Column(
                                 modifier = Modifier.fillMaxWidth(),
-                                textAlign = TextAlign.Center
-                            )
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "1. On your PC, open Cemu.",
+                                    color = Color(0xFFEAF2FF),
+                                    fontSize = 14.sp,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                Text(
+                                    text = "2. Go to Options → Input Settings.",
+                                    color = Color(0xFFEAF2FF),
+                                    fontSize = 14.sp,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                Text(
+                                    text = "3. Click Auto-Discover CemuPad, pick this phone, then Pair & Connect.",
+                                    color = Color(0xFFEAF2FF),
+                                    fontSize = 14.sp,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                Text(
+                                    text = "4. The game stream starts here by itself.",
+                                    color = Color(0xFFEAF2FF),
+                                    fontSize = 14.sp,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
                             Text(
-                                text = "DSU Port: ${dsuServer?.port ?: 26760}",
-                                color = Color(0xFF9FB0C6),
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 15.sp,
-                                modifier = Modifier.fillMaxWidth(),
-                                textAlign = TextAlign.Center
-                            )
-                            Text(
-                                text = "Video Port: 26761",
-                                color = Color(0xFF9FB0C6),
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 15.sp,
-                                modifier = Modifier.fillMaxWidth(),
-                                textAlign = TextAlign.Center
-                            )
-                            Text(
-                                text = "Discovery: broadcast active on UDP 26763",
-                                color = Color(0xFF9FB0C6),
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 13.sp,
-                                modifier = Modifier.fillMaxWidth(),
-                                textAlign = TextAlign.Center
-                            )
-                            Text(
-                                text = "Use the Back button to open Configuration.",
+                                text = "Tip: swipe from the left edge or press Back for Configuration.",
                                 color = Color(0xFF7ED4FF),
                                 fontSize = 12.sp,
                                 textAlign = TextAlign.Center,
@@ -840,10 +957,10 @@ fun MainScreen(
                                             fontSize = 14.sp
                                         )
                                         Text(
-                                            text = "${discoveredServer.hostname} (${discoveredServer.ip})",
+                                            text = discoveredServer.hostname,
                                             color = Color.White,
-                                            fontFamily = FontFamily.Monospace,
-                                            fontSize = 13.sp
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 14.sp
                                         )
                                         Button(
                                             onClick = { onConnectToServer?.invoke(discoveredServer.ip) },
@@ -856,6 +973,22 @@ fun MainScreen(
                             }
                         }
                     }
+                }
+            }
+
+            // New-controller mapping prompt (non-blocking banner)
+            if (mappingPrompt != null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 12.dp)
+                ) {
+                    MappingPromptBanner(
+                        deviceName = mappingPrompt.deviceName,
+                        matchLabel = mappingPrompt.matchLabel,
+                        onSetup = { onMappingSetup?.invoke() },
+                        onDismiss = { onMappingDismiss?.invoke() }
+                    )
                 }
             }
 
@@ -882,4 +1015,73 @@ fun MainScreen(
             }
         }
     }
+
+    // Wizard renders LAST so it sits above the open drawer. (It previously
+    // rendered underneath, making "Map" look dead while the drawer stayed open.)
+    wizardScreen?.let { MappingWizard(screen = it, actions = wizardActions) }
 }
+
+/**
+ * Deliberate edge swipe to open the drawer: the gesture must start inside a
+ * narrow left-edge zone and travel a long horizontal distance with little
+ * vertical drift. Far less trigger-happy than the framework drawer swipe,
+ * so gameplay touches don't pop the drawer open by accident.
+ *
+ * Implemented with pointerInteropFilter (View-level MotionEvent API) rather
+ * than low-level pointer-input await APIs or `composed`, whose signatures
+ * churn across Compose versions. Mutable state is hoisted to the caller.
+ */
+private class EdgeSwipeState {
+    var tracking: Boolean = false
+    var accX: Float = 0f
+    var accY: Float = 0f
+    var lastX: Float = 0f
+    var lastY: Float = 0f
+}
+
+private fun Modifier.edgeSwipeToOpen(
+    enabled: Boolean,
+    state: EdgeSwipeState,
+    edgePx: Float,
+    needPx: Float,
+    maxDriftPx: Float,
+    onOpen: () -> Unit
+): Modifier = pointerInteropFilter {
+    if (!enabled) return@pointerInteropFilter false
+    when (it.action) {
+        AndroidMotionEvent.ACTION_DOWN -> {
+            if (it.x <= edgePx) {
+                state.tracking = true
+                state.accX = 0f
+                state.accY = 0f
+                state.lastX = it.x
+                state.lastY = it.y
+            } else {
+                state.tracking = false
+            }
+            false
+        }
+        AndroidMotionEvent.ACTION_MOVE -> {
+            if (!state.tracking) return@pointerInteropFilter false
+            state.accX += it.x - state.lastX
+            state.accY += it.y - state.lastY
+            state.lastX = it.x
+            state.lastY = it.y
+            if (kotlin.math.abs(state.accY) > maxDriftPx) {
+                state.tracking = false
+                return@pointerInteropFilter false
+            }
+            if (state.accX >= needPx) {
+                state.tracking = false
+                onOpen()
+                return@pointerInteropFilter true
+            }
+            false
+        }
+        else -> {
+            state.tracking = false
+            false
+        }
+    }
+}
+
