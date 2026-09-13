@@ -455,6 +455,7 @@ class MainActivity : ComponentActivity() {
         receiver.onUdpSilence = {
             // UDP went quiet (lossy path or dead sender): fall back to TCP
             // video and stay there until the next reconnect.
+            udpReceiver?.isExpectingUdp = false
             udpActive.set(false)
             Logger.w("MainActivity", "UDP video silent, falling back to TCP")
             videoClient?.idleControlMode = false
@@ -474,6 +475,7 @@ class MainActivity : ComponentActivity() {
         if (videoClient?.isConnected == true && videoClient?.host == host) return
         stopVideoStream()
         udpActive.set(false)
+        udpReceiver?.isExpectingUdp = false
 
         Logger.i("MainActivity", "Connecting to Cemu video stream at $host:26761")
         val client = VideoStreamClient(

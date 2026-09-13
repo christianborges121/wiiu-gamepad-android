@@ -31,6 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -212,40 +213,44 @@ fun VirtualThumbstick(
     onPositionChanged: (Float, Float) -> Unit,
     sizeDp: Int = 110
 ) {
-    val radius = (sizeDp / 2).toFloat()
+    var sizePx by remember { mutableStateOf(0f) }
     var thumbOffset by remember { mutableStateOf(Offset.Zero) }
 
     Box(
         modifier = Modifier
             .size(sizeDp.dp)
+            .onSizeChanged { sizePx = it.width.toFloat() }
             .clip(CircleShape)
             .background(Color(0x551E2433))
             .pointerInput(Unit) {
                 detectDragGestures(
                     onDragStart = { offset ->
+                        val radius = if (sizePx > 0f) sizePx / 2f else 100f
                         val center = Offset(radius, radius)
                         val delta = offset - center
                         val dist = sqrt(delta.x * delta.x + delta.y * delta.y)
-                        val clampedDist = dist.coerceAtMost(radius * 0.7f)
+                        val maxDist = radius * 0.7f
+                        val clampedDist = dist.coerceAtMost(maxDist)
                         val angle = Math.atan2(delta.y.toDouble(), delta.x.toDouble())
-                        val nx = (clampedDist * cos(angle) / (radius * 0.7f)).toFloat()
-                        val ny = (clampedDist * sin(angle) / (radius * 0.7f)).toFloat()
-                        thumbOffset = Offset(nx * (radius * 0.7f), ny * (radius * 0.7f))
+                        val nx = if (maxDist > 0f) (clampedDist * cos(angle) / maxDist).toFloat() else 0f
+                        val ny = if (maxDist > 0f) (clampedDist * sin(angle) / maxDist).toFloat() else 0f
+                        thumbOffset = Offset(nx * maxDist, ny * maxDist)
                         onPositionChanged(nx.coerceIn(-1f, 1f), ny.coerceIn(-1f, 1f))
                     },
                     onDrag = { change, dragAmount ->
                         change.consume()
+                        val radius = if (sizePx > 0f) sizePx / 2f else 100f
+                        val maxDist = radius * 0.7f
                         val newOffset = thumbOffset + dragAmount
                         val dist = sqrt(newOffset.x * newOffset.x + newOffset.y * newOffset.y)
-                        val maxDist = radius * 0.7f
-                        val clampedOffset = if (dist > maxDist) {
+                        val clampedOffset = if (dist > maxDist && dist > 0f) {
                             Offset(newOffset.x * maxDist / dist, newOffset.y * maxDist / dist)
                         } else {
                             newOffset
                         }
                         thumbOffset = clampedOffset
-                        val nx = (clampedOffset.x / maxDist).coerceIn(-1f, 1f)
-                        val ny = (clampedOffset.y / maxDist).coerceIn(-1f, 1f)
+                        val nx = if (maxDist > 0f) (clampedOffset.x / maxDist).coerceIn(-1f, 1f) else 0f
+                        val ny = if (maxDist > 0f) (clampedOffset.y / maxDist).coerceIn(-1f, 1f) else 0f
                         onPositionChanged(nx, ny)
                     },
                     onDragEnd = {
@@ -276,6 +281,7 @@ fun VirtualDPad(
     onDirectionChanged: (up: Boolean, down: Boolean, left: Boolean, right: Boolean) -> Unit,
     sizeDp: Int = 110
 ) {
+    var sizePx by remember { mutableStateOf(0f) }
     var up by remember { mutableStateOf(false) }
     var down by remember { mutableStateOf(false) }
     var left by remember { mutableStateOf(false) }
@@ -285,17 +291,19 @@ fun VirtualDPad(
         if (isUp) {
             up = false; down = false; left = false; right = false
         } else {
-            val center = sizeDp / 2f
+            val center = if (sizePx > 0f) sizePx / 2f else 100f
             val dx = pos.x - center
             val dy = pos.y - center
             val dist = sqrt(dx * dx + dy * dy)
-            if (dist < 15f) {
+            val deadzone = center * 0.22f
+            val threshold = center * 0.28f
+            if (dist < deadzone) {
                 up = false; down = false; left = false; right = false
             } else {
-                up = dy < -18f
-                down = dy > 18f
-                left = dx < -18f
-                right = dx > 18f
+                up = dy < -threshold
+                down = dy > threshold
+                left = dx < -threshold
+                right = dx > threshold
             }
         }
         onDirectionChanged(up, down, left, right)
@@ -304,6 +312,7 @@ fun VirtualDPad(
     Box(
         modifier = Modifier
             .size(sizeDp.dp)
+            .onSizeChanged { sizePx = it.width.toFloat() }
             .pointerInput(Unit) {
                 detectDragGestures(
                     onDragStart = { pos -> updateTouch(pos, false) },

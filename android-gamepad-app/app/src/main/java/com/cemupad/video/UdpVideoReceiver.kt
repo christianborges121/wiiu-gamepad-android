@@ -33,7 +33,9 @@ class UdpVideoReceiver(
     private val reassembler = FrameReassembler()
     private val sequencer = UdpFrameSequencer()
     private var lastIdrRequestMs = 0L
+    @Volatile var isExpectingUdp = false
     @Volatile private var silenceReported = false
+    @Volatile private var lastCompleteMs = 0L
 
     var onUdpSilence: (() -> Unit)? = null
     var onRequestIdr: (() -> Unit)? = null
@@ -42,8 +44,11 @@ class UdpVideoReceiver(
     /** Resets reassembly + ordering for a fresh burst (transport switch). */
     fun resetStream() {
         sequencer.onTransportStart()
+        reassembler.reset()
         lastIdrRequestMs = 0L
         silenceReported = false
+        lastCompleteMs = System.currentTimeMillis()
+        isExpectingUdp = true
     }
 
     val stats get() = reassembler.stats
@@ -59,6 +64,7 @@ class UdpVideoReceiver(
     }
 
     fun stop() {
+        isExpectingUdp = false
         if (!isRunning.getAndSet(false)) return
         try {
             socket?.close()
@@ -90,6 +96,11 @@ class UdpVideoReceiver(
                 sock = DatagramSocket(port).apply {
                     reuseAddress = true
                     soTimeout = 500
+                    try {
+                        receiveBufferSize = 2 * 1024 * 1024
+                    } catch (e: Exception) {
+                        Logger.w(TAG, "Failed to set UDP receiveBufferSize: ${e.message}")
+                    }
                 }
             } catch (e: Exception) {
                 Logger.e(TAG, "Failed to bind UDP port $port", e)
@@ -98,7 +109,7 @@ class UdpVideoReceiver(
             }
             socket = sock
             Logger.i(TAG, "UDP video listening on 0.0.0.0:$port")
-            var lastCompleteMs = System.currentTimeMillis()
+            lastCompleteMs = System.currentTimeMillis()
             silenceReported = false
             val buf = ByteArray(UdpVideoPacket.HEADER_SIZE + UdpVideoPacket.MAX_PAYLOAD + 64)
             val packet = DatagramPacket(buf, buf.size)
@@ -135,10 +146,10 @@ class UdpVideoReceiver(
                     Logger.e(TAG, "Fatal error in UDP receive loop", t)
                     if (!isRunning.get()) break
                 }
-                // Silence is checked every iteration, not just on receive
-                // timeouts: a steady trickle of uncompletable datagrams must
-                // still trip the TCP fallback instead of stalling silently.
-                if (!silenceReported &&
+                // Silence is checked every iteration, but only when actively expecting UDP:
+                // a steady trickle of uncompletable datagrams must still trip the TCP
+                // fallback instead of stalling silently.
+                if (isExpectingUdp && !silenceReported &&
                     System.currentTimeMillis() - lastCompleteMs > silenceTimeoutMs
                 ) {
                     silenceReported = true

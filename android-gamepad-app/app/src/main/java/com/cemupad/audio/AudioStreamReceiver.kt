@@ -159,6 +159,7 @@ class AudioStreamReceiver(
             }
             Logger.i(TAG, "UDP audio receiver listening on port $port")
 
+            var audioPacketCount = 0L
             while (isRunning.get()) {
                 try {
                     recvPacket.length = recvBuffer.size
@@ -169,6 +170,10 @@ class AudioStreamReceiver(
 
                     // Verify magic: 'A', 'P'
                     if (recvBuffer[0] != MAGIC_A || recvBuffer[1] != MAGIC_P) continue
+
+                    if (++audioPacketCount % 500 == 1L) {
+                        Logger.i(TAG, "Audio packet received (count=$audioPacketCount, payloadLen=${len - HEADER_SIZE})")
+                    }
 
                     val payloadLen = len - HEADER_SIZE
                     val track = audioTrack

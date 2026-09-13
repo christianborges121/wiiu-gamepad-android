@@ -149,4 +149,9 @@ class FrameReassembler(
     }
 
     fun pendingFrames(): Int = slots.size
+
+    fun reset() {
+        slots.clear()
+        lastSeq = -1L
+    }
 }

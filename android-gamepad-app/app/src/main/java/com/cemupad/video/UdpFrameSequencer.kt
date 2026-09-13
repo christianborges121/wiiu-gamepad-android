@@ -27,6 +27,7 @@ class UdpFrameSequencer(private val maxHold: Int = 8) {
     fun onTransportStart() {
         expected = null
         needIdrSync = false
+        lastFed = -1L
         held.clear()
     }
 
