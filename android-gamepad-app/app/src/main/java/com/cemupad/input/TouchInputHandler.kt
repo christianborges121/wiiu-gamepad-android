@@ -136,7 +136,35 @@ class TouchInputHandler(
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL, MotionEvent.ACTION_POINTER_UP -> {
                 if (event.actionMasked == MotionEvent.ACTION_POINTER_UP && event.pointerCount > 1) {
-                    // Remaining pointer logic can re-evaluate on next move/down
+                    // A secondary pointer lifted. Re-evaluate remaining pointers.
+                    val liftedIndex = event.actionIndex
+                    var touch1Active = false
+                    var touch1X: Short = 0
+                    var touch1Y: Short = 0
+
+                    for (i in 0 until event.pointerCount) {
+                        if (i == liftedIndex) continue
+                        val x = event.getX(i)
+                        val y = event.getY(i)
+                        if (currentViewport.contains(x, y)) {
+                            touch1Active = true
+                            touch1X = currentViewport.normalizeX(x)
+                            touch1Y = currentViewport.normalizeY(y)
+                        }
+                        break // Wii U GamePad single-touch primary tracking
+                    }
+
+                    touchPacketCounter = ((touchPacketCounter + 1) and 0xFF).toByte()
+                    dsuServer.updateState { state ->
+                        state.touchButton = touch1Active
+                        state.touch1 = DSUPacket.TouchPointData(
+                            active = touch1Active,
+                            id = touchPacketCounter,
+                            x = touch1X,
+                            y = touch1Y
+                        )
+                        state.touch2 = DSUPacket.TouchPointData(active = false)
+                    }
                 } else {
                     // All touches released
                     dsuServer.updateState { state ->

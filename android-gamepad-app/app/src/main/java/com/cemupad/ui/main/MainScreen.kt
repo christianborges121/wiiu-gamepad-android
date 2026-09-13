@@ -22,7 +22,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
@@ -100,6 +100,14 @@ fun MainScreen(
         limitFps = displaySettings.limitTo30Fps
     }
 
+    fun currentSettings() = DisplaySettings(
+        fitMode = selectedFitMode,
+        resolutionPreset = selectedResolution,
+        diagnosticsOverlayEnabled = diagnosticsEnabled,
+        showConnectionHelp = showHelp,
+        limitTo30Fps = limitFps
+    )
+
     LaunchedEffect(dsuServer) {
         ipAddress = NetworkUtils.getLocalIpAddress()
         while (true) {
@@ -143,7 +151,7 @@ fun MainScreen(
                         fontWeight = FontWeight.Bold
                     )
 
-                    Divider(color = Color(0xFF2A3348))
+                    HorizontalDivider(color = Color(0xFF2A3348))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -159,15 +167,7 @@ fun MainScreen(
                             checked = diagnosticsEnabled,
                             onCheckedChange = { enabled ->
                                 diagnosticsEnabled = enabled
-                                onDisplaySettingsChanged(
-                                    DisplaySettings(
-                                        fitMode = selectedFitMode,
-                                        resolutionPreset = selectedResolution,
-                                        diagnosticsOverlayEnabled = enabled,
-                                        showConnectionHelp = showHelp,
-                                        limitTo30Fps = limitFps
-                                    )
-                                )
+                                onDisplaySettingsChanged(currentSettings().copy(diagnosticsOverlayEnabled = enabled))
                             }
                         )
                     }
@@ -193,15 +193,7 @@ fun MainScreen(
                             checked = showHelp,
                             onCheckedChange = { enabled ->
                                 showHelp = enabled
-                                onDisplaySettingsChanged(
-                                    DisplaySettings(
-                                        fitMode = selectedFitMode,
-                                        resolutionPreset = selectedResolution,
-                                        diagnosticsOverlayEnabled = diagnosticsEnabled,
-                                        showConnectionHelp = enabled,
-                                        limitTo30Fps = limitFps
-                                    )
-                                )
+                                onDisplaySettingsChanged(currentSettings().copy(showConnectionHelp = enabled))
                             }
                         )
                     }
@@ -220,28 +212,21 @@ fun MainScreen(
                     ) {
                         Text(
                             text = "Limit to 30 FPS",
-                            color = Color(0xFFEAF2FF),
+                            color = Color(0xFF6B7A8E),
                             fontSize = 15.sp
                         )
                         Switch(
                             checked = limitFps,
+                            enabled = false,
                             onCheckedChange = { enabled ->
                                 limitFps = enabled
-                                onDisplaySettingsChanged(
-                                    DisplaySettings(
-                                        fitMode = selectedFitMode,
-                                        resolutionPreset = selectedResolution,
-                                        diagnosticsOverlayEnabled = diagnosticsEnabled,
-                                        showConnectionHelp = showHelp,
-                                        limitTo30Fps = enabled
-                                    )
-                                )
+                                onDisplaySettingsChanged(currentSettings().copy(limitTo30Fps = enabled))
                             }
                         )
                     }
 
                     Text(
-                        text = "Limit to 30 FPS needs Cemu encoder support (coming soon) and is not enforced yet.",
+                        text = "Coming soon — requires Cemu-side encoder rate cap. Currently disabled.",
                         color = Color(0xFF9FB0C6),
                         fontSize = 12.sp,
                         lineHeight = 18.sp
@@ -264,15 +249,7 @@ fun MainScreen(
                                     onClick = {
                                         selectedFitMode = mode
                                         showFitMenu = false
-                                        onDisplaySettingsChanged(
-                                            DisplaySettings(
-                                                fitMode = mode,
-                                                resolutionPreset = selectedResolution,
-                                                diagnosticsOverlayEnabled = diagnosticsEnabled,
-                                                showConnectionHelp = showHelp,
-                                                limitTo30Fps = limitFps
-                                            )
-                                        )
+                                        onDisplaySettingsChanged(currentSettings().copy(fitMode = mode))
                                     }
                                 )
                             }
@@ -296,15 +273,7 @@ fun MainScreen(
                                     onClick = {
                                         selectedResolution = preset
                                         showResolutionMenu = false
-                                        onDisplaySettingsChanged(
-                                            DisplaySettings(
-                                                fitMode = selectedFitMode,
-                                                resolutionPreset = preset,
-                                                diagnosticsOverlayEnabled = diagnosticsEnabled,
-                                                showConnectionHelp = showHelp,
-                                                limitTo30Fps = limitFps
-                                            )
-                                        )
+                                        onDisplaySettingsChanged(currentSettings().copy(resolutionPreset = preset))
                                     }
                                 )
                             }

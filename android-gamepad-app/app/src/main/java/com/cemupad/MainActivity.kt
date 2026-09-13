@@ -125,7 +125,6 @@ class MainActivity : ComponentActivity() {
             hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
-        window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         // Initialize DSU server and input handlers
@@ -148,10 +147,8 @@ class MainActivity : ComponentActivity() {
         }
 
         dsuServer.onClientDisconnected = {
-            // Keep the most recent client IP so a resumed app can reconnect without waiting for a new DSU packet.
-            if (dsuServer.activeClientAddress == null) {
-                lastKnownClientIp = lastKnownClientIp
-            }
+            // lastKnownClientIp is intentionally preserved across disconnects
+            // so a resumed app can reconnect without waiting for a new DSU packet.
             stopVideoStream()
         }
 
@@ -340,27 +337,6 @@ class MainActivity : ComponentActivity() {
             return true
         }
         return super.dispatchGenericMotionEvent(event)
-    }
-
-    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        if (::gamepadHandler.isInitialized && gamepadHandler.onKeyDown(keyCode, event)) {
-            return true
-        }
-        return super.onKeyDown(keyCode, event)
-    }
-
-    override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
-        if (::gamepadHandler.isInitialized && gamepadHandler.onKeyUp(keyCode, event)) {
-            return true
-        }
-        return super.onKeyUp(keyCode, event)
-    }
-
-    override fun onGenericMotionEvent(event: MotionEvent): Boolean {
-        if (::gamepadHandler.isInitialized && gamepadHandler.onGenericMotionEvent(event)) {
-            return true
-        }
-        return super.onGenericMotionEvent(event)
     }
 
     @Suppress("DEPRECATION")

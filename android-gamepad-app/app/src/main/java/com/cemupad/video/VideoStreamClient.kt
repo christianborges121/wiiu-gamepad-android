@@ -43,6 +43,7 @@ class VideoStreamClient(
 
     private val isRunning = AtomicBoolean(false)
     private var workerThread: Thread? = null
+    private var sendExecutor: java.util.concurrent.ExecutorService? = null
     private var socket: Socket? = null
     private var outStream: DataOutputStream? = null
 
@@ -64,6 +65,10 @@ class VideoStreamClient(
     fun start() {
         if (isRunning.getAndSet(true)) return
 
+        sendExecutor = java.util.concurrent.Executors.newSingleThreadExecutor { r ->
+            Thread(r, "CemuPad-OpcodeSender").apply { isDaemon = true }
+        }
+
         workerThread = Thread({
             runClientLoop()
         }, "CemuPad-VideoClient").apply {
@@ -77,6 +82,8 @@ class VideoStreamClient(
         closeSocket()
         workerThread?.interrupt()
         workerThread = null
+        sendExecutor?.shutdownNow()
+        sendExecutor = null
     }
 
     /** Watchdog hook: true while the worker thread is alive. */
@@ -86,6 +93,11 @@ class VideoStreamClient(
     fun restartIfStalled(): Boolean {
         if (!isRunning.get() || isWorkerAlive()) return false
         Logger.w(TAG, "Video worker dead while supposed to run; restarting")
+        if (sendExecutor == null || sendExecutor?.isShutdown == true) {
+            sendExecutor = java.util.concurrent.Executors.newSingleThreadExecutor { r ->
+                Thread(r, "CemuPad-OpcodeSender").apply { isDaemon = true }
+            }
+        }
         workerThread = Thread({
             runClientLoop()
         }, "CemuPad-VideoClient").apply {
@@ -114,21 +126,24 @@ class VideoStreamClient(
     }
 
     private fun sendOpcode(opcode: Int, name: String) {
-        // Snapshot the stream under lock, then write WITHOUT holding it: a
-        // write to a dead peer can block indefinitely (no write timeout on
-        // plain sockets), and must never park other threads on the monitor.
         val out = synchronized(this) { outStream }
-        Thread {
-            try {
-                out?.let {
-                    it.writeByte(opcode)
-                    it.flush()
-                    Logger.i(TAG, "Sent $name to Cemu video server")
+        val executor = sendExecutor ?: return
+        if (executor.isShutdown) return
+        try {
+            executor.execute {
+                try {
+                    out?.let {
+                        it.writeByte(opcode)
+                        it.flush()
+                        Logger.i(TAG, "Sent $name to Cemu video server")
+                    }
+                } catch (e: Exception) {
+                    Logger.w(TAG, "Failed to send $name: ${e.message}")
                 }
-            } catch (e: Exception) {
-                Logger.w(TAG, "Failed to send $name: ${e.message}")
             }
-        }.start()
+        } catch (e: Exception) {
+            Logger.w(TAG, "Failed to dispatch $name: ${e.message}")
+        }
     }
 
     private fun runClientLoop() {
