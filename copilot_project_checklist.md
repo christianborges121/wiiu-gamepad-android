@@ -398,6 +398,7 @@ Apollo and Artemis are GPL-licensed projects. Use them as architectural referenc
 | 2026-09-12 | Phase 2 | Android decoder hardening: Annex B validation, SPS/PPS-tracked bounded IDR recovery, telemetry counters; idle-label overlap fixed; unit-tested and installed | Done |
 | 2026-09-12 | Phase 2 | Decoder-thread confinement: all MediaCodec calls on `CemuPad-Decoder` via synchronous dispatch (backpressure preserved); live-verified at 60 FPS after reinstall | Done |
 | 2026-09-12/13 | Phase 2 | UDP video transport v1 (no FEC): protocol spec, Cemu fragment sender + negotiation, Android reassembly + fallback; unit-tested, Cemu Release built; deploy + live test pending | Done |
+| 2026-09-12/13 | Phase 2 | UDP robustness: non-blocking send, per-600-frame stats, rx-break client prune, every-iteration silence check with stats; built, deploy pending game close | Done |
 | 2026-09-12 | Phase 4 | Reconnect watchdog: Throwable-hardened DSU/video loops, liveness APIs, 5 s activity watchdog, lifecycle unit tests; soak-tested, socket-bound proven | Done |
 | 2026-09-12 | Phase 4 UX | 30/60 FPS decode toggle: `limitTo30Fps` setting (default on), `FrameRateLimiter` PTS gate in decoder, drawer switch; unit-tested, installed; live cap check needs a game session | Done |
 | 2026-09-12 | Phase 2 | Removed phone-side frame dropping (P-frame reference corruption caused ghosting); cap must happen at encode; verified clean 60 FPS after hotfix | Done |

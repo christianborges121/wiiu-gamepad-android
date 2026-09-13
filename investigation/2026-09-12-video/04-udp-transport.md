@@ -42,3 +42,19 @@ per-client TCP/UDP negotiation via opcodes `0x11`/`0x12`).
   relaunches and boots a game.
 - FEC parity, loss feedback to Cemu, and ref-frame invalidation remain
   open by design.
+
+## Robustness pass (same night, pre-deploy)
+
+Live session went black/0 FPS with a moving level-select on screen.
+Prime suspects: blocking `sendto` stalling the shared encode worker,
+silence detection only firing on receive timeouts (a trickle of
+doomed datagrams suppresses both completion and fallback), and stale
+UDP-only clients never pruned. Fixed, untested until deploy:
+
+- Cemu: non-blocking UDP socket + 1 MB send buffer (drop-and-count
+  instead of stall); per-600-frame UDP stats log; rx-break removes the
+  client entry so UDP-only peers cannot linger.
+- Android: silence check runs every loop iteration with reassembly
+  stats in the log line.
+- New Cemu binary built (`Cemu/bin/Cemu_release.exe`); deploy blocked
+  on the running game.

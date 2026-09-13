@@ -31,9 +31,18 @@ class UdpVideoReceiver(
     private var workerThread: Thread? = null
     private var socket: DatagramSocket? = null
     private val reassembler = FrameReassembler()
+    private val sequencer = UdpFrameSequencer()
+    private var lastIdrRequestMs = 0L
 
     var onUdpSilence: (() -> Unit)? = null
+    var onRequestIdr: (() -> Unit)? = null
     var onError: ((Throwable) -> Unit)? = null
+
+    /** Resets reassembly + ordering for a fresh burst (transport switch). */
+    fun resetStream() {
+        sequencer.onTransportStart()
+        lastIdrRequestMs = 0L
+    }
 
     val stats get() = reassembler.stats
 
@@ -97,26 +106,24 @@ class UdpVideoReceiver(
                     packet.length = buf.size
                     sock.receive(packet)
                     silenceReported = false
-                    for (event in reassembler.offer(buf, packet.length)) {
-                        when (event) {
-                            is FrameReassembler.OfferResult.FrameComplete -> {
+                    for (out in sequencer.onOffer(reassembler.offer(buf, packet.length))) {
+                        when (out) {
+                            is UdpFrameSequencer.Out.Feed -> {
                                 lastCompleteMs = System.currentTimeMillis()
-                                onFrameReceived(event.frame.data, event.frame.ptsUs)
+                                onFrameReceived(out.data, out.ptsUs)
                             }
-                            is FrameReassembler.OfferResult.FrameDropped -> {
-                                if (event.isIdr) {
-                                    Logger.w(TAG, "Lost UDP IDR frame ${event.frameId}; upper layer should request IDR")
+                            UdpFrameSequencer.Out.NeedsIdr -> {
+                                val now = System.currentTimeMillis()
+                                if (now - lastIdrRequestMs >= 1000L) {
+                                    lastIdrRequestMs = now
+                                    Logger.w(TAG, "UDP frame loss; requesting IDR resync")
+                                    onRequestIdr?.invoke()
                                 }
                             }
-                            FrameReassembler.OfferResult.Waiting -> {}
                         }
                     }
                 } catch (e: SocketTimeoutException) {
-                    if (System.currentTimeMillis() - lastCompleteMs > silenceTimeoutMs && !silenceReported) {
-                        silenceReported = true
-                        Logger.w(TAG, "No complete UDP frame for ${silenceTimeoutMs}ms")
-                        onUdpSilence?.invoke()
-                    }
+                    // Routine: no datagram within 500 ms. Silence handling below.
                 } catch (e: SocketException) {
                     if (!isRunning.get()) break
                     Logger.e(TAG, "SocketException in UDP receive loop", e)
@@ -126,6 +133,23 @@ class UdpVideoReceiver(
                 } catch (t: Throwable) {
                     Logger.e(TAG, "Fatal error in UDP receive loop", t)
                     if (!isRunning.get()) break
+                }
+                // Silence is checked every iteration, not just on receive
+                // timeouts: a steady trickle of uncompletable datagrams must
+                // still trip the TCP fallback instead of stalling silently.
+                if (!silenceReported &&
+                    System.currentTimeMillis() - lastCompleteMs > silenceTimeoutMs
+                ) {
+                    silenceReported = true
+                    val s = reassembler.stats
+                    Logger.w(
+                        TAG,
+                        "No complete UDP frame for ${silenceTimeoutMs}ms " +
+                            "(rx=${s.datagramsReceived} malformed=${s.datagramsMalformed} " +
+                            "done=${s.framesCompleted} dropped=${s.framesDropped} " +
+                            "lost=${s.packetsLost})"
+                    )
+                    onUdpSilence?.invoke()
                 }
             }
         } finally {
