@@ -39,8 +39,33 @@ class VideoStreamClient(
         const val OPCODE_TRANSPORT_UDP = 0x11
         const val OPCODE_TRANSPORT_TCP = 0x12
         const val OPCODE_MIC_BLOW = 0x13
+        const val OPCODE_SET_BITRATE = 0x14
+        const val OPCODE_SET_RESOLUTION = 0x15
         private const val CONNECT_TIMEOUT_MS = 5000
         private const val READ_TIMEOUT_MS = 15000
+
+        /**
+         * Builds the 5-byte little-endian SET_BITRATE packet: [0x14][uint32 bps].
+         * Pure function so unit tests can verify the wire format without sockets.
+         */
+        fun buildBitratePacket(bitrateBps: Int): ByteArray {
+            return ByteBuffer.allocate(5).order(ByteOrder.LITTLE_ENDIAN).apply {
+                put(OPCODE_SET_BITRATE.toByte())
+                putInt(bitrateBps)
+            }.array()
+        }
+
+        /**
+         * Builds the 5-byte little-endian SET_RESOLUTION packet:
+         * [0x15][uint16 width][uint16 height]. Pure function for unit tests.
+         */
+        fun buildResolutionPacket(width: Int, height: Int): ByteArray {
+            return ByteBuffer.allocate(5).order(ByteOrder.LITTLE_ENDIAN).apply {
+                put(OPCODE_SET_RESOLUTION.toByte())
+                putShort(width.toShort())
+                putShort(height.toShort())
+            }.array()
+        }
     }
 
     private val isRunning = AtomicBoolean(false)
@@ -150,6 +175,43 @@ class VideoStreamClient(
             }
         } catch (e: Exception) {
             Logger.w(TAG, "Failed to dispatch MIC_BLOW: ${e.message}")
+        }
+    }
+
+    /**
+     * Asks Cemu to switch the encoder target bitrate live (e.g. 6000000 = 6 Mbps).
+     */
+    fun sendBitrate(bitrateBps: Int) {
+        sendControlPacket(buildBitratePacket(bitrateBps), "SET_BITRATE=$bitrateBps")
+    }
+
+    /**
+     * Asks Cemu to reconfigure the encoder resolution live (e.g. 1280x720).
+     * The PC emits an IDR keyframe after reconfiguring so the decoder re-syncs.
+     */
+    fun sendResolution(width: Int, height: Int) {
+        if (width <= 0 || height <= 0) return
+        sendControlPacket(buildResolutionPacket(width, height), "SET_RESOLUTION=${width}x$height")
+    }
+
+    private fun sendControlPacket(packet: ByteArray, name: String) {
+        val out = synchronized(this) { outStream }
+        val executor = sendExecutor ?: return
+        if (executor.isShutdown) return
+        try {
+            executor.execute {
+                try {
+                    out?.let {
+                        it.write(packet)
+                        it.flush()
+                        Logger.i(TAG, "Sent $name to Cemu video server")
+                    }
+                } catch (e: Exception) {
+                    Logger.w(TAG, "Failed to send $name: ${e.message}")
+                }
+            }
+        } catch (e: Exception) {
+            Logger.w(TAG, "Failed to dispatch $name: ${e.message}")
         }
     }
 

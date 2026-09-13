@@ -312,4 +312,6 @@ This document is the **single source of truth** for tracking implementation prog
 | *2026-09-13* | 3.4/4.5 | Mic Red Dot & Settings Toggle | Minimalist red dot indicator with touch-blow interaction; dedicated Microphone toggle in Audio settings drawer with hardware release | ✅ Done |
 | *2026-09-13* | 4.3 | GamePad Rumble Haptics | VPADControlMotor duty-cycle envelope calculation, VideoStreamServer streaming, Android RumbleHandler pulse flooring & debouncing | ✅ Done |
 | *2026-09-13* | 4.0 | Subsystem Modularization & 1-Click Pairing | New `Cemu/src/streaming/` (`CemuPadBridge`, `DiscoveryServer`, `CemuStreaming` lib), `CemuPadPairingDialog` + Input Settings button, non-invasive vpad/snd_core/capture hooks, legacy 26763 discovery retired; Release `CemuBin` build exit 0, user quality-tested | ✅ Done |
+| *2026-09-13* | 4.1 | Zero-Config Auto-Discovery | Android `DiscoveryResponder` (UDP 26763 answers PC probes), `DiscoveryServer` records broadcast senders, MainScreen discovery card; gradle green + `CemuBin` rebuild exit 0 | ✅ Done |
+| *2026-09-13* | 4.2 | Dynamic Bitrate & Resolution | Opcodes `0x14`/`0x15`, `VideoEncoder` live bitrate + allowlisted resolution reconfig, drawer bitrate dropdown + encoder command on preset change + connect-sync; 63/63 tests green, `CemuBin` exit 0, live-verified 4→12 Mbps + 1080p re-sync | ✅ Done |
 

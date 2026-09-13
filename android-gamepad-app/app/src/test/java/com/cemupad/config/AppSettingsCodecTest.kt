@@ -29,6 +29,19 @@ class AppSettingsCodecTest {
         assertTrue(settings.vibrationEnabled)
         assertEquals(1.0f, settings.vibrationIntensity, 0.001f)
         assertTrue(settings.micEnabled)
+        assertEquals(6, settings.videoBitrateMbps)
+    }
+
+    @Test
+    fun `unknown bitrate falls back to 6 Mbps`() {
+        val settings = AppSettingsCodec.decode(
+            fitModeName = null,
+            resolutionName = null,
+            videoBitrateMbps = 99,
+            diagnosticsOverlayEnabled = null
+        )
+
+        assertEquals(6, settings.videoBitrateMbps)
     }
 
     @Test
@@ -50,10 +63,11 @@ class AppSettingsCodecTest {
     }
 
     @Test
-    fun `round trip preserves fit mode resolution overlay help and fps cap`() {
+    fun `round trip preserves fit mode resolution bitrate overlay help and fps cap`() {
         val original = DisplaySettings(
             fitMode = DisplayFitMode.FILL,
             resolutionPreset = DisplayResolutionPreset.FULL_HD_1920x1080,
+            videoBitrateMbps = 12,
             diagnosticsOverlayEnabled = true,
             showConnectionHelp = false,
             limitTo30Fps = false,
@@ -70,6 +84,7 @@ class AppSettingsCodecTest {
         val restored = AppSettingsCodec.decode(
             fitModeName = encoded.fitModeName,
             resolutionName = encoded.resolutionName,
+            videoBitrateMbps = encoded.videoBitrateMbps,
             diagnosticsOverlayEnabled = encoded.diagnosticsOverlayEnabled,
             connectionHelpVisible = encoded.connectionHelpVisible,
             limitTo30Fps = encoded.limitTo30Fps,

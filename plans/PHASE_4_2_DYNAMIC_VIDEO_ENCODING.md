@@ -24,9 +24,9 @@ The Android client sends small command packets over the established TCP socket:
 
 ## 3. Implementation Checklist & Step-by-Step Code Modifications
 
-- [ ] **Step 3.1: VideoStreamServer Control Opcode Handlers**
-  - [ ] Add `OPCODE_SET_BITRATE` (`0x14`) and `OPCODE_SET_RESOLUTION` (`0x15`) in `Cemu/src/streaming/VideoStreamServer.h`.
-  - [ ] Parse opcodes and dispatch to `VideoEncoder` in `Cemu/src/streaming/VideoStreamServer.cpp`.
+- [x] **Step 3.1: VideoStreamServer Control Opcode Handlers** *(adapted: control protocol is inline opcode bytes in `ClientRxThreadFunc` — the plan's `HandleClientCommands(payload/payloadSize)` does not exist; implemented with an exact-read helper + LE parsing. Files still at `Cafe/HW/Latte/Renderer/` — media move deferred per 4.0 note)*
+  - [x] Add `OPCODE_SET_BITRATE` (`0x14`) and `OPCODE_SET_RESOLUTION` (`0x15`) in `VideoStreamServer.h`.
+  - [x] Parse opcodes and dispatch to `VideoEncoder` in `VideoStreamServer.cpp`.
 
 #### [MODIFY] [`Cemu/src/streaming/VideoStreamServer.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/VideoStreamServer.h)
 Add new control opcode definitions:
@@ -68,10 +68,10 @@ In `VideoStreamServer::HandleClientCommands(ClientConnection& client)`:
     }
 ```
 
-- [ ] **Step 3.2: Runtime Reconfiguration in VideoEncoder**
-  - [ ] Declare `SetBitrate` and `SetResolution` in `Cemu/src/streaming/VideoEncoder.h`.
-  - [ ] Implement live bitrate updating via `ICodecAPI` in `Cemu/src/streaming/VideoEncoder.cpp`.
-  - [ ] Implement resolution reconfiguration and IDR keyframe forcing in `Cemu/src/streaming/VideoEncoder.cpp`.
+- [x] **Step 3.2: Runtime Reconfiguration in VideoEncoder** *(adapted: plan's snippet deadlocks — `SetResolution` snapshots under lock then calls `Initialize()` unlocked; keyframe via existing `RequestKeyframe()`, resolution allowlisted 480p/720p/1080p, bitrate clamped 0.5–20 Mbps. Files still at `Cafe/HW/Latte/Renderer/`)*
+  - [x] Declare `SetBitrate` and `SetResolution` in `VideoEncoder.h`.
+  - [x] Implement live bitrate updating via `ICodecAPI` in `VideoEncoder.cpp`.
+  - [x] Implement resolution reconfiguration and IDR keyframe forcing in `VideoEncoder.cpp`.
 
 #### [MODIFY] [`Cemu/src/streaming/VideoEncoder.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/VideoEncoder.h)
 Declare runtime reconfiguration methods:
@@ -124,9 +124,9 @@ bool VideoEncoder::SetResolution(uint16 width, uint16 height)
 }
 ```
 
-- [ ] **Step 3.3: Android Client Control Packet Dispatcher**
-  - [ ] Add `sendBitrate(bitrateBps)` in `VideoStreamClient.kt`.
-  - [ ] Add `sendResolution(width, height)` in `VideoStreamClient.kt`.
+- [x] **Step 3.3: Android Client Control Packet Dispatcher** *(adapted to existing `sendMicBlow` executor pattern + LE `ByteBuffer` packets; pure builder functions unit-tested)*
+  - [x] Add `sendBitrate(bitrateBps)` in `VideoStreamClient.kt`.
+  - [x] Add `sendResolution(width, height)` in `VideoStreamClient.kt`.
 
 #### [MODIFY] [`android-gamepad-app/app/src/main/java/com/cemupad/video/VideoStreamClient.kt`](file:///c:/Projects/wiiu-gamepad-android/android-gamepad-app/app/src/main/java/com/cemupad/video/VideoStreamClient.kt)
 Add helper methods to send opcodes:
@@ -149,10 +149,10 @@ Add helper methods to send opcodes:
     }
 ```
 
-- [ ] **Step 3.4: App Settings & Dynamic UI Controls**
-  - [ ] Add `videoBitrateMbps` to `DisplaySettings.kt` and `AppSettingsCodec.kt`.
-  - [ ] Add Bitrate dropdown in `MainScreen.kt` drawer.
-  - [ ] Wire UI selection to invoke `sendBitrate` and `sendResolution`.
+- [x] **Step 3.4: App Settings & Dynamic UI Controls** *(resolution preset selection now also commands the encoder; `DEVICE_AUTO` skipped locally-only)*
+  - [x] Add `videoBitrateMbps` to `DisplaySettings.kt` and `AppSettingsCodec.kt`.
+  - [x] Add Bitrate dropdown in `MainScreen.kt` drawer.
+  - [x] Wire UI selection to invoke `sendBitrate` and `sendResolution`.
 
 #### [MODIFY] [`android-gamepad-app/app/src/main/java/com/cemupad/config/DisplaySettings.kt`](file:///c:/Projects/wiiu-gamepad-android/android-gamepad-app/app/src/main/java/com/cemupad/config/DisplaySettings.kt)
 Add `val videoBitrateMbps: Int = 6`.
@@ -168,17 +168,17 @@ Add `KEY_VIDEO_BITRATE = "video_bitrate"` and update `encode()` / `decode()`.
 
 ## 4. Verification & Testing Checklist
 
-- [ ] **4.1 Android Unit Testing**
-  - [ ] Execute Gradle unit tests:
+- [x] **4.1 Android Unit Testing** *(63/63 pass, incl. new `VideoEncoderControlTest` 3/3 and extended `AppSettingsCodecTest`)*
+  - [x] Execute Gradle unit tests:
     ```powershell
     cd c:\Projects\wiiu-gamepad-android\android-gamepad-app
     .\gradlew.bat testDebugUnitTest
     ```
-- [ ] **4.2 Cemu Build Verification**
-  - [ ] Compile Cemu target in Release configuration:
+- [x] **4.2 Cemu Build Verification** *(verified 2026-09-13, `CemuBin` Release exit 0)*
+  - [x] Compile Cemu target in Release configuration:
     ```powershell
-    cmake --build c:\Projects\wiiu-gamepad-android\Cemu\build --config Release --target Cemu
+    cmake --build c:\Projects\wiiu-gamepad-android\Cemu\build --config Release --target CemuBin
     ```
-- [ ] **4.3 Live Gameplay Verification**
-  - [ ] Switch bitrate to `12 Mbps` in the settings drawer. Verify Cemu logs `VideoEncoder: Live updated bitrate to 12000000 bps`.
-  - [ ] Switch resolution to `720p HD`. Verify Cemu reconfigures to `1280x720`, emits an IDR keyframe, and the Android `MediaCodec` immediately re-syncs and scales to the sharper image without crashing.
+- [x] **4.3 Live Gameplay Verification** *(verified 2026-09-13 by user + log: 1080p reconfig + IDR + clean re-sync, stricter superset of the 720p step)*
+  - [x] Switch bitrate to `12 Mbps` in the settings drawer. Verify Cemu logs `VideoEncoder: Live updated bitrate to 12000000 bps`. ✅ observed 4/6/8/12 Mbps live-applied.
+  - [x] Switch resolution to `720p HD`. Verify Cemu reconfigures to `1280x720`, emits an IDR keyframe, and the Android `MediaCodec` immediately re-syncs and scales to the sharper image without crashing. ✅ verified at 1920x1080 instead (same code path, stricter).

@@ -113,14 +113,17 @@ fun MainScreen(
     var micEnabled by remember { mutableStateOf(displaySettings.micEnabled) }
     var selectedFitMode by remember { mutableStateOf(displaySettings.fitMode) }
     var selectedResolution by remember { mutableStateOf(displaySettings.resolutionPreset) }
+    var selectedBitrateMbps by remember { mutableStateOf(displaySettings.videoBitrateMbps) }
     var showFitMenu by remember { mutableStateOf(false) }
     var showResolutionMenu by remember { mutableStateOf(false) }
+    var showBitrateMenu by remember { mutableStateOf(false) }
     var videoHolder by remember { mutableStateOf<SurfaceHolder?>(null) }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     LaunchedEffect(displaySettings) {
         selectedFitMode = displaySettings.fitMode
         selectedResolution = displaySettings.resolutionPreset
+        selectedBitrateMbps = displaySettings.videoBitrateMbps
         diagnosticsEnabled = displaySettings.diagnosticsOverlayEnabled
         showVirtualControls = displaySettings.showVirtualControls
         virtualControlsOpacity = displaySettings.virtualControlsOpacity
@@ -135,6 +138,7 @@ fun MainScreen(
     fun currentSettings() = DisplaySettings(
         fitMode = selectedFitMode,
         resolutionPreset = selectedResolution,
+        videoBitrateMbps = selectedBitrateMbps,
         diagnosticsOverlayEnabled = diagnosticsEnabled,
         showConnectionHelp = true,
         limitTo30Fps = false,
@@ -318,6 +322,48 @@ fun MainScreen(
                                                 selectedFitMode = mode
                                                 showFitMenu = false
                                                 onDisplaySettingsChanged(currentSettings().copy(fitMode = mode))
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            HorizontalDivider(color = Color(0xFF222B3D))
+
+                            // Stream bitrate selector (live encoder control)
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Stream bitrate", color = Color(0xFFEAF2FF), fontSize = 14.sp)
+                                    OutlinedButton(
+                                        onClick = { showBitrateMenu = true },
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF00E5FF)),
+                                        border = BorderStroke(1.dp, Color(0xFF2A3446))
+                                    ) {
+                                        Text("$selectedBitrateMbps Mbps", fontSize = 13.sp)
+                                    }
+                                }
+                                DropdownMenu(
+                                    expanded = showBitrateMenu,
+                                    onDismissRequest = { showBitrateMenu = false },
+                                    modifier = Modifier.background(Color(0xFF1A2332))
+                                ) {
+                                    DisplaySettings.VALID_VIDEO_BITRATES_MBPS.forEach { bitrate ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(
+                                                    "$bitrate Mbps",
+                                                    color = if (bitrate == selectedBitrateMbps) Color(0xFF00E5FF) else Color.White
+                                                )
+                                            },
+                                            onClick = {
+                                                selectedBitrateMbps = bitrate
+                                                showBitrateMenu = false
+                                                onDisplaySettingsChanged(currentSettings().copy(videoBitrateMbps = bitrate))
                                             }
                                         )
                                     }
@@ -757,6 +803,14 @@ fun MainScreen(
                                 color = Color(0xFF9FB0C6),
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 15.sp,
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.Center
+                            )
+                            Text(
+                                text = "Discovery: broadcast active on UDP 26763",
+                                color = Color(0xFF9FB0C6),
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 13.sp,
                                 modifier = Modifier.fillMaxWidth(),
                                 textAlign = TextAlign.Center
                             )

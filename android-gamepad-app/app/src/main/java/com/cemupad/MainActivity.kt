@@ -38,6 +38,7 @@ import com.cemupad.input.MotionHandler
 import com.cemupad.input.RumbleHandler
 import com.cemupad.input.TouchInputHandler
 import com.cemupad.network.DiscoveryClient
+import com.cemupad.network.DiscoveryResponder
 import com.cemupad.network.DiscoveredServer
 import com.cemupad.theme.CemuPadTheme
 import com.cemupad.ui.main.MainScreen
@@ -65,6 +66,7 @@ class MainActivity : ComponentActivity() {
 
     private var audioReceiver: AudioStreamReceiver? = null
     private var discoveryClient: DiscoveryClient? = null
+    private var discoveryResponder: DiscoveryResponder? = null
     private val discoveredServer = mutableStateOf<DiscoveredServer?>(null)
 
     private var videoDecoder: VideoDecoder? = null
@@ -219,6 +221,11 @@ class MainActivity : ComponentActivity() {
         displaySettings.value = AppSettingsCodec.decode(
             fitModeName = prefs.getString(AppSettingsCodec.KEY_FIT_MODE, null),
             resolutionName = prefs.getString(AppSettingsCodec.KEY_RESOLUTION, null),
+            videoBitrateMbps = if (prefs.contains(AppSettingsCodec.KEY_VIDEO_BITRATE)) {
+                prefs.getInt(AppSettingsCodec.KEY_VIDEO_BITRATE, DisplaySettings.VIDEO_BITRATE_DEFAULT_MBPS)
+            } else {
+                null
+            },
             diagnosticsOverlayEnabled = if (prefs.contains(AppSettingsCodec.KEY_DIAGNOSTICS_OVERLAY)) {
                 prefs.getBoolean(AppSettingsCodec.KEY_DIAGNOSTICS_OVERLAY, false)
             } else {
@@ -311,6 +318,12 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // Answer Cemu pairing-dialog probes so the PC can list this phone.
+        // Runs for the whole activity lifetime (silent unless probed).
+        discoveryResponder = DiscoveryResponder { senderIp ->
+            Logger.i("MainActivity", "Cemu discovery probe answered for $senderIp")
+        }
+
         // Hook automatic video stream connection when a Cemu client connects
         dsuServer.onClientConnected = { clientAddr ->
             val clientIp = clientAddr.address.hostAddress ?: ""
@@ -358,6 +371,7 @@ class MainActivity : ComponentActivity() {
                         videoFps = videoFps.floatValue,
                         displaySettings = displaySettings.value,
                         onDisplaySettingsChanged = { newSettings ->
+                            val oldSettings = displaySettings.value
                             displaySettings.value = newSettings
                             videoDecoder?.maxFps = if (newSettings.limitTo30Fps) 30 else 60
                             audioReceiver?.isMuted = !newSettings.audioEnabled
@@ -374,6 +388,14 @@ class MainActivity : ComponentActivity() {
                             } else {
                                 micBlowDetector.stop()
                                 videoClient?.sendMicBlow(false)
+                            }
+                            // Forward dynamic encoder changes to Cemu (no-op when unchanged).
+                            if (newSettings.videoBitrateMbps != oldSettings.videoBitrateMbps) {
+                                videoClient?.sendBitrate(newSettings.videoBitrateMbps * 1_000_000)
+                            }
+                            val newPreset = newSettings.resolutionPreset
+                            if (newPreset != oldSettings.resolutionPreset && newPreset.width > 0 && newPreset.height > 0) {
+                                videoClient?.sendResolution(newPreset.width, newPreset.height)
                             }
                             persistDisplaySettings(newSettings)
                         },
@@ -415,6 +437,7 @@ class MainActivity : ComponentActivity() {
         rumbleHandler.isEnabled = displaySettings.value.vibrationEnabled
         rumbleHandler.intensityScale = displaySettings.value.vibrationIntensity
         discoveryClient?.start()
+        discoveryResponder?.start()
         startUdpReceiver()
         val filter = IntentFilter("com.cemupad.INJECT_INPUT")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -444,6 +467,7 @@ class MainActivity : ComponentActivity() {
         } catch (_: Exception) {}
         watchdogHandler.removeCallbacks(watchdogRunnable)
         discoveryClient?.stop()
+        discoveryResponder?.stop()
         micBlowDetector.stop()
         audioReceiver?.stop()
         audioReceiver = null
@@ -462,6 +486,7 @@ class MainActivity : ComponentActivity() {
             .edit()
             .putString(AppSettingsCodec.KEY_FIT_MODE, encoded.fitModeName)
             .putString(AppSettingsCodec.KEY_RESOLUTION, encoded.resolutionName)
+            .putInt(AppSettingsCodec.KEY_VIDEO_BITRATE, encoded.videoBitrateMbps)
             .putBoolean(AppSettingsCodec.KEY_DIAGNOSTICS_OVERLAY, encoded.diagnosticsOverlayEnabled)
             .putBoolean(AppSettingsCodec.KEY_CONNECTION_HELP, encoded.connectionHelpVisible)
             .putBoolean(AppSettingsCodec.KEY_LIMIT_30_FPS, encoded.limitTo30Fps)
@@ -563,6 +588,14 @@ class MainActivity : ComponentActivity() {
                 udpReceiver?.resetStream()
                 idleControlMode = true
                 requestTransport(true)
+                // Sync persisted encoder settings: drawer changes only fire on
+                // user edits, so a fresh connection would otherwise keep the
+                // PC encoder at its 854x480/6Mbps defaults.
+                videoClient?.sendBitrate(displaySettings.value.videoBitrateMbps * 1_000_000)
+                val preset = displaySettings.value.resolutionPreset
+                if (preset.width > 0 && preset.height > 0) {
+                    videoClient?.sendResolution(preset.width, preset.height)
+                }
                 requestIDR()
             }
             onDisconnected = {

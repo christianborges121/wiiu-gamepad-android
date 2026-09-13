@@ -30,6 +30,7 @@ enum class DisplayResolutionPreset(
 data class DisplaySettings(
     val fitMode: DisplayFitMode = DisplayFitMode.ASPECT_FIT,
     val resolutionPreset: DisplayResolutionPreset = DisplayResolutionPreset.NATIVE_854x480,
+    val videoBitrateMbps: Int = VIDEO_BITRATE_DEFAULT_MBPS,
     val diagnosticsOverlayEnabled: Boolean = false,
     val showConnectionHelp: Boolean = true,
     val limitTo30Fps: Boolean = false,
@@ -41,7 +42,16 @@ data class DisplaySettings(
     val vibrationIntensity: Float = 1.0f,
     val stickDeadzone: Float = 0.08f,
     val micEnabled: Boolean = true
-)
+) {
+    companion object {
+        const val VIDEO_BITRATE_DEFAULT_MBPS = 6
+        val VALID_VIDEO_BITRATES_MBPS = listOf(4, 6, 8, 12)
+
+        fun sanitizeBitrateMbps(value: Int): Int {
+            return if (VALID_VIDEO_BITRATES_MBPS.contains(value)) value else VIDEO_BITRATE_DEFAULT_MBPS
+        }
+    }
+}
 
 data class DisplayDimensions(val width: Float, val height: Float)
 

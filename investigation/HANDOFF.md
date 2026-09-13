@@ -6,11 +6,33 @@ Read this file first. Keep this file current at the end of every session so a ne
 
 ## Where we left off
 
-Phase 4.0 (Subsystem Modularization & 1-Click Pairing) is **implemented AND compile-verified
-(Release `CemuBin` build exit 0, zero warnings from new code, 2026-09-13)**.
-All Section 3 boxes + Section 4.1 in `plans/PHASE_4_0_MODULAR_SUBSYSTEM_REFACTOR.md` are `- [x]`.
-Everything is UNCOMMITTED per user request — user will quality-test (video/audio/rumble parity,
-pairing dialog) before any commit. Section 4.2–4.4 (deploy + live GUI/game verification) left open.
+Phase 4.0 committed + pushed (`dd4e95b9` Cemu / `d4a6e73` outer) after user quality sign-off.
+Phase 4.1 is **code-complete and compile-verified but UNCOMMITTED** (awaiting user test):
+Steps 3.1–3.4 pre-satisfied by the verified 4.0 build; Step 3.5 implemented today:
+- NEW `android-gamepad-app/.../network/DiscoveryResponder.kt` (UDP 26763 listener answering
+  PC probes with `CEMUPAD_HERE:<device>:26760:26761:26762`), wired into `MainActivity` lifecycle,
+  "broadcast active" line on the `MainScreen` disconnected card, NEW `DiscoveryResponderTest`
+  (4/4 pass, full `testDebugUnitTest` BUILD SUCCESSFUL).
+- `Cemu/src/streaming/DiscoveryServer.cpp`: also records `CEMUPAD_DISCOVER` senders so the
+  pairing dialog lists phones running older app builds; incremental `CemuBin` Release rebuild exit 0.
+- `plans/PHASE_4_1_AUTO_DISCOVERY.md` Section 3 + 4.1 flipped; live GUI checks 4.2–4.4 left open.
+
+Deployed 2026-09-13 ~10:20 AM: `Cemu/bin/Cemu_release.exe` (09:36 build, 4.2 code) copied to
+EmuDeck as `Cemu.exe`; previous binary backed up to `Cemu.exe.bak-20260913`. NOTE: plan deploy paths
+say `Cemu/build/bin/Release/Cemu.exe` — wrong; real output is `Cemu/bin/Cemu_release.exe` renamed to
+`Cemu.exe`. Fresh Cemu GUI left RUNNING for user testing (do not leave stale instances behind).
+
+Phase 4.2 is **code-complete and compile-verified but UNCOMMITTED** (awaiting user test):
+- C++ (`VideoStreamServer` opcodes `0x14`/`0x15` with exact-read LE parsing, `VideoEncoder`
+  `SetBitrate` live via `ICodecAPI` + `SetResolution` allowlisted without deadlock); `CemuBin`
+  Release rebuild exit 0. Adaptations noted in plan (no `HandleClientCommands` exists;
+  `RequestKeyframe()` not `ForceKeyframe()`; media files still under `Cafe/HW/Latte/Renderer/`).
+- Android (`VideoStreamClient.sendBitrate/sendResolution` 5-byte LE packets, `videoBitrateMbps`
+  persisted setting, DISPLAY drawer bitrate dropdown, resolution changes now command the encoder);
+  `testDebugUnitTest` 63/63 green (new `VideoEncoderControlTest`, extended codec tests) +
+  `assembleDebug` exit 0. Fixed one self-inflicted break: positional `decode()` call in old test.
+- `plans/PHASE_4_2_DYNAMIC_VIDEO_ENCODING.md` Section 3 + 4.1/4.2 flipped; live check 4.3 (12 Mbps
+  + 720p in-game, Cemu log lines, decoder re-sync) left for user.
 
 ## Just completed (this session)
 

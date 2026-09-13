@@ -37,10 +37,10 @@ To ensure our streaming work does not interfere with Cemu core developers or cau
 
 ## 3. Implementation Checklist & Step-by-Step Code Modifications
 
-- [ ] **Step 3.1: Implement DiscoveryServer in Cemu Subsystem**
-  - [ ] Create `Cemu/src/streaming/DiscoveryServer.h` with `DiscoveredDevice` struct and thread-safe registry.
-  - [ ] Create `Cemu/src/streaming/DiscoveryServer.cpp` listening on UDP `26763` for `"CEMUPAD_DISCOVER"` and `"CEMUPAD_HERE:"`.
-  - [ ] Implement `BroadcastProbe()` sending `"CEMU_DISCOVER"` to `255.255.255.255:26763`.
+- [x] **Step 3.1: Implement DiscoveryServer in Cemu Subsystem** *(satisfied by verified Phase 4.0 build: `Cemu/src/streaming/DiscoveryServer.{h,cpp}` with `DiscoveredDevice` registry, UDP 26763 listener, `BroadcastProbe()`)*
+  - [x] Create `Cemu/src/streaming/DiscoveryServer.h` with `DiscoveredDevice` struct and thread-safe registry.
+  - [x] Create `Cemu/src/streaming/DiscoveryServer.cpp` listening on UDP `26763` for `"CEMUPAD_DISCOVER"` and `"CEMUPAD_HERE:"`.
+  - [x] Implement `BroadcastProbe()` sending `"CEMU_DISCOVER"` to `255.255.255.255:26763`.
 
 #### [NEW] [`Cemu/src/streaming/DiscoveryServer.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/DiscoveryServer.h)
 ```cpp
@@ -93,10 +93,10 @@ private:
 #### [NEW] [`Cemu/src/streaming/DiscoveryServer.cpp`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/DiscoveryServer.cpp)
 Listens on UDP 26763 for `"CEMUPAD_DISCOVER"` and `"CEMUPAD_HERE:"` responses, maintaining a thread-safe list of active Android GamePads.
 
-- [ ] **Step 3.2: Implement CemuPadBridge Auto-Configuration Integration**
-  - [ ] Implement `Cemu/src/streaming/CemuPadBridge.h` singleton.
-  - [ ] Implement `Cemu/src/streaming/CemuPadBridge.cpp` with `AutoConfigureDSUController(deviceIp, dsuPort)`.
-  - [ ] Clear previous slot 0 controller, attach new `DSUClient`, apply default mappings, and save profile.
+- [x] **Step 3.2: Implement CemuPadBridge Auto-Configuration Integration** *(satisfied by verified Phase 4.0 build: `CemuPadBridge::AutoConfigureDSUController` with explicit CemuPad DSU→VPAD mapping + `save(0)`)*
+  - [x] Implement `Cemu/src/streaming/CemuPadBridge.h` singleton.
+  - [x] Implement `Cemu/src/streaming/CemuPadBridge.cpp` with `AutoConfigureDSUController(deviceIp, dsuPort)`.
+  - [x] Clear previous slot 0 controller, attach new `DSUClient`, apply default mappings, and save profile.
 
 #### [NEW] [`Cemu/src/streaming/CemuPadBridge.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/CemuPadBridge.h)
 The clean, single point of contact between Cemu and the streaming module:
@@ -192,9 +192,9 @@ bool CemuPadBridge::AutoConfigureDSUController(const std::string& deviceIp, uint
 }
 ```
 
-- [ ] **Step 3.3: Implement CemuPadPairingDialog in Cemu GUI**
-  - [ ] Implement `Cemu/src/gui/wxgui/input/CemuPadPairingDialog.h` header.
-  - [ ] Implement `Cemu/src/gui/wxgui/input/CemuPadPairingDialog.cpp` with device list, timer polling, and pair action.
+- [x] **Step 3.3: Implement CemuPadPairingDialog in Cemu GUI** *(satisfied by verified Phase 4.0 build)*
+  - [x] Implement `Cemu/src/gui/wxgui/input/CemuPadPairingDialog.h` header.
+  - [x] Implement `Cemu/src/gui/wxgui/input/CemuPadPairingDialog.cpp` with device list, timer polling, and pair action.
 
 #### [NEW] [`Cemu/src/gui/wxgui/input/CemuPadPairingDialog.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/gui/wxgui/input/CemuPadPairingDialog.h)
 ```cpp
@@ -233,9 +233,9 @@ Implements the dialog with a clean wxListView showing:
 - Status (`Ready on port 26760`)
 - **[ Pair & Connect ]** button: Triggers `CemuPadBridge::AutoConfigureDSUController(ip)` and starts video streaming.
 
-- [ ] **Step 3.4: Integrate "Auto-Discover CemuPad..." Button in InputSettings2.cpp**
-  - [ ] Add button to `controller_btn_sizer` next to the "Add" button.
-  - [ ] Bind click event to show `CemuPadPairingDialog` and refresh controller list upon success.
+- [x] **Step 3.4: Integrate "Auto-Discover CemuPad..." Button in InputSettings2.cpp** *(satisfied by verified Phase 4.0 build; refreshes via existing `update_state()`)*
+  - [x] Add button to `controller_btn_sizer` next to the "Add" button.
+  - [x] Bind click event to show `CemuPadPairingDialog` and refresh controller list upon success.
 
 #### [MODIFY] [`Cemu/src/gui/wxgui/input/InputSettings2.cpp`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/gui/wxgui/input/InputSettings2.cpp)
 Next to the existing "Add" button on the Controller row, add:
@@ -250,9 +250,9 @@ cemupad_btn->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
 });
 ```
 
-- [ ] **Step 3.5: Android Auto-Discovery Responder**
-  - [ ] Listen on UDP 26763 in `android-gamepad-app` and respond with `"CEMUPAD_HERE:<device_name>:26760:26761:26762"`.
-  - [ ] Update `MainScreen.kt` connection card to indicate broadcast status and show detected Cemu hosts.
+- [x] **Step 3.5: Android Auto-Discovery Responder** *(implemented 2026-09-13, gradle-verified)*
+  - [x] Listen on UDP 26763 in `android-gamepad-app` (`network/DiscoveryResponder.kt`) and respond with `"CEMUPAD_HERE:<device_name>:26760:26761:26762"`.
+  - [x] Update `MainScreen.kt` connection card with broadcast-status line; existing card already shows detected Cemu hosts with 1-tap Connect.
 
 #### [MODIFY] [`android-gamepad-app/app/src/main/java/com/cemupad/ui/main/MainScreen.kt`](file:///c:/Projects/wiiu-gamepad-android/android-gamepad-app/app/src/main/java/com/cemupad/ui/main/MainScreen.kt)
 On the disconnected connection card:
@@ -263,12 +263,13 @@ On the disconnected connection card:
 
 ## 4. Verification & Testing Checklist
 
-- [ ] **4.1 Automated Build Verification**
-  - [ ] Verify clean compilation of Cemu Release target:
+- [x] **4.1 Automated Build Verification**
+  - [x] Verify clean compilation of Cemu Release target (verified 2026-09-13, `CemuBin` exit 0):
     ```powershell
     cmake -B Cemu/build -S Cemu -DCMAKE_BUILD_TYPE=Release
-    cmake --build Cemu/build --config Release --target Cemu
+    cmake --build Cemu/build --config Release --target CemuBin
     ```
+  - [x] Android unit tests pass (`.\gradlew.bat testDebugUnitTest`, incl. new `DiscoveryResponderTest` 4/4).
 - [ ] **4.2 GUI Auto-Discovery Verification**
   - [ ] Open `Options > Input Settings`.
   - [ ] Click the new **"Auto-Discover CemuPad"** button.

@@ -68,7 +68,7 @@ class DiscoveryAndControlsTest {
 
     @Test
     fun testAppSettingsCodecVirtualControls() {
-        val defaultSettings = AppSettingsCodec.decode(null, null, null)
+        val defaultSettings = AppSettingsCodec.decode(null, null, null, null)
         assertFalse("Default showVirtualControls should be false", defaultSettings.showVirtualControls)
 
         val customSettings = DisplaySettings(showVirtualControls = true)
@@ -76,12 +76,13 @@ class DiscoveryAndControlsTest {
         assertTrue(encoded.showVirtualControls)
 
         val decoded = AppSettingsCodec.decode(
-            encoded.fitModeName,
-            encoded.resolutionName,
-            encoded.diagnosticsOverlayEnabled,
-            encoded.connectionHelpVisible,
-            encoded.limitTo30Fps,
-            encoded.showVirtualControls
+            fitModeName = encoded.fitModeName,
+            resolutionName = encoded.resolutionName,
+            videoBitrateMbps = encoded.videoBitrateMbps,
+            diagnosticsOverlayEnabled = encoded.diagnosticsOverlayEnabled,
+            connectionHelpVisible = encoded.connectionHelpVisible,
+            limitTo30Fps = encoded.limitTo30Fps,
+            showVirtualControls = encoded.showVirtualControls
         )
         assertTrue("Decoded showVirtualControls must match encoded value", decoded.showVirtualControls)
     }
