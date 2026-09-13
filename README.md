@@ -20,7 +20,6 @@ Transform an Android smartphone into a full-fidelity Wii U GamePad for Cemu:
 ```text
 android-gamepad-app/   Kotlin Android application (com.cemupad)
 Cemu/                  Cemu fork with Latte GPU streaming, MFT encoder, and DSP audio tap
-vanilla/               Protocol reference implementation
 investigation/         Technical investigation reports, audits, and HANDOFF.md
 ```
 
