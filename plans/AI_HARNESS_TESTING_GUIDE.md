@@ -201,4 +201,40 @@ Follow this exact loop whenever you make a change:
    - Capture screenshot: `adb exec-out screencap -p > phone_screen.png` and view with `view_file`.
 5. **Confirm and Commit**:
    - Verify feature is functional.
+   - Check off the completed steps in the plan file.
    - Commit changes with clear, descriptive commit message and push to GitHub `main`.
+
+---
+
+## ✅ 8. Step-by-Step Checklist Workflow (Checking Off Steps As You Go)
+
+To maintain rigorous progress tracking and prevent regressions or repeated work, all autonomous models must adhere to this checklist protocol:
+
+1. **Locate the Active Task**:
+   - Open the active phase plan file (e.g. `plans/PHASE_4_0_MODULAR_SUBSYSTEM_REFACTOR.md`).
+   - Identify the first unchecked `- [ ]` task in Section 3.
+2. **Implement the Code Change**:
+   - Apply the edits using `replace_file_content` or `write_to_file`.
+   - Preserve existing comments, formatting, and file structure.
+3. **Verify Build & Correctness**:
+   - Run the automated compilation or test command for that task (e.g. `cmake --build ...` or `.\gradlew.bat testDebugUnitTest`).
+   - Ensure the command exits with code `0`.
+4. **Immediately Check Off the Item**:
+   - In the active plan `.md` file, update the checkbox from `- [ ]` to `- [x]`.
+   - Example:
+     ```diff
+     -- [ ] **Step 3.1: Subsystem Directory & Build Isolation**
+     +- [x] **Step 3.1: Subsystem Directory & Build Isolation**
+     ```
+   - **MANDATORY RULE**: NEVER mark `- [x]` before the code is actually written and verified to compile.
+5. **Complete Section 4 Live Verification**:
+   - Once all code steps in Section 3 are `- [x]`, run through Section 4's verification checklist.
+   - Launch Cemu, run the game, capture screenshots/logs, and mark off each `- [ ]` as verified.
+6. **Commit & Push at Completed Milestones**:
+   - Commit the updated plan file alongside the code changes:
+     ```powershell
+     git add plans/ <source_files>
+     git commit -m "feat(streaming): complete Step X.X - <description>"
+     git push origin main
+     ```
+   - This ensures that if the agent run stops or hands off, the next model picks up seamlessly from the exact next open `- [ ]` checkbox.

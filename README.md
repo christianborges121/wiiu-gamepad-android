@@ -10,8 +10,10 @@ Transform an Android smartphone into a full-fidelity Wii U GamePad for Cemu:
 ## Documentation & Developer Guides
 
 - **AI Harness & Autonomous Dev Guide**: [`AI_HARNESS_INSTRUCTIONS.md`](AI_HARNESS_INSTRUCTIONS.md)
+- **Testing & Debugging Operational Manual**: [`plans/AI_HARNESS_TESTING_GUIDE.md`](plans/AI_HARNESS_TESTING_GUIDE.md)
+- **Roadmap & Phase Execution Plans**: [`plans/README.md`](plans/README.md)
+- **Master Project Progress Tracker**: [`PROJECT_CHECKLIST.md`](PROJECT_CHECKLIST.md)
 - **Active Resume & Handoff Notes**: [`investigation/HANDOFF.md`](investigation/HANDOFF.md)
-- **Implementation Tracker & Checklist**: [`copilot_project_checklist.md`](copilot_project_checklist.md) (and [`PROJECT_CHECKLIST.md`](PROJECT_CHECKLIST.md))
 
 ## Repository Layout
 

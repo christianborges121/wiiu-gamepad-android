@@ -12,7 +12,8 @@ This document is the **single source of truth** for tracking implementation prog
 | **Phase 1** | Controller Input via DSU Protocol (Stock Cemu) | ✅ Complete (100%) | Full Android DSU app (buttons, sticks, touch, 6-axis motion + calibration) |
 | **Phase 2** | Low-Latency Video Streaming (Cemu Fork) | ✅ Complete (100%) | 60 FPS H.264 stream rendered on phone over UDP, artifact-free motion |
 | **Phase 3** | Bidirectional Audio (Speakers & Mic) | ✅ Complete (100%) | 48 kHz stereo PCM audio on phone over UDP + DMA ring fix + mic blow |
-| **Phase 4** | Discovery, Pairing, Rumble & UX Polish | 🟡 In Progress (85%) | Dark settings drawer, back button, scrim dismiss, rumble, auto-help |
+| **Phase 4 UX** | UI Ergonomics, Back Button, Scrim Dismiss, Vibration Slider | ✅ Complete (100%) | Dark settings drawer, back button, scrim dismiss, rumble slider, auto-help |
+| **Upcoming Phases** | Subsystem Refactor, Auto-Discovery, Voice PCM, Security, Packaging | 🟢 Ready for Execution | Tracked in [**`plans/`**](plans/README.md) (Checklist-based plans: Phase 4.0 to 4.4 & 5) |
 
 ---
 

@@ -1,6 +1,6 @@
 # Current harness handoff
 
-Last updated: 2026-09-13 06:25 (America/New_York)
+Last updated: 2026-09-13 08:33 (America/New_York)
 
 Read this file first. Keep this file current at the end of every session so a new harness can resume without the prior chat.
 
@@ -10,31 +10,24 @@ The system is fully functional end-to-end with high performance:
 - **Video**: 60 FPS H.264 hardware encoding (NVENC/AMF) over low-latency UDP (`26761`). Motion artifacts and reference frame corruption completely resolved.
 - **Audio**: 48 kHz stereo PCM audio tapped from Cemu's DSP (`snd_core`) streaming over UDP (`26762`). Buzzing and slowdown resolved.
 - **Input & Motion**: DSU over UDP (`26760`) with buttons, sticks (deadzones + inverted Y), multi-touch viewport normalization, and 6-axis gyro/accel with in-app zero-bias calibration.
-- **UI & Ergonomics**: Refactored modern dark card-based settings drawer. 30 FPS limit removed. Descriptions streamlined. Connection card auto-displays when offline. Drawer opens via Back button only; closes and persists settings via "Done" button or tapping outside (scrim click-off).
+- **UI & Ergonomics**: Refactored modern dark card-based settings drawer. Back button access only, scrim tap dismissal with auto-save, microphone toggle with red dot indicator, and logarithmic vibration slider.
+- **Next Phase Ready**: Phase 4.0 Subsystem Modularization (`Cemu/src/streaming/`) and 1-Click Cemu UI Pairing.
 
 ## Just completed (this session)
 
-1. **Menu UI & Interaction Polish**:
-   - Removed 30 FPS limit switch, label, and codec serialization (permanently out of scope; native 60 FPS).
-   - Removed verbose subtitles under GamePad audio, Vibration, Resolution, and Diagnostics overlay.
-   - Renamed "Vibration & rumble" to "Vibration".
-   - Removed manual "Connection help" toggle; startup help card now displays dynamically when disconnected (`!isVideoStreaming`).
-   - Disabled edge-swipe to open drawer (`gesturesEnabled = drawerState.isOpen`); only the Android Back button opens the drawer.
-   - Enabled click-off (scrim tap) dismissal with automatic settings persistence on close.
-   - Restyled drawer with dark cards (`#161D2B`), cyan section headers, custom controls, and header "Done" button.
+1. **Vibration Slider & Tactile Perception Investigation**:
+   - Implemented 0–100% vibration intensity slider with live pulse preview in the settings drawer.
+   - Diagnosed root cause of flat vibration: Samsung One UI clamps touch haptics to 40% motor power; tactile perception is logarithmic. Documented in `investigation/2026-09-13-vibration-intensity/01-vibration-intensity-deep-dive.md`.
+2. **Subsystem Modularization & 1-Click Cemu UI Auto-Configuration Design**:
+   - Isolated all streaming, capture, and networking into `Cemu/src/streaming/` with non-invasive delegate `CemuPadBridge.h`.
+   - Designed 1-click wxWidgets `CemuPadPairingDialog` and "Auto-Discover CemuPad..." button in Cemu Input Settings that programmatically binds Cemu's native `DSUClient` controller.
+3. **Checklist-Based Implementation Plans**:
+   - Converted all upcoming phase plans in `plans/` into strict, task-by-task `- [ ]` checklist documents.
+   - Created `plans/AI_HARNESS_TESTING_GUIDE.md` with exact Cemu CLI commands, ROM paths (`SUPER MARIO 3D WORLD (US).wua`), log inspection commands, and screenshot methods.
+   - Cleaned up obsolete documentation (`copilot_project_checklist.md`, `code_review.md`, `architecture_and_plan.md`, `resolution_plans/`).
 
-2. **Video Motion Artifact Resolution**:
-   - Fixed encoder frame overwrite in Cemu's `VideoEncoder.cpp` by using a callback-driven encoding pipeline and disabling B-frames (`CODECAPI_AVEncMPVDefaultBPictureCount = 0`).
-   - Removed redundant CPU Annex-B re-parsing in Android's `VideoStreamClient.kt`, trusting the UDP packet header's IDR flag.
-   - Recorded and verified in-game movement in *Super Mario 3D World*: crisp, artifact-free 60 FPS video.
-
-3. **Audio Quality Fix**:
-   - Fixed circular DMA buffer ring wrapping and sample pacing in Cemu's `snd_core`.
-   - Continuous 48 kHz stereo PCM transmission eliminated audio buzzing, crackling, and half-speed playback.
-
-4. **Workspace & Documentation Cleanup**:
-   - Removed loose temporary `.png`, `.log`, and `.ps1` files from project root.
-   - Updated checklist and handoff documentation to reflect 100% completion of Phases 0–3 and active polish in Phase 4.
+## Next Actionable Step
+Begin executing **Phase 4.0** following [**`plans/PHASE_4_0_MODULAR_SUBSYSTEM_REFACTOR.md`**](file:///c:/Projects/wiiu-gamepad-android/plans/PHASE_4_0_MODULAR_SUBSYSTEM_REFACTOR.md), checking off `- [ ]` steps as you go.
 
 ## Device & Environment
 
