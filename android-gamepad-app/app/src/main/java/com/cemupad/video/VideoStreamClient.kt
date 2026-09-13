@@ -34,6 +34,8 @@ class VideoStreamClient(
         const val PACKET_TYPE_VIDEO = 0x01
         const val PACKET_TYPE_CONFIG = 0x02
         const val OPCODE_IDR_REQUEST = 0x10
+        const val OPCODE_TRANSPORT_UDP = 0x11
+        const val OPCODE_TRANSPORT_TCP = 0x12
         private const val CONNECT_TIMEOUT_MS = 5000
         private const val READ_TIMEOUT_MS = 15000
     }
@@ -88,17 +90,32 @@ class VideoStreamClient(
      * Sends an IDR (Keyframe) request to Cemu to recover from frame loss or initialize a new stream.
      */
     fun requestIDR() {
+        sendOpcode(OPCODE_IDR_REQUEST, "IDR_REQUEST")
+    }
+
+    /**
+     * Asks Cemu to switch this client's video transport. UDP carries the
+     * frames once negotiated; TCP stays up for control and fallback.
+     */
+    fun requestTransport(useUdp: Boolean) {
+        sendOpcode(
+            if (useUdp) OPCODE_TRANSPORT_UDP else OPCODE_TRANSPORT_TCP,
+            if (useUdp) "TRANSPORT_UDP" else "TRANSPORT_TCP"
+        )
+    }
+
+    private fun sendOpcode(opcode: Int, name: String) {
         Thread {
             try {
                 synchronized(this) {
                     outStream?.let {
-                        it.writeByte(OPCODE_IDR_REQUEST)
+                        it.writeByte(opcode)
                         it.flush()
-                        Logger.i(TAG, "Sent IDR_REQUEST to Cemu video server")
+                        Logger.i(TAG, "Sent $name to Cemu video server")
                     }
                 }
             } catch (e: Exception) {
-                Logger.w(TAG, "Failed to send IDR_REQUEST: ${e.message}")
+                Logger.w(TAG, "Failed to send $name: ${e.message}")
             }
         }.start()
     }

@@ -30,8 +30,10 @@ import com.cemupad.input.TouchInputHandler
 import com.cemupad.theme.CemuPadTheme
 import com.cemupad.ui.main.MainScreen
 import com.cemupad.util.Logger
+import com.cemupad.video.UdpVideoReceiver
 import com.cemupad.video.VideoDecoder
 import com.cemupad.video.VideoStreamClient
+import java.util.concurrent.atomic.AtomicBoolean
 
 class MainActivity : ComponentActivity() {
 
@@ -48,6 +50,8 @@ class MainActivity : ComponentActivity() {
 
     private var videoDecoder: VideoDecoder? = null
     private var videoClient: VideoStreamClient? = null
+    private var udpReceiver: UdpVideoReceiver? = null
+    private val udpActive = AtomicBoolean(false)
     private var activeSurface: Surface? = null
     private var lastKnownClientIp: String? = null
 
@@ -68,6 +72,7 @@ class MainActivity : ComponentActivity() {
                     dsuServer.ensureThreads()
                 }
                 videoClient?.restartIfStalled()
+                udpReceiver?.restartIfStalled()
             } catch (_: Exception) {
             }
             watchdogHandler.postDelayed(this, WATCHDOG_INTERVAL_MS)
@@ -169,6 +174,7 @@ class MainActivity : ComponentActivity() {
         acquireWifiLock()
         dsuServer.start()
         motionHandler.start()
+        startUdpReceiver()
         watchdogHandler.postDelayed(watchdogRunnable, WATCHDOG_INTERVAL_MS)
     }
 
@@ -187,6 +193,7 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         watchdogHandler.removeCallbacks(watchdogRunnable)
+        stopUdpReceiver()
         stopVideoStream()
         handleSurfaceDestroyed()
         motionHandler.stop()
@@ -221,23 +228,57 @@ class MainActivity : ComponentActivity() {
         activeSurface = null
     }
 
+    private fun handleVideoFrame(nalData: ByteArray, ptsUs: Long) {
+        videoDecoder?.decodeFrame(nalData, ptsUs)
+        isVideoStreaming.value = true
+        videoDecoder?.let { videoFps.floatValue = it.currentFps }
+    }
+
+    private fun startUdpReceiver() {
+        if (udpReceiver != null) return
+        val receiver = UdpVideoReceiver(
+            onFrameReceived = { nalData, ptsUs ->
+                udpActive.set(true)
+                handleVideoFrame(nalData, ptsUs)
+            }
+        )
+        receiver.onUdpSilence = {
+            // UDP went quiet (lossy path or dead sender): fall back to TCP
+            // video and stay there until the next reconnect.
+            if (udpActive.getAndSet(false)) {
+                Logger.w("MainActivity", "UDP video silent, falling back to TCP")
+                videoClient?.requestTransport(false)
+            }
+        }
+        udpReceiver = receiver
+        receiver.start()
+    }
+
+    private fun stopUdpReceiver() {
+        udpReceiver?.stop()
+        udpReceiver = null
+        udpActive.set(false)
+    }
+
     private fun startVideoStream(host: String) {
         if (videoClient?.isConnected == true && videoClient?.host == host) return
         stopVideoStream()
+        udpActive.set(false)
 
         Logger.i("MainActivity", "Connecting to Cemu video stream at $host:26761")
         val client = VideoStreamClient(
             host = host,
             port = VideoStreamClient.DEFAULT_PORT,
             onFrameReceived = { nalData, ptsUs ->
-                videoDecoder?.decodeFrame(nalData, ptsUs)
-                isVideoStreaming.value = true
-                videoDecoder?.let { videoFps.floatValue = it.currentFps }
+                if (!udpActive.get()) {
+                    handleVideoFrame(nalData, ptsUs)
+                }
             }
         ).apply {
             onConnected = {
                 Logger.i("MainActivity", "Video stream connected to $host:26761")
                 isVideoStreaming.value = true
+                requestTransport(true)
             }
             onDisconnected = {
                 Logger.i("MainActivity", "Video stream disconnected")

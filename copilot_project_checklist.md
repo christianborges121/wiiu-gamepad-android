@@ -174,16 +174,16 @@ The current TCP framing is simple but has head-of-line blocking. Apollo uses RTP
 
 - [x] Keep TCP as a diagnostic/fallback transport.
 - [ ] Pace Cemu DSU polling (observed ~10-12k req/s request/response storm 2026-09-12; input needs ~120 Hz max; WiFi/battery waste).
-- [ ] Add UDP video transport on port `26761`.
-- [ ] Fragment encoded H.264 frames into packets below the path MTU.
-- [ ] Add RTP-like sequence number, frame ID, packet index, packet count, PTS, and flags.
-- [ ] Mark start/end of frame and IDR frames.
-- [ ] Drop incomplete or late frames immediately.
+- [x] Add UDP video transport on port `26761` (sender + receiver implemented; live test pending Cemu deploy).
+- [x] Fragment encoded H.264 frames into packets below the path MTU (1400 B payload + 24 B header).
+- [x] Add RTP-like sequence number, frame ID, packet index, packet count, PTS, and flags.
+- [x] Mark start/end of frame and IDR frames.
+- [x] Drop incomplete or late frames immediately (100 ms expiry + keep-latest eviction).
 - [ ] Add configurable Reed-Solomon FEC, initially 10-20% parity.
 - [ ] Bound FEC group size and avoid excessive recovery overhead for large IDR frames.
 - [ ] Add Android packet reassembly and FEC recovery.
-- [ ] Add frame-loss statistics from Android to Cemu.
-- [ ] Add a small reliable control channel for IDR requests and recovery state.
+- [ ] Add frame-loss statistics from Android to Cemu. (Partial: seq-gap loss counted locally in reassembler stats; feedback message open.)
+- [x] Add a small reliable control channel for IDR requests and recovery state (TCP opcodes 0x10/0x11/0x12; UDP silence falls back to TCP).
 - [ ] Add reference-frame invalidation messages only after encoder support exists.
 - [ ] Add optional AES/authentication only when pairing/session design is implemented.
 
@@ -397,6 +397,7 @@ Apollo and Artemis are GPL-licensed projects. Use them as architectural referenc
 | 2026-09-12 | Phase 2 | Mario 3D World colors verified at 60 FPS (RGBA path); full-speed + reconnect stability recorded; HW blocked | Done |
 | 2026-09-12 | Phase 2 | Android decoder hardening: Annex B validation, SPS/PPS-tracked bounded IDR recovery, telemetry counters; idle-label overlap fixed; unit-tested and installed | Done |
 | 2026-09-12 | Phase 2 | Decoder-thread confinement: all MediaCodec calls on `CemuPad-Decoder` via synchronous dispatch (backpressure preserved); live-verified at 60 FPS after reinstall | Done |
+| 2026-09-12/13 | Phase 2 | UDP video transport v1 (no FEC): protocol spec, Cemu fragment sender + negotiation, Android reassembly + fallback; unit-tested, Cemu Release built; deploy + live test pending | Done |
 | 2026-09-12 | Phase 4 | Reconnect watchdog: Throwable-hardened DSU/video loops, liveness APIs, 5 s activity watchdog, lifecycle unit tests; soak-tested, socket-bound proven | Done |
 | 2026-09-12 | Phase 4 UX | 30/60 FPS decode toggle: `limitTo30Fps` setting (default on), `FrameRateLimiter` PTS gate in decoder, drawer switch; unit-tested, installed; live cap check needs a game session | Done |
 | 2026-09-12 | Phase 2 | Removed phone-side frame dropping (P-frame reference corruption caused ghosting); cap must happen at encode; verified clean 60 FPS after hotfix | Done |
