@@ -17,6 +17,7 @@ object AppSettingsCodec {
     const val KEY_AUDIO_VOLUME = "audio_volume"
     const val KEY_VIBRATION_ENABLED = "vibration_enabled"
     const val KEY_STICK_DEADZONE = "stick_deadzone"
+    const val KEY_MIC_ENABLED = "mic_enabled"
 
     fun decode(
         fitModeName: String?,
@@ -29,7 +30,8 @@ object AppSettingsCodec {
         audioEnabled: Boolean? = null,
         audioVolume: Float? = null,
         vibrationEnabled: Boolean? = null,
-        stickDeadzone: Float? = null
+        stickDeadzone: Float? = null,
+        micEnabled: Boolean? = null
     ): DisplaySettings {
         val fitMode = fitModeName
             ?.let { name -> DisplayFitMode.values().firstOrNull { it.name == name } }
@@ -48,7 +50,8 @@ object AppSettingsCodec {
             audioEnabled = audioEnabled ?: true,
             audioVolume = audioVolume ?: 1.0f,
             vibrationEnabled = vibrationEnabled ?: true,
-            stickDeadzone = stickDeadzone ?: 0.08f
+            stickDeadzone = stickDeadzone ?: 0.08f,
+            micEnabled = micEnabled ?: true
         )
     }
 
@@ -64,7 +67,8 @@ object AppSettingsCodec {
             audioEnabled = settings.audioEnabled,
             audioVolume = settings.audioVolume,
             vibrationEnabled = settings.vibrationEnabled,
-            stickDeadzone = settings.stickDeadzone
+            stickDeadzone = settings.stickDeadzone,
+            micEnabled = settings.micEnabled
         )
     }
 }
@@ -80,5 +84,7 @@ data class EncodedAppSettings(
     val audioEnabled: Boolean,
     val audioVolume: Float,
     val vibrationEnabled: Boolean,
-    val stickDeadzone: Float
+    val stickDeadzone: Float,
+    val micEnabled: Boolean
 )
+

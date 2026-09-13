@@ -42,6 +42,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import com.cemupad.input.GamepadInputHandler
 import com.cemupad.network.DiscoveredServer
+import com.cemupad.ui.controls.MicIndicatorDot
 import com.cemupad.ui.controls.VirtualButton
 import com.cemupad.ui.controls.VirtualGamePadOverlay
 import androidx.compose.runtime.Composable
@@ -107,6 +108,7 @@ fun MainScreen(
     var audioVolume by remember { mutableFloatStateOf(displaySettings.audioVolume) }
     var vibrationEnabled by remember { mutableStateOf(displaySettings.vibrationEnabled) }
     var stickDeadzone by remember { mutableFloatStateOf(displaySettings.stickDeadzone) }
+    var micEnabled by remember { mutableStateOf(displaySettings.micEnabled) }
     var selectedFitMode by remember { mutableStateOf(displaySettings.fitMode) }
     var selectedResolution by remember { mutableStateOf(displaySettings.resolutionPreset) }
     var showFitMenu by remember { mutableStateOf(false) }
@@ -124,6 +126,7 @@ fun MainScreen(
         audioVolume = displaySettings.audioVolume
         vibrationEnabled = displaySettings.vibrationEnabled
         stickDeadzone = displaySettings.stickDeadzone
+        micEnabled = displaySettings.micEnabled
     }
 
     fun currentSettings() = DisplaySettings(
@@ -137,7 +140,8 @@ fun MainScreen(
         audioEnabled = audioEnabled,
         audioVolume = audioVolume,
         vibrationEnabled = vibrationEnabled,
-        stickDeadzone = stickDeadzone
+        stickDeadzone = stickDeadzone,
+        micEnabled = micEnabled
     )
 
     LaunchedEffect(dsuServer) {
@@ -393,6 +397,25 @@ fun MainScreen(
                                         valueRange = 0f..1f
                                     )
                                 }
+                            }
+
+                            HorizontalDivider(color = Color(0xFF222B3D))
+
+                            // Microphone
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Microphone", color = Color(0xFFEAF2FF), fontSize = 14.sp)
+                                Switch(
+                                    checked = micEnabled,
+                                    onCheckedChange = { enabled ->
+                                        micEnabled = enabled
+                                        onDisplaySettingsChanged(currentSettings().copy(micEnabled = enabled))
+                                    },
+                                    colors = switchColors
+                                )
                             }
                         }
                     }
@@ -753,22 +776,19 @@ fun MainScreen(
                 VirtualGamePadOverlay(
                     gamepadHandler = gamepadHandler,
                     onMicBlowChanged = { blowing -> onMicBlowChanged?.invoke(blowing) },
+                    micEnabled = micEnabled,
                     opacity = virtualControlsOpacity,
                     modifier = Modifier.fillMaxSize()
                 )
-            } else if (isVideoStreaming) {
-                // Floating quick-blow button when virtual controls are hidden
+            } else if (isVideoStreaming && micEnabled) {
+                // Floating red dot indicator/button when mic is enabled
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(16.dp)
                 ) {
-                    VirtualButton(
-                        label = "MIC",
-                        onPressChanged = { down -> onMicBlowChanged?.invoke(down) },
-                        width = 48,
-                        height = 48,
-                        activeColor = Color(0xFF00E5FF)
+                    MicIndicatorDot(
+                        onPressChanged = { down -> onMicBlowChanged?.invoke(down) }
                     )
                 }
             }

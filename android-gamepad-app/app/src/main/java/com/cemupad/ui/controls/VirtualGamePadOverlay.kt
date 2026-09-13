@@ -3,6 +3,7 @@ package com.cemupad.ui.controls
 import android.view.KeyEvent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -51,6 +52,7 @@ import kotlin.math.sqrt
 fun VirtualGamePadOverlay(
     gamepadHandler: GamepadInputHandler,
     onMicBlowChanged: (Boolean) -> Unit,
+    micEnabled: Boolean = true,
     modifier: Modifier = Modifier,
     opacity: Float = 0.45f
 ) {
@@ -92,12 +94,12 @@ fun VirtualGamePadOverlay(
                     onPressChanged = { down -> gamepadHandler.setVirtualButton(gamepadHandler.profile.keyMinus, down) },
                     width = 36, height = 32
                 )
-                VirtualButton(
-                    label = "MIC",
-                    onPressChanged = { down -> onMicBlowChanged(down) },
-                    width = 46, height = 32,
-                    activeColor = Color(0xFF00E5FF)
-                )
+                if (micEnabled) {
+                    MicIndicatorDot(
+                        onPressChanged = { down -> onMicBlowChanged(down) },
+                        sizeDp = 34
+                    )
+                }
                 VirtualButton(
                     label = "HOME",
                     onPressChanged = { down -> gamepadHandler.setVirtualButton(gamepadHandler.profile.keyHome, down) },
@@ -209,6 +211,55 @@ fun VirtualButton(
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold
         )
+    }
+}
+
+@Composable
+fun MicIndicatorDot(
+    onPressChanged: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    sizeDp: Int = 44
+) {
+    val haptic = LocalHapticFeedback.current
+    var isPressed by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = modifier
+            .size(sizeDp.dp)
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    isPressed = true
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onPressChanged(true)
+                    waitForUpOrCancellation()
+                    isPressed = false
+                    onPressChanged(false)
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        // Outer dark subtle halo for contrast against game graphics
+        Box(
+            modifier = Modifier
+                .size(if (isPressed) 30.dp else 24.dp)
+                .clip(CircleShape)
+                .background(if (isPressed) Color(0x99FF1744) else Color(0x77161D2B))
+                .border(
+                    width = 1.dp,
+                    color = if (isPressed) Color(0xFFFF5252) else Color(0x44FFFFFF),
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            // Inner vibrant red dot
+            Box(
+                modifier = Modifier
+                    .size(if (isPressed) 12.dp else 9.dp)
+                    .clip(CircleShape)
+                    .background(if (isPressed) Color.White else Color(0xFFFF1744))
+            )
+        }
     }
 }
 

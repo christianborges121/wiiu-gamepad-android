@@ -27,6 +27,7 @@ class AppSettingsCodecTest {
         assertTrue(settings.audioEnabled)
         assertEquals(1.0f, settings.audioVolume, 0.001f)
         assertTrue(settings.vibrationEnabled)
+        assertTrue(settings.micEnabled)
     }
 
     @Test
@@ -44,6 +45,7 @@ class AppSettingsCodecTest {
         assertTrue(settings.diagnosticsOverlayEnabled)
         assertFalse(settings.showConnectionHelp)
         assertFalse(settings.limitTo30Fps)
+        assertTrue(settings.micEnabled)
     }
 
     @Test
@@ -58,7 +60,8 @@ class AppSettingsCodecTest {
             virtualControlsOpacity = 0.85f,
             audioEnabled = false,
             audioVolume = 0.42f,
-            vibrationEnabled = false
+            vibrationEnabled = false,
+            micEnabled = false
         )
 
         val encoded = AppSettingsCodec.encode(original)
@@ -72,7 +75,9 @@ class AppSettingsCodecTest {
             virtualControlsOpacity = encoded.virtualControlsOpacity,
             audioEnabled = encoded.audioEnabled,
             audioVolume = encoded.audioVolume,
-            vibrationEnabled = encoded.vibrationEnabled
+            vibrationEnabled = encoded.vibrationEnabled,
+            stickDeadzone = encoded.stickDeadzone,
+            micEnabled = encoded.micEnabled
         )
 
         assertEquals(original, restored)

@@ -263,6 +263,11 @@ class MainActivity : ComponentActivity() {
                 prefs.getFloat(AppSettingsCodec.KEY_STICK_DEADZONE, 0.08f)
             } else {
                 null
+            },
+            micEnabled = if (prefs.contains(AppSettingsCodec.KEY_MIC_ENABLED)) {
+                prefs.getBoolean(AppSettingsCodec.KEY_MIC_ENABLED, true)
+            } else {
+                null
             }
         )
 
@@ -353,6 +358,16 @@ class MainActivity : ComponentActivity() {
                             audioReceiver?.volume = newSettings.audioVolume
                             rumbleHandler.isEnabled = newSettings.vibrationEnabled
                             gamepadHandler.deadzone = newSettings.stickDeadzone
+                            if (newSettings.micEnabled) {
+                                if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                                    micBlowDetector.start()
+                                } else {
+                                    requestAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                }
+                            } else {
+                                micBlowDetector.stop()
+                                videoClient?.sendMicBlow(false)
+                            }
                             persistDisplaySettings(newSettings)
                         },
                         onCalibrateGyro = {
@@ -374,9 +389,13 @@ class MainActivity : ComponentActivity() {
         dsuServer.start()
         motionHandler.start()
         gamepadHandler.deadzone = displaySettings.value.stickDeadzone
-        micBlowDetector.start()
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            requestAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        if (displaySettings.value.micEnabled) {
+            micBlowDetector.start()
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                requestAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            }
+        } else {
+            micBlowDetector.stop()
         }
         audioReceiver = AudioStreamReceiver().apply {
             isMuted = !displaySettings.value.audioEnabled
@@ -441,6 +460,7 @@ class MainActivity : ComponentActivity() {
             .putFloat(AppSettingsCodec.KEY_AUDIO_VOLUME, encoded.audioVolume)
             .putBoolean(AppSettingsCodec.KEY_VIBRATION_ENABLED, encoded.vibrationEnabled)
             .putFloat(AppSettingsCodec.KEY_STICK_DEADZONE, encoded.stickDeadzone)
+            .putBoolean(AppSettingsCodec.KEY_MIC_ENABLED, encoded.micEnabled)
             .apply()
     }
 
