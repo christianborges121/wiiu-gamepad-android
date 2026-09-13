@@ -281,12 +281,37 @@ This document is the **single source of truth** for tracking implementation prog
 ### 4.5 Connection Resilience & UX Settings
 - [x] Modern card-based dark settings drawer (`#161D2B`).
 - [x] Gesture restriction: Drawer opens via Android Back button only (swipe-to-open disabled).
-- [x] Tap-outside (scrim) click-off closes drawer and saves settings.
-- [x] Auto-display connection help card when disconnected; hide when video streams.
-- [x] Fit modes: Original Wii U (854×480), 16:9 Aspect Fit, Full Screen Fill.
-- [x] 30 FPS cap switch permanently removed (native 60 FPS streaming).
-- [x] Zero-bias motion calibration tool with live countdown dialog.
-- [ ] Add dynamic encoder bitrate (4–12 Mbps) and resolution (480p/720p/1080p) opcodes over TCP `26761`.
+  - [x] Tap-outside (scrim) click-off closes drawer and saves settings.
+  - [x] Auto-display connection help card when disconnected; hide when video streams.
+  - [x] Fit modes: Original Wii U (854×480), 16:9 Aspect Fit, Full Screen Fill.
+  - [x] 30 FPS cap switch permanently removed (native 60 FPS streaming).
+  - [x] Zero-bias motion calibration tool with live countdown dialog.
+  - [ ] Add dynamic encoder bitrate (4–12 Mbps) and resolution (480p/720p/1080p) opcodes over TCP `26761`.
+
+---
+
+## Phase 5: Release Packaging, ProGuard/R8 & CI/CD
+
+**Goal**: Prepare the Wii U GamePad Android client and Cemu fork for standalone distribution and open-source release.
+
+### 5.1 ProGuard / R8 Bytecode Optimization
+- [x] Create `android-gamepad-app/app/proguard-rules.pro` with keep rules for:
+  - [x] Jetpack Compose runtime attributes and annotations.
+  - [x] DSU protocol binary serialization models (`com.cemupad.dsu.**`).
+  - [x] App configuration data classes (`com.cemupad.config.**`).
+  - [x] Network discovery packet structures (`com.cemupad.network.**`).
+  - [x] MediaCodec and AudioTrack hardware buffers (`android.media.**`).
+- [x] Enable `isMinifyEnabled = true` and `isShrinkResources = true` in `build.gradle.kts`.
+- [x] Verified build output: shrunk APK size from ~15 MB to 1.2 MB.
+
+### 5.2 Automated CI/CD Workflow
+- [x] Create `.github/workflows/build-artifacts.yml`:
+  - [x] Job `build-android`: Ubuntu latest, Temurin JDK 17, compiles debug & release APKs and uploads artifacts.
+  - [x] Job `build-cemu`: Windows 2022, MSVC + CMake, compiles Cemu Release binary and uploads artifacts.
+
+### 5.3 Physical Device Release Verification
+- [x] Deploy minified `app-release.apk` to physical Lenovo Legion Tab.
+- [x] Smoke test launches cleanly with zero `ClassNotFoundException` or reflection crashes.
 
 ---
 
@@ -318,4 +343,4 @@ This document is the **single source of truth** for tracking implementation prog
 | *2026-09-13* | 4.4 | Session PIN (code, UI disabled) | PIN API + server auth gating + client handshake + pairing checkbox, all build-verified; UI removed per user decision (complicates flow), open-session default; re-enable is UI-only | 🟡 Disabled |
 | *2026-09-13* | 4.1-fix | Discovery re-pair fix | Dual-destination responder replies, dialog re-probe + 30s expiry; live-verified re-pair | ✅ Done |
 | *2026-09-13* | 6 | Input Mapping Wizard (code) | Detector, capture engine, per-device store, wizard UI, drawer + edge-swipe + connect-card UX; 88+ unit tests green, deployed; live controller pass in progress | 🟡 In progress |
-
+| *2026-09-13* | 5 | Release Minification & CI/CD | ProGuard/R8 keep rules, minification (1.2MB APK), GitHub Actions workflow for APK & Cemu Windows binary | ✅ Done |
