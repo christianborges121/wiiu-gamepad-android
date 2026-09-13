@@ -23,9 +23,11 @@ Implement an optional 4-digit PIN pairing handshake on the TCP control connectio
 
 ---
 
-## 3. Files to Modify
+## 3. Implementation Checklist & Step-by-Step Code Modifications
 
-### Cemu Backend (`Cemu/src/streaming/`)
+- [ ] **Step 3.1: Expose PIN Security API in CemuPadBridge**
+  - [ ] Add `IsPinRequired`, `SetRequirePin`, `GetCurrentPin`, and `RegeneratePin` in `Cemu/src/streaming/CemuPadBridge.h`.
+  - [ ] Implement random 4-digit PIN generation (`1000..9999`) and state management in `Cemu/src/streaming/CemuPadBridge.cpp`.
 
 #### [MODIFY] [`Cemu/src/streaming/CemuPadBridge.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/CemuPadBridge.h)
 Expose PIN query and session security methods:
@@ -36,6 +38,10 @@ Expose PIN query and session security methods:
     uint32_t GetCurrentPin() const;
     uint32_t RegeneratePin();
 ```
+
+- [ ] **Step 3.2: Implement VideoStreamServer Auth Handlers**
+  - [ ] Add `OPCODE_AUTH_REQUEST` (`0x30`) and `OPCODE_AUTH_RESPONSE` (`0x31`) in `Cemu/src/streaming/VideoStreamServer.h`.
+  - [ ] Verify PIN / token in `VideoStreamServer.cpp`. Return `0x00` + 64-bit token on success, `0x01` on failure and disconnect socket.
 
 #### [MODIFY] [`Cemu/src/streaming/VideoStreamServer.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/VideoStreamServer.h)
 Add security opcodes:
@@ -78,9 +84,9 @@ Handle authentication in the client connection loop:
     }
 ```
 
----
-
-### Android Frontend (`android-gamepad-app`)
+- [ ] **Step 3.3: Implement Android PinPairingDialog in Jetpack Compose**
+  - [ ] Create `PinPairingDialog.kt` in `android-gamepad-app/app/src/main/java/com/cemupad/ui/dialogs/`.
+  - [ ] Restrict input to 4 digits and trigger submission callback.
 
 #### [NEW] [`android-gamepad-app/app/src/main/java/com/cemupad/ui/dialogs/PinPairingDialog.kt`](file:///c:/Projects/wiiu-gamepad-android/android-gamepad-app/app/src/main/java/com/cemupad/ui/dialogs/PinPairingDialog.kt)
 Jetpack Compose dialog prompting for a 4-digit PIN when Cemu requests authentication:
@@ -144,17 +150,27 @@ fun PinPairingDialog(
 }
 ```
 
+- [ ] **Step 3.4: Wire Auth Flow and Token Caching in Android Client**
+  - [ ] Dispatch `OPCODE_AUTH_REQUEST` with cached token or user-entered PIN in `VideoStreamClient.kt`.
+  - [ ] Persist issued 64-bit session token in Android `SharedPreferences` upon auth success.
+
 ---
 
-## 4. Automated Testing & Verification
-1. Run unit tests:
-   ```powershell
-   cd c:\Projects\wiiu-gamepad-android\android-gamepad-app
-   .\gradlew.bat testDebugUnitTest
-   ```
-2. Build Cemu Release:
-   ```powershell
-   cmake --build c:\Projects\wiiu-gamepad-android\Cemu\build --config Release --target Cemu
-   ```
-3. Test invalid PIN: enter `0000`, verify client is disconnected with error toast.
-4. Test valid PIN: enter matching PIN, verify session token is cached and stream starts immediately.
+## 4. Verification & Testing Checklist
+
+- [ ] **4.1 Android Unit Testing**
+  - [ ] Execute Gradle unit tests:
+    ```powershell
+    cd c:\Projects\wiiu-gamepad-android\android-gamepad-app
+    .\gradlew.bat testDebugUnitTest
+    ```
+- [ ] **4.2 Cemu Release Build Verification**
+  - [ ] Compile Cemu target:
+    ```powershell
+    cmake --build c:\Projects\wiiu-gamepad-android\Cemu\build --config Release --target Cemu
+    ```
+- [ ] **4.3 Invalid PIN Rejection Verification**
+  - [ ] Enter `0000` when Cemu requires PIN. Verify connection is rejected and client is disconnected.
+- [ ] **4.4 Valid PIN Authentication & Reconnection Verification**
+  - [ ] Enter matching 4-digit PIN. Verify session token is granted, cached, and stream starts immediately.
+  - [ ] Reconnect app without re-entering PIN. Verify cached token authenticates automatically.

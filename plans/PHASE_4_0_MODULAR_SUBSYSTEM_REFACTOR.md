@@ -36,10 +36,16 @@ Cemu/src/streaming/
 
 ---
 
-## 3. Step-by-Step Code Modifications
+## 3. Implementation Checklist & Step-by-Step Code Modifications
 
-### Step 3.1: Create `Cemu/src/streaming/CMakeLists.txt`
+- [ ] **Step 3.1: Subsystem Directory & Build Isolation**
+  - [ ] Create `Cemu/src/streaming/` directory.
+  - [ ] Move `VideoStreamServer.*`, `VideoEncoder.*`, and `StreamingCapture.*` into `Cemu/src/streaming/`.
+  - [ ] Create `Cemu/src/streaming/CMakeLists.txt` compiling the `CemuStreaming` static library.
+  - [ ] In `Cemu/src/CMakeLists.txt`, add `add_subdirectory(streaming)` and link `CemuStreaming` to `CemuBin`.
+
 ```cmake
+# Cemu/src/streaming/CMakeLists.txt
 add_library(CemuStreaming STATIC
     CemuPadBridge.cpp
     DiscoveryServer.cpp
@@ -73,9 +79,11 @@ add_subdirectory(streaming)
 ```
 And link `CemuStreaming` to `CemuBin`.
 
----
-
-### Step 3.2: Implement `CemuPadBridge.h` and `CemuPadBridge.cpp`
+- [ ] **Step 3.2: Implement CemuPadBridge Delegate System**
+  - [ ] Implement `CemuPadBridge.h` singleton and delegate interface.
+  - [ ] Implement `CemuPadBridge.cpp` with lifecycle control.
+  - [ ] Implement `AutoConfigureDSUController(deviceIp, dsuPort)` using Cemu's native `ControllerFactory` and `InputManager`.
+  - [ ] Implement non-invasive delegates: `OnGamepadFrame`, `OnAudioDMA`, `OnVPADRumble`, `OnVPADClearRumble`.
 
 #### [`Cemu/src/streaming/CemuPadBridge.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/CemuPadBridge.h)
 ```cpp
@@ -228,9 +236,10 @@ bool CemuPadBridge::AutoConfigureDSUController(const std::string& deviceIp, uint
 }
 ```
 
----
-
-### Step 3.3: Implement `CemuPadPairingDialog` in Cemu GUI
+- [ ] **Step 3.3: Implement CemuPadPairingDialog in Cemu GUI**
+  - [ ] Implement `Cemu/src/gui/wxgui/input/CemuPadPairingDialog.h` header.
+  - [ ] Implement `Cemu/src/gui/wxgui/input/CemuPadPairingDialog.cpp` with device list, timer polling, and pair action.
+  - [ ] Wire modal pairing action to call `CemuPadBridge::GetInstance().AutoConfigureDSUController(ipStr, 26760)`.
 
 #### [`Cemu/src/gui/wxgui/input/CemuPadPairingDialog.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/gui/wxgui/input/CemuPadPairingDialog.h)
 ```cpp
@@ -377,9 +386,11 @@ void CemuPadPairingDialog::OnPairClicked(wxCommandEvent&)
 }
 ```
 
----
+- [ ] **Step 3.4: Add the "Auto-Discover CemuPad..." Button to InputSettings2.cpp**
+  - [ ] Include `CemuPadPairingDialog.h` in `Cemu/src/gui/wxgui/input/InputSettings2.cpp`.
+  - [ ] Add `auto_discover_btn` to `controller_btn_sizer` next to the "Add" button.
+  - [ ] Bind click event to display `CemuPadPairingDialog` and refresh the controller list upon successful pairing.
 
-### Step 3.4: Add the Button to `InputSettings2.cpp`
 In [`Cemu/src/gui/wxgui/input/InputSettings2.cpp`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/gui/wxgui/input/InputSettings2.cpp):
 Directly next to the existing **"Add"** button for controllers:
 ```cpp
@@ -397,9 +408,10 @@ auto_discover_btn->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
 controller_btn_sizer->Add(auto_discover_btn, 0, wxALL, 5);
 ```
 
----
-
-### Step 3.5: Clean Up Core Cemu Files (Non-Invasive 1-Line Hooks)
+- [ ] **Step 3.5: Clean Up Core Cemu Files (Non-Invasive 1-Line Hooks)**
+  - [ ] Update `vpad.cpp`: Forward rumble calls to `CemuPadBridge::GetInstance().OnVPADRumble(...)` and `OnVPADClearRumble(...)`.
+  - [ ] Update `snd_core.cpp`: Forward DRC audio DMA samples to `CemuPadBridge::GetInstance().OnAudioDMA(...)`.
+  - [ ] Update `StreamingCapture.cpp`: Forward Vulkan readback frame to `CemuPadBridge::GetInstance().OnGamepadFrame(...)`.
 
 1. **[`Cemu/src/Cafe/OS/libs/vpad/vpad.cpp`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/Cafe/OS/libs/vpad/vpad.cpp)**:
    In `vpadExport_VPADControlMotor`:
@@ -420,25 +432,23 @@ controller_btn_sizer->Add(auto_discover_btn, 0, wxALL, 5);
 
 ---
 
-## 4. Automated Verification & Testing Commands
+## 4. Verification & Testing Checklist
 
-1. **Verify Clean Standalone Compilation**:
-   ```powershell
-   cmake -B Cemu/build -S Cemu -DCMAKE_BUILD_TYPE=Release
-   cmake --build Cemu/build --config Release --target Cemu
-   ```
-2. **Deploy to EmuDeck**:
-   ```powershell
-   Copy-Item c:\Projects\wiiu-gamepad-android\Cemu\build\bin\Release\Cemu.exe C:\Users\chris\AppData\Roaming\EmuDeck\Emulators\cemu\Cemu.exe -Force
-   ```
-3. **Live GUI Verification**:
-   - Open Cemu → `Options > Input Settings`.
-   - Confirm **"Auto-Discover CemuPad..."** button is rendered.
-   - Click button → verify dialog scans UDP `26763` and populates the device list.
-   - Select Android phone and click **"Pair & Connect"**.
-   - Verify `controllerProfiles/controller0.xml` is automatically populated with:
-     - `Emulated: Wii U GamePad`
-     - `API: DSUClient`
-     - `UUID: <phone_ip>:26760`
-     - Default button mappings intact.
-   - Launch game → verify video, audio, touch, gyro, and rumble immediately work without touching any manual settings.
+- [ ] **4.1 Automated Build Verification**
+  - [ ] Run CMake configure and compile the `Cemu` target:
+    ```powershell
+    cmake -B Cemu/build -S Cemu -DCMAKE_BUILD_TYPE=Release
+    cmake --build Cemu/build --config Release --target Cemu
+    ```
+- [ ] **4.2 Binary Deployment**
+  - [ ] Copy compiled executable to EmuDeck emulator directory:
+    ```powershell
+    Copy-Item c:\Projects\wiiu-gamepad-android\Cemu\build\bin\Release\Cemu.exe C:\Users\chris\AppData\Roaming\EmuDeck\Emulators\cemu\Cemu.exe -Force
+    ```
+- [ ] **4.3 Live Cemu GUI Verification**
+  - [ ] Launch Cemu and open `Options > Input Settings`.
+  - [ ] Confirm **"Auto-Discover CemuPad..."** button appears next to the Add button.
+  - [ ] Click button → verify pairing dialog opens and scans UDP 26763.
+  - [ ] Select detected phone and click **"Pair & Connect"**.
+  - [ ] Verify `controllerProfiles/controller0.xml` is saved with DSU client `<phone_ip>:26760`.
+  - [ ] Launch game (*Super Mario 3D World*) → verify video, audio, touch, gyro, and rumble immediately work without manual intervention.

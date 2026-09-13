@@ -9,9 +9,11 @@ Prepare the Wii U GamePad Android client and Cemu fork for standalone distributi
 
 ---
 
-## 2. Files to Modify & Create
+## 2. Implementation Checklist & Step-by-Step Code Modifications
 
-### Android Frontend (`android-gamepad-app`)
+- [ ] **Step 2.1: Configure ProGuard / R8 Keep Rules**
+  - [ ] Create `android-gamepad-app/app/proguard-rules.pro`.
+  - [ ] Preserve DSU packet reflection, coroutines, and MediaCodec hardware buffers from stripping.
 
 #### [NEW] [`android-gamepad-app/app/proguard-rules.pro`](file:///c:/Projects/wiiu-gamepad-android/android-gamepad-app/app/proguard-rules.pro)
 ```proguard
@@ -30,6 +32,10 @@ Prepare the Wii U GamePad Android client and Cemu fork for standalone distributi
 # Keep MediaCodec & AudioTrack hardware buffer structures
 -keep class android.media.** { *; }
 ```
+
+- [ ] **Step 2.2: Enable Release Minification in build.gradle.kts**
+  - [ ] Enable `isMinifyEnabled = true` and `isShrinkResources = true` in `release` build type.
+  - [ ] Assign ProGuard rules file.
 
 #### [MODIFY] [`android-gamepad-app/app/build.gradle.kts`](file:///c:/Projects/wiiu-gamepad-android/android-gamepad-app/app/build.gradle.kts)
 Enable minification in `release` build type:
@@ -50,9 +56,10 @@ Enable minification in `release` build type:
     }
 ```
 
----
-
-### CI/CD Pipeline
+- [ ] **Step 2.3: Configure Automated CI/CD Workflow**
+  - [ ] Create `.github/workflows/build-artifacts.yml`.
+  - [ ] Define automated build job for Android APK (JDK 17).
+  - [ ] Define automated build job for Cemu Windows x64 binary (MSVC + CMake).
 
 #### [NEW] [`.github/workflows/build-artifacts.yml`](file:///c:/Projects/wiiu-gamepad-android/.github/workflows/build-artifacts.yml)
 GitHub Actions workflow compiling the Android APK and Cemu Windows binary:
@@ -112,17 +119,19 @@ jobs:
 
 ---
 
-## 3. Automated Testing & Verification Commands
+## 3. Verification & Testing Checklist
 
-1. **Verify Release APK compilation and R8 optimization**:
-   ```powershell
-   cd c:\Projects\wiiu-gamepad-android\android-gamepad-app
-   .\gradlew.bat testReleaseUnitTest assembleRelease
-   ```
-   Confirm output file exists at `app/build/outputs/apk/release/app-release-unsigned.apk`.
-2. **Install and Smoke-Test Release APK on Device**:
-   ```powershell
-   adb install -r app/build/outputs/apk/release/app-release-unsigned.apk
-   adb shell am start -n com.cemupad/.MainActivity
-   ```
-   Confirm app launches cleanly without R8 ClassNotFoundExceptions or missing Compose reflection crashes.
+- [ ] **3.1 Release APK Compilation & Minification Verification**
+  - [ ] Execute release build with R8 optimization:
+    ```powershell
+    cd c:\Projects\wiiu-gamepad-android\android-gamepad-app
+    .\gradlew.bat testReleaseUnitTest assembleRelease
+    ```
+  - [ ] Confirm output file exists at `app/build/outputs/apk/release/app-release-unsigned.apk`.
+- [ ] **3.2 Device Smoke Testing**
+  - [ ] Install and launch on physical device:
+    ```powershell
+    adb install -r app/build/outputs/apk/release/app-release-unsigned.apk
+    adb shell am start -n com.cemupad/.MainActivity
+    ```
+  - [ ] Verify app launches cleanly without R8 ClassNotFoundExceptions or missing Compose reflection crashes.

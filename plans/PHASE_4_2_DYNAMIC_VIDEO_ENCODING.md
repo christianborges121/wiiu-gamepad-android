@@ -22,9 +22,11 @@ The Android client sends small command packets over the established TCP socket:
 
 ---
 
-## 3. Files to Modify
+## 3. Implementation Checklist & Step-by-Step Code Modifications
 
-### Cemu Backend (`Cemu/src/streaming/`)
+- [ ] **Step 3.1: VideoStreamServer Control Opcode Handlers**
+  - [ ] Add `OPCODE_SET_BITRATE` (`0x14`) and `OPCODE_SET_RESOLUTION` (`0x15`) in `Cemu/src/streaming/VideoStreamServer.h`.
+  - [ ] Parse opcodes and dispatch to `VideoEncoder` in `Cemu/src/streaming/VideoStreamServer.cpp`.
 
 #### [MODIFY] [`Cemu/src/streaming/VideoStreamServer.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/VideoStreamServer.h)
 Add new control opcode definitions:
@@ -65,6 +67,11 @@ In `VideoStreamServer::HandleClientCommands(ClientConnection& client)`:
         break;
     }
 ```
+
+- [ ] **Step 3.2: Runtime Reconfiguration in VideoEncoder**
+  - [ ] Declare `SetBitrate` and `SetResolution` in `Cemu/src/streaming/VideoEncoder.h`.
+  - [ ] Implement live bitrate updating via `ICodecAPI` in `Cemu/src/streaming/VideoEncoder.cpp`.
+  - [ ] Implement resolution reconfiguration and IDR keyframe forcing in `Cemu/src/streaming/VideoEncoder.cpp`.
 
 #### [MODIFY] [`Cemu/src/streaming/VideoEncoder.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/VideoEncoder.h)
 Declare runtime reconfiguration methods:
@@ -117,9 +124,9 @@ bool VideoEncoder::SetResolution(uint16 width, uint16 height)
 }
 ```
 
----
-
-### Android Frontend (`android-gamepad-app`)
+- [ ] **Step 3.3: Android Client Control Packet Dispatcher**
+  - [ ] Add `sendBitrate(bitrateBps)` in `VideoStreamClient.kt`.
+  - [ ] Add `sendResolution(width, height)` in `VideoStreamClient.kt`.
 
 #### [MODIFY] [`android-gamepad-app/app/src/main/java/com/cemupad/video/VideoStreamClient.kt`](file:///c:/Projects/wiiu-gamepad-android/android-gamepad-app/app/src/main/java/com/cemupad/video/VideoStreamClient.kt)
 Add helper methods to send opcodes:
@@ -142,6 +149,11 @@ Add helper methods to send opcodes:
     }
 ```
 
+- [ ] **Step 3.4: App Settings & Dynamic UI Controls**
+  - [ ] Add `videoBitrateMbps` to `DisplaySettings.kt` and `AppSettingsCodec.kt`.
+  - [ ] Add Bitrate dropdown in `MainScreen.kt` drawer.
+  - [ ] Wire UI selection to invoke `sendBitrate` and `sendResolution`.
+
 #### [MODIFY] [`android-gamepad-app/app/src/main/java/com/cemupad/config/DisplaySettings.kt`](file:///c:/Projects/wiiu-gamepad-android/android-gamepad-app/app/src/main/java/com/cemupad/config/DisplaySettings.kt)
 Add `val videoBitrateMbps: Int = 6`.
 
@@ -154,16 +166,19 @@ Add `KEY_VIDEO_BITRATE = "video_bitrate"` and update `encode()` / `decode()`.
 
 ---
 
-## 4. Automated Testing & Verification
-1. Run Android tests:
-   ```powershell
-   cd c:\Projects\wiiu-gamepad-android\android-gamepad-app
-   .\gradlew.bat testDebugUnitTest
-   ```
-2. Build Cemu Release:
-   ```powershell
-   cmake --build c:\Projects\wiiu-gamepad-android\Cemu\build --config Release --target Cemu
-   ```
-3. In live gameplay (*Super Mario 3D World*):
-   - Switch bitrate to `12 Mbps` in the drawer. Verify Cemu logs `VideoEncoder: Live updated bitrate to 12000000 bps`.
-   - Switch resolution to `720p HD`. Verify Cemu reconfigures to `1280x720`, emits an IDR keyframe, and the Android `MediaCodec` immediately re-syncs and scales to the sharper image without crashing.
+## 4. Verification & Testing Checklist
+
+- [ ] **4.1 Android Unit Testing**
+  - [ ] Execute Gradle unit tests:
+    ```powershell
+    cd c:\Projects\wiiu-gamepad-android\android-gamepad-app
+    .\gradlew.bat testDebugUnitTest
+    ```
+- [ ] **4.2 Cemu Build Verification**
+  - [ ] Compile Cemu target in Release configuration:
+    ```powershell
+    cmake --build c:\Projects\wiiu-gamepad-android\Cemu\build --config Release --target Cemu
+    ```
+- [ ] **4.3 Live Gameplay Verification**
+  - [ ] Switch bitrate to `12 Mbps` in the settings drawer. Verify Cemu logs `VideoEncoder: Live updated bitrate to 12000000 bps`.
+  - [ ] Switch resolution to `720p HD`. Verify Cemu reconfigures to `1280x720`, emits an IDR keyframe, and the Android `MediaCodec` immediately re-syncs and scales to the sharper image without crashing.

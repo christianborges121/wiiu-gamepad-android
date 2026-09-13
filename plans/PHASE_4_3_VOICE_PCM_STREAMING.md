@@ -27,9 +27,11 @@ Stream real-time 32 kHz 16-bit signed mono PCM microphone audio from Android dir
 
 ---
 
-## 3. Files to Modify & Create
+## 3. Implementation Checklist & Step-by-Step Code Modifications
 
-### Cemu Backend (`Cemu/src/streaming/`)
+- [ ] **Step 3.1: Implement CemuPadBridge Mic Sample Delegate**
+  - [ ] Add `FeedMicSamples(samples, sampleCount)` in `Cemu/src/streaming/CemuPadBridge.h`.
+  - [ ] Implement `FeedMicSamples` in `Cemu/src/streaming/CemuPadBridge.cpp` forwarding directly to `mic_feedSamples(0, samples, count)`.
 
 #### [MODIFY] [`Cemu/src/streaming/CemuPadBridge.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/CemuPadBridge.h)
 Add delegate method to feed raw mic samples into Cafe OS `mic.cpp`:
@@ -49,6 +51,11 @@ void CemuPadBridge::FeedMicSamples(const int16_t* samples, size_t sampleCount)
     mic_feedSamples(0, const_cast<sint16*>(reinterpret_cast<const sint16*>(samples)), static_cast<sint32>(sampleCount));
 }
 ```
+
+- [ ] **Step 3.2: Implement VideoStreamServer UDP 26764 Mic Receiver Loop**
+  - [ ] Define `MIC_PORT = 26764` in `Cemu/src/streaming/VideoStreamServer.h`.
+  - [ ] Implement `RunMicReceiverLoop` in `Cemu/src/streaming/VideoStreamServer.cpp`.
+  - [ ] Extract PCM samples from packets and forward to `CemuPadBridge::GetInstance().FeedMicSamples(...)`.
 
 #### [MODIFY] [`Cemu/src/streaming/VideoStreamServer.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/VideoStreamServer.h)
 Add port definition:
@@ -86,9 +93,10 @@ void VideoStreamServer::RunMicReceiverLoop()
 }
 ```
 
----
-
-### Android Frontend (`android-gamepad-app`)
+- [ ] **Step 3.3: Implement Android 32 kHz Voice PCM Streamer**
+  - [ ] Create `MicVoiceStreamer.kt` in `android-gamepad-app/app/src/main/java/com/cemupad/audio/`.
+  - [ ] Record 32 kHz 16-bit mono audio with `AudioRecord`.
+  - [ ] Stream 320-sample chunks (10ms) via UDP datagrams to port `26764`.
 
 #### [NEW] [`android-gamepad-app/app/src/main/java/com/cemupad/audio/MicVoiceStreamer.kt`](file:///c:/Projects/wiiu-gamepad-android/android-gamepad-app/app/src/main/java/com/cemupad/audio/MicVoiceStreamer.kt)
 Handles recording and UDP packet streaming:
@@ -193,24 +201,30 @@ class MicVoiceStreamer(
 }
 ```
 
+- [ ] **Step 3.4: Wire Microphone Streaming in MainActivity**
+  - [ ] Initialize `MicVoiceStreamer` on connection in `MainActivity.kt`.
+  - [ ] Toggle streaming dynamically when user enables/disables microphone in settings.
+
 #### [MODIFY] [`android-gamepad-app/app/src/main/java/com/cemupad/MainActivity.kt`](file:///c:/Projects/wiiu-gamepad-android/android-gamepad-app/app/src/main/java/com/cemupad/MainActivity.kt)
 - Instantiate `micVoiceStreamer = MicVoiceStreamer(serverIp)` when video connects.
 - Start and stop synchronously with `displaySettings.micEnabled`.
 
 ---
 
-## 4. Automated Testing & Verification
+## 4. Verification & Testing Checklist
 
-1. Run unit tests:
-   ```powershell
-   cd c:\Projects\wiiu-gamepad-android\android-gamepad-app
-   .\gradlew.bat testDebugUnitTest
-   ```
-2. Build Cemu Release:
-   ```powershell
-   cmake --build c:\Projects\wiiu-gamepad-android\Cemu\build --config Release --target Cemu
-   ```
-3. Live Device Verification:
-   - Speak into the phone's microphone.
-   - Verify Cemu log: `mic_feedSamples: fed 320 samples into DRC0 ringbuffer`.
-   - Verify no buffer overflows or underruns in Cafe OS `snd_core`.
+- [ ] **4.1 Android Unit Testing**
+  - [ ] Run Gradle unit tests:
+    ```powershell
+    cd c:\Projects\wiiu-gamepad-android\android-gamepad-app
+    .\gradlew.bat testDebugUnitTest
+    ```
+- [ ] **4.2 Cemu Release Build Verification**
+  - [ ] Build Cemu target:
+    ```powershell
+    cmake --build c:\Projects\wiiu-gamepad-android\Cemu\build --config Release --target Cemu
+    ```
+- [ ] **4.3 Live Device Audio Verification**
+  - [ ] Speak into the phone's microphone with mic setting enabled.
+  - [ ] Verify Cemu log: `mic_feedSamples: fed 320 samples into DRC0 ringbuffer`.
+  - [ ] Verify clean audio rendering in voice-enabled mini-games without buffer underruns.
