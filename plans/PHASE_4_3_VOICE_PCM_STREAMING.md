@@ -29,20 +29,36 @@ Stream real-time 32 kHz 16-bit signed mono PCM microphone audio from Android dir
 
 ## 3. Files to Modify & Create
 
-### Cemu Backend (`Cemu`)
+### Cemu Backend (`Cemu/src/streaming/`)
 
-#### [MODIFY] [`Cemu/src/Cafe/HW/Latte/Renderer/VideoStreamServer.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/Cafe/HW/Latte/Renderer/VideoStreamServer.h)
-Add port and forward declaration:
+#### [MODIFY] [`Cemu/src/streaming/CemuPadBridge.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/CemuPadBridge.h)
+Add delegate method to feed raw mic samples into Cafe OS `mic.cpp`:
+```cpp
+    // Feed incoming 32 kHz 16-bit mono PCM microphone samples to Cafe OS
+    void FeedMicSamples(const int16_t* samples, size_t sampleCount);
+```
+
+#### [MODIFY] [`Cemu/src/streaming/CemuPadBridge.cpp`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/CemuPadBridge.cpp)
+```cpp
+#include "Cafe/OS/libs/mic/mic.h"
+
+void CemuPadBridge::FeedMicSamples(const int16_t* samples, size_t sampleCount)
+{
+    if (!m_isActive.load() || !samples || sampleCount == 0) return;
+    // Feed directly into Cafe OS DRC0 mic ringbuffer
+    mic_feedSamples(0, const_cast<sint16*>(reinterpret_cast<const sint16*>(samples)), static_cast<sint32>(sampleCount));
+}
+```
+
+#### [MODIFY] [`Cemu/src/streaming/VideoStreamServer.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/VideoStreamServer.h)
+Add port definition:
 ```cpp
     static constexpr uint16 MIC_PORT = 26764;
 ```
 
-#### [MODIFY] [`Cemu/src/Cafe/HW/Latte/Renderer/VideoStreamServer.cpp`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/Cafe/HW/Latte/Renderer/VideoStreamServer.cpp)
-Include `Cafe/OS/libs/mic/mic.h` and implement a UDP socket listener on port `26764`:
+#### [MODIFY] [`Cemu/src/streaming/VideoStreamServer.cpp`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/VideoStreamServer.cpp)
+Implement UDP receiver loop for port `26764` that forwards to `CemuPadBridge`:
 ```cpp
-#include "Cafe/OS/libs/mic/mic.h"
-
-// In Worker thread or UDP receiver loop for mic:
 void VideoStreamServer::RunMicReceiverLoop()
 {
     SOCKET sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -59,11 +75,10 @@ void VideoStreamServer::RunMicReceiverLoop()
         if (bytes > 8)
         {
             uint32 sampleCount = *(uint32*)(buffer + 4);
-            sint16* samples = (sint16*)(buffer + 8);
-            if (sampleCount * sizeof(sint16) <= (size_t)(bytes - 8))
+            const int16_t* samples = reinterpret_cast<const int16_t*>(buffer + 8);
+            if (sampleCount * sizeof(int16_t) <= static_cast<size_t>(bytes - 8))
             {
-                // Feed directly into Cafe OS DRC0 mic ringbuffer
-                mic_feedSamples(0, samples, (sint32)sampleCount);
+                CemuPadBridge::GetInstance().FeedMicSamples(samples, sampleCount);
             }
         }
     }

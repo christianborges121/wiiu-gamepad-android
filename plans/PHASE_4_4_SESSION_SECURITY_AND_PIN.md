@@ -25,16 +25,26 @@ Implement an optional 4-digit PIN pairing handshake on the TCP control connectio
 
 ## 3. Files to Modify
 
-### Cemu Backend (`Cemu`)
+### Cemu Backend (`Cemu/src/streaming/`)
 
-#### [MODIFY] [`Cemu/src/Cafe/HW/Latte/Renderer/VideoStreamServer.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/Cafe/HW/Latte/Renderer/VideoStreamServer.h)
+#### [MODIFY] [`Cemu/src/streaming/CemuPadBridge.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/CemuPadBridge.h)
+Expose PIN query and session security methods:
+```cpp
+    // PIN Pairing Security
+    bool IsPinRequired() const;
+    void SetRequirePin(bool required);
+    uint32_t GetCurrentPin() const;
+    uint32_t RegeneratePin();
+```
+
+#### [MODIFY] [`Cemu/src/streaming/VideoStreamServer.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/VideoStreamServer.h)
 Add security opcodes:
 ```cpp
     static constexpr uint8 OPCODE_AUTH_REQUEST = 0x30;
     static constexpr uint8 OPCODE_AUTH_RESPONSE = 0x31;
 ```
 
-#### [MODIFY] [`Cemu/src/Cafe/HW/Latte/Renderer/VideoStreamServer.cpp`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/Cafe/HW/Latte/Renderer/VideoStreamServer.cpp)
+#### [MODIFY] [`Cemu/src/streaming/VideoStreamServer.cpp`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/VideoStreamServer.cpp)
 Handle authentication in the client connection loop:
 ```cpp
     case OPCODE_AUTH_REQUEST:

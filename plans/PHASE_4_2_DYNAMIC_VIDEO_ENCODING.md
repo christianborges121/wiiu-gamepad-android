@@ -24,9 +24,9 @@ The Android client sends small command packets over the established TCP socket:
 
 ## 3. Files to Modify
 
-### Cemu Backend (`Cemu`)
+### Cemu Backend (`Cemu/src/streaming/`)
 
-#### [MODIFY] [`Cemu/src/Cafe/HW/Latte/Renderer/VideoStreamServer.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/Cafe/HW/Latte/Renderer/VideoStreamServer.h)
+#### [MODIFY] [`Cemu/src/streaming/VideoStreamServer.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/VideoStreamServer.h)
 Add new control opcode definitions:
 ```cpp
     // Transport opcodes phone -> Cemu on the TCP control channel
@@ -38,7 +38,7 @@ Add new control opcode definitions:
     static constexpr uint8 OPCODE_SET_RESOLUTION = 0x15;  // uint16 width, uint16 height
 ```
 
-#### [MODIFY] [`Cemu/src/Cafe/HW/Latte/Renderer/VideoStreamServer.cpp`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/Cafe/HW/Latte/Renderer/VideoStreamServer.cpp)
+#### [MODIFY] [`Cemu/src/streaming/VideoStreamServer.cpp`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/VideoStreamServer.cpp)
 In `VideoStreamServer::HandleClientCommands(ClientConnection& client)`:
 ```cpp
     case OPCODE_SET_BITRATE:
@@ -66,14 +66,14 @@ In `VideoStreamServer::HandleClientCommands(ClientConnection& client)`:
     }
 ```
 
-#### [MODIFY] [`Cemu/src/Cafe/HW/Latte/Renderer/VideoEncoder.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/Cafe/HW/Latte/Renderer/VideoEncoder.h)
+#### [MODIFY] [`Cemu/src/streaming/VideoEncoder.h`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/VideoEncoder.h)
 Declare runtime reconfiguration methods:
 ```cpp
     bool SetBitrate(uint32 bitrateBps);
     bool SetResolution(uint16 width, uint16 height);
 ```
 
-#### [MODIFY] [`Cemu/src/Cafe/HW/Latte/Renderer/VideoEncoder.cpp`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/Cafe/HW/Latte/Renderer/VideoEncoder.cpp)
+#### [MODIFY] [`Cemu/src/streaming/VideoEncoder.cpp`](file:///c:/Projects/wiiu-gamepad-android/Cemu/src/streaming/VideoEncoder.cpp)
 Implement `SetBitrate` and `SetResolution`:
 ```cpp
 bool VideoEncoder::SetBitrate(uint32 bitrateBps)
