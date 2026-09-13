@@ -70,6 +70,10 @@ is whatever game session the user has up, most likely Hyrule Warriors colors.
   See `investigation/2026-09-12-reconnect/`.
 - Hyrule Warriors color verification blocked (title has issues running; also seen: Vulkan device-loss crash 13:54:38, Error -4).
 - Brightness parity parked (see `investigation/2026-09-12-color/02-brightness-parity.md`).
+- Input outage resolved 2026-09-12 evening: DHCP churn (.193 -> .109 -> .114)
+  vs static Cemu DSU config; fixed via Cemu IP update + router DHCP
+  reservation. Phase 1 in-game verification unblocked (see
+  `investigation/2026-09-12-reconnect/09-dhcp-config-drift.md`).
 - Original Wii U GamePad fit-mode live confirmation still useful.
 - Overlay toggle against a running stream, and end-to-end resolution scaling
   with live video, still need a watched game session.
