@@ -1,6 +1,9 @@
 package com.cemupad
 
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
@@ -100,6 +103,92 @@ class MainActivity : ComponentActivity() {
                 Logger.w("MainActivity", "Watchdog pass failed: ${t.message}")
             }
             watchdogHandler.postDelayed(this, WATCHDOG_INTERVAL_MS)
+        }
+    }
+
+    private val debugInputReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            intent ?: return
+            val action = intent.action ?: return
+            if (action == "com.cemupad.INJECT_INPUT") {
+                val button = intent.getStringExtra("button")
+                val isDown = if (intent.hasExtra("down")) intent.getBooleanExtra("down", false) else null
+                val durationMs = intent.getLongExtra("duration", 150L)
+
+                if (button != null && ::gamepadHandler.isInitialized) {
+                    val keyCode = when (button.uppercase()) {
+                        "A" -> gamepadHandler.profile.keyA
+                        "B" -> gamepadHandler.profile.keyB
+                        "X" -> gamepadHandler.profile.keyX
+                        "Y" -> gamepadHandler.profile.keyY
+                        "L" -> gamepadHandler.profile.keyL
+                        "R" -> gamepadHandler.profile.keyR
+                        "ZL" -> gamepadHandler.profile.keyZL
+                        "ZR" -> gamepadHandler.profile.keyZR
+                        "PLUS", "START" -> gamepadHandler.profile.keyPlus
+                        "MINUS", "SELECT" -> gamepadHandler.profile.keyMinus
+                        "HOME", "MODE" -> gamepadHandler.profile.keyHome
+                        "L3" -> gamepadHandler.profile.keyL3
+                        "R3" -> gamepadHandler.profile.keyR3
+                        "UP" -> KeyEvent.KEYCODE_DPAD_UP
+                        "DOWN" -> KeyEvent.KEYCODE_DPAD_DOWN
+                        "LEFT" -> KeyEvent.KEYCODE_DPAD_LEFT
+                        "RIGHT" -> KeyEvent.KEYCODE_DPAD_RIGHT
+                        else -> null
+                    }
+                    if (keyCode != null) {
+                        Logger.i("MainActivity", "Debug inject button $button ($keyCode), down=$isDown")
+                        if (isDown != null) {
+                            gamepadHandler.setVirtualButton(keyCode, isDown)
+                        } else {
+                            gamepadHandler.setVirtualButton(keyCode, true)
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                gamepadHandler.setVirtualButton(keyCode, false)
+                            }, durationMs)
+                        }
+                    }
+                }
+
+                if (::gamepadHandler.isInitialized && (intent.hasExtra("stickL_x") || intent.hasExtra("stickL_y"))) {
+                    val sx = intent.getFloatExtra("stickL_x", 0f)
+                    val sy = intent.getFloatExtra("stickL_y", 0f)
+                    gamepadHandler.setVirtualStick(isLeftStick = true, normX = sx, normY = sy)
+                }
+
+                if (::gamepadHandler.isInitialized && (intent.hasExtra("stickR_x") || intent.hasExtra("stickR_y"))) {
+                    val sx = intent.getFloatExtra("stickR_x", 0f)
+                    val sy = intent.getFloatExtra("stickR_y", 0f)
+                    gamepadHandler.setVirtualStick(isLeftStick = false, normX = sx, normY = sy)
+                }
+
+                if (::dsuServer.isInitialized && intent.hasExtra("touch_x") && intent.hasExtra("touch_y")) {
+                    val tx = intent.getFloatExtra("touch_x", 0f).coerceIn(0f, 1919f).toInt().toShort()
+                    val ty = intent.getFloatExtra("touch_y", 0f).coerceIn(0f, 941f).toInt().toShort()
+                    val touchDown = if (intent.hasExtra("touch_down")) intent.getBooleanExtra("touch_down", false) else null
+                    if (touchDown != null) {
+                        dsuServer.updateState { state ->
+                            state.touchButton = touchDown
+                            state.touch1 = com.cemupad.dsu.DSUPacket.TouchPointData(active = touchDown, id = 1, x = tx, y = ty)
+                        }
+                    } else {
+                        dsuServer.updateState { state ->
+                            state.touchButton = true
+                            state.touch1 = com.cemupad.dsu.DSUPacket.TouchPointData(active = true, id = 1, x = tx, y = ty)
+                        }
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            dsuServer.updateState { state ->
+                                state.touchButton = false
+                                state.touch1 = com.cemupad.dsu.DSUPacket.TouchPointData(active = false)
+                            }
+                        }, durationMs)
+                    }
+                }
+
+                if (intent.hasExtra("mic") && ::micBlowDetector.isInitialized) {
+                    val isBlowing = intent.getBooleanExtra("mic", false)
+                    micBlowDetector.setManualBlow(isBlowing)
+                }
+            }
         }
     }
 
@@ -266,6 +355,12 @@ class MainActivity : ComponentActivity() {
         rumbleHandler.isEnabled = displaySettings.value.vibrationEnabled
         discoveryClient?.start()
         startUdpReceiver()
+        val filter = IntentFilter("com.cemupad.INJECT_INPUT")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(debugInputReceiver, filter, Context.RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(debugInputReceiver, filter)
+        }
         watchdogHandler.postDelayed(watchdogRunnable, WATCHDOG_INTERVAL_MS)
     }
 
@@ -283,6 +378,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
+        try {
+            unregisterReceiver(debugInputReceiver)
+        } catch (_: Exception) {}
         watchdogHandler.removeCallbacks(watchdogRunnable)
         discoveryClient?.stop()
         micBlowDetector.stop()
@@ -357,11 +455,10 @@ class MainActivity : ComponentActivity() {
         receiver.onUdpSilence = {
             // UDP went quiet (lossy path or dead sender): fall back to TCP
             // video and stay there until the next reconnect.
-            if (udpActive.getAndSet(false)) {
-                Logger.w("MainActivity", "UDP video silent, falling back to TCP")
-                videoClient?.idleControlMode = false
-                videoClient?.requestTransport(false)
-            }
+            udpActive.set(false)
+            Logger.w("MainActivity", "UDP video silent, falling back to TCP")
+            videoClient?.idleControlMode = false
+            videoClient?.requestTransport(false)
         }
         udpReceiver = receiver
         receiver.start()

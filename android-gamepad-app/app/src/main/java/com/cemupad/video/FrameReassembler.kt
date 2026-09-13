@@ -98,11 +98,12 @@ class FrameReassembler(
                 part!!.copyInto(out, pos)
                 pos += part.size
             }
+            val isKeyframe = slot.isIdr || AvcNalUnits.describe(AvcNalUnits.parseAnnexB(out)).hasIdr
             events += OfferResult.FrameComplete(
                 CompletedFrame(
                     data = out,
                     ptsUs = slot.ptsUs,
-                    isIdr = slot.isIdr,
+                    isIdr = isKeyframe,
                     frameId = slot.frameId
                 )
             )

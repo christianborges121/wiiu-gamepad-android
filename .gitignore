@@ -28,6 +28,7 @@ local.properties
 # anchored so source assets like vanilla launcher icons stay tracked)
 /*.png
 /*.log
+/*.ps1
 /android-gamepad-app/*.png
 
 # IDE and editor state
