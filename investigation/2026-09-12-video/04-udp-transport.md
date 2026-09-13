@@ -34,7 +34,11 @@ per-client TCP/UDP negotiation via opcodes `0x11`/`0x12`).
 
 - Cemu Release build passed (`Cemu/bin/Cemu_release.exe`).
 - Android unit tests pass; APK with receiver installed.
-- NOT YET DEPLOYED: game running, Cemu.exe locked. Deploy + live UDP
-  test (switch-over, loss stats, fallback) next session.
+- DEPLOYED 2026-09-12 22:13 (user closed Cemu first): prior exe backed
+  up to `Cemu.exe.backup-20260912-221345`, new exe copied with matching
+  SHA-256 `A393A038...B621D0`, resources synced. Settings, mlc01,
+  profiles, and caches untouched.
+- Live UDP test (switch-over, loss stats, fallback) runs once the user
+  relaunches and boots a game.
 - FEC parity, loss feedback to Cemu, and ref-frame invalidation remain
   open by design.
