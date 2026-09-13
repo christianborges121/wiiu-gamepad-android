@@ -262,31 +262,14 @@ This document is the **single source of truth** for tracking implementation prog
 **Goal**: Seamless user experience: auto-discovery, PIN pairing, rumble haptic feedback, customizable settings, and on-screen controls.
 
 ### 4.1 Network Discovery (`com.cemupad.network`)
-- [ ] Implement UDP broadcast responder in Cemu fork listening on UDP port `26765`.
-- [ ] Android sends `"CEMUPAD_DISCOVER"` broadcast to `255.255.255.255:26765`.
-- [ ] Android displays list of available Cemu instances for one-tap connection.
+- [x] Implement UDP broadcast discovery in Cemu fork (`DiscoveryServer` on UDP 26763).
+- [x] Android `DiscoveryResponder` listens on UDP 26763 and answers PC probe broadcasts.
+- [x] Cemu 1-Click Pairing Dialog discovers available Android devices with real-time RSSI/IP and configures DSU client with single click.
 
-### 4.2 Session Security & Pairing
-- [ ] Optional PIN pairing handshake on TCP port `26765`.
-
-### 4.3 Vibration & Rumble Haptics
-- [x] In Cemu fork, hook `VPADController::push_rumble(pattern, length)`.
-- [x] Forward rumble events over control connection to Android.
-- [x] On Android, trigger `VibratorManager` / `Vibrator` with custom `VibrationEffect`.
-
-### 4.4 Virtual On-Screen GamePad Overlay
-- [x] Render transparent GamePad touch controls when enabled in settings.
-- [x] Support on-screen D-pad, ABXY face buttons, L/R/ZL/ZR bumpers, Plus, Minus, and Home.
-
-### 4.5 Connection Resilience & UX Settings
-- [x] Modern card-based dark settings drawer (`#161D2B`).
-- [x] Gesture restriction: Drawer opens via Android Back button only (swipe-to-open disabled).
-  - [x] Tap-outside (scrim) click-off closes drawer and saves settings.
-  - [x] Auto-display connection help card when disconnected; hide when video streams.
-  - [x] Fit modes: Original Wii U (854×480), 16:9 Aspect Fit, Full Screen Fill.
-  - [x] 30 FPS cap switch permanently removed (native 60 FPS streaming).
-  - [x] Zero-bias motion calibration tool with live countdown dialog.
-  - [ ] Add dynamic encoder bitrate (4–12 Mbps) and resolution (480p/720p/1080p) opcodes over TCP `26761`.
+### 4.2 Dynamic Bitrate & Resolution Scaling
+- [x] Dynamic encoder bitrate (4–12 Mbps) via opcode `0x14` over TCP control channel `26761`.
+- [x] Dynamic resolution switching (480p/720p/1080p) via opcode `0x15` over TCP control channel `26761`.
+- [x] Device-auto resolution preset resolver with fallback to 16-aligned dimensions.
 
 ---
 
