@@ -236,6 +236,34 @@ class MainActivity : ComponentActivity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             intent ?: return
             val action = intent.action ?: return
+            if (action == "com.cemupad.WIZARD_TEST") {
+                val mode = intent.getStringExtra("mode") ?: "testing"
+                runOnUiThread {
+                    if (mode == "capturing") {
+                        val target = intent.getStringExtra("target") ?: "Stick L Move"
+                        wizardScreen.value = MappingWizardScreen.Capturing(
+                            targetLabel = target,
+                            done = intent.getIntExtra("done", 5),
+                            total = intent.getIntExtra("total", 26),
+                            flash = null,
+                            isStickTarget = target.contains("Stick")
+                        )
+                    } else {
+                        testHistoryKeys.clear()
+                        testHistoryDirs.clear()
+                        testHistoryStickDirs.clear()
+                        lastShownHatDir = null
+                        lastShownStickDir = null
+                        val profile = if (::gamepadHandler.isInitialized) gamepadHandler.profile else com.cemupad.input.ControllerProfile.DEFAULT
+                        wizardScreen.value = MappingWizardScreen.Testing(
+                            profileName = "Debug Preview",
+                            rows = testRowsFor(profile),
+                            lastKeyCode = null
+                        )
+                    }
+                }
+                return
+            }
             if (action == "com.cemupad.INJECT_INPUT") {
                 if (intent.hasExtra("config_menu")) {
                     val cmd = intent.getStringExtra("config_menu")
@@ -607,7 +635,7 @@ class MainActivity : ComponentActivity() {
         discoveryClient?.start()
         discoveryResponder?.start()
         startUdpReceiver()
-        val filter = IntentFilter("com.cemupad.INJECT_INPUT")
+        val filter = IntentFilter("com.cemupad.INJECT_INPUT").apply { addAction("com.cemupad.WIZARD_TEST") }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(debugInputReceiver, filter, Context.RECEIVER_EXPORTED)
         } else {

@@ -502,21 +502,21 @@ private fun ControllerLineDiagram(
                 val wellBorder = Color(0xFF223046)
                 val wellBorderWidth = 1.dp.toPx()
 
-                // Left stick well — directly under L (x 0.20 → 0.22)
-                drawCircle(color = wellColor, radius = 22.dp.toPx(), center = Offset(canvasW * 0.22f, canvasH * 0.32f))
-                drawCircle(color = wellBorder, radius = 22.dp.toPx(), center = Offset(canvasW * 0.22f, canvasH * 0.32f), style = Stroke(wellBorderWidth))
+                // Left stick well — directly under L (shifted down to 0.33 to clear bumper, radius 18)
+                drawCircle(color = wellColor, radius = 18.dp.toPx(), center = Offset(canvasW * 0.22f, canvasH * 0.33f))
+                drawCircle(color = wellBorder, radius = 18.dp.toPx(), center = Offset(canvasW * 0.22f, canvasH * 0.33f), style = Stroke(wellBorderWidth))
 
-                // D-Pad well — slightly up (0.65 → 0.60)
-                drawCircle(color = wellColor, radius = 22.dp.toPx(), center = Offset(canvasW * 0.33f, canvasH * 0.60f))
-                drawCircle(color = wellBorder, radius = 22.dp.toPx(), center = Offset(canvasW * 0.33f, canvasH * 0.60f), style = Stroke(wellBorderWidth))
+                // D-Pad well — slightly up (0.65 → 0.60), radius 18
+                drawCircle(color = wellColor, radius = 18.dp.toPx(), center = Offset(canvasW * 0.33f, canvasH * 0.60f))
+                drawCircle(color = wellBorder, radius = 18.dp.toPx(), center = Offset(canvasW * 0.33f, canvasH * 0.60f), style = Stroke(wellBorderWidth))
 
-                // Right stick well — directly under R (x 0.80 → 0.78)
-                drawCircle(color = wellColor, radius = 22.dp.toPx(), center = Offset(canvasW * 0.78f, canvasH * 0.32f))
-                drawCircle(color = wellBorder, radius = 22.dp.toPx(), center = Offset(canvasW * 0.78f, canvasH * 0.32f), style = Stroke(wellBorderWidth))
+                // Right stick well — directly under R (radius 18)
+                drawCircle(color = wellColor, radius = 18.dp.toPx(), center = Offset(canvasW * 0.78f, canvasH * 0.33f))
+                drawCircle(color = wellBorder, radius = 18.dp.toPx(), center = Offset(canvasW * 0.78f, canvasH * 0.33f), style = Stroke(wellBorderWidth))
 
-                // Face buttons well — slightly up (0.65 → 0.60)
-                drawCircle(color = wellColor, radius = 22.dp.toPx(), center = Offset(canvasW * 0.67f, canvasH * 0.60f))
-                drawCircle(color = wellBorder, radius = 22.dp.toPx(), center = Offset(canvasW * 0.67f, canvasH * 0.60f), style = Stroke(wellBorderWidth))
+                // Face buttons well — slightly up (radius 18)
+                drawCircle(color = wellColor, radius = 18.dp.toPx(), center = Offset(canvasW * 0.67f, canvasH * 0.60f))
+                drawCircle(color = wellBorder, radius = 18.dp.toPx(), center = Offset(canvasW * 0.67f, canvasH * 0.60f), style = Stroke(wellBorderWidth))
             }
 
             @Composable
@@ -571,25 +571,25 @@ private fun ControllerLineDiagram(
             Badge("HOME", "⌂", 0.50f, 0.40f, 20.dp, 20.dp, CircleShape, 12.sp)
             Badge("PLUS", "+", 0.57f, 0.28f, 20.dp, 17.dp, RoundedCornerShape(7.dp), 11.sp)
 
-            // 3. Left Stick — directly under L (22,32)
-            Badge("STICK_L_PRESS", "L3", 0.22f, 0.32f, 20.dp, 20.dp, CircleShape, 10.sp)
-            Badge("STICK_L_UP", "▲", 0.22f, 0.19f, 17.dp, 14.dp, RoundedCornerShape(4.dp), 10.sp)
-            Badge("STICK_L_DOWN", "▼", 0.22f, 0.45f, 17.dp, 14.dp, RoundedCornerShape(4.dp), 10.sp)
-            Badge("STICK_L_LEFT", "◀", 0.13f, 0.32f, 14.dp, 17.dp, RoundedCornerShape(4.dp), 10.sp)
-            Badge("STICK_L_RIGHT", "▶", 0.31f, 0.32f, 14.dp, 17.dp, RoundedCornerShape(4.dp), 10.sp)
+            // 3. Left Stick — directly under L (22,33) — smaller + tighter
+            Badge("STICK_L_PRESS", "L3", 0.22f, 0.33f, 16.dp, 16.dp, CircleShape, 9.sp)
+            Badge("STICK_L_UP", "▲", 0.22f, 0.24f, 12.dp, 10.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("STICK_L_DOWN", "▼", 0.22f, 0.42f, 12.dp, 10.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("STICK_L_LEFT", "◀", 0.15f, 0.33f, 10.dp, 12.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("STICK_L_RIGHT", "▶", 0.29f, 0.33f, 10.dp, 12.dp, RoundedCornerShape(3.dp), 8.sp)
 
-            // 4. D-Pad — moved slightly up (33,60)
-            Badge("DPAD_UP", "▲", 0.33f, 0.47f, 17.dp, 15.dp, RoundedCornerShape(4.dp), 10.sp)
-            Badge("DPAD_DOWN", "▼", 0.33f, 0.73f, 17.dp, 15.dp, RoundedCornerShape(4.dp), 10.sp)
-            Badge("DPAD_LEFT", "◀", 0.25f, 0.60f, 15.dp, 17.dp, RoundedCornerShape(4.dp), 10.sp)
-            Badge("DPAD_RIGHT", "▶", 0.41f, 0.60f, 15.dp, 17.dp, RoundedCornerShape(4.dp), 10.sp)
+            // 4. D-Pad — moved slightly up (33,60) — tighter arrows
+            Badge("DPAD_UP", "▲", 0.33f, 0.51f, 12.dp, 10.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("DPAD_DOWN", "▼", 0.33f, 0.69f, 12.dp, 10.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("DPAD_LEFT", "◀", 0.26f, 0.60f, 10.dp, 12.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("DPAD_RIGHT", "▶", 0.40f, 0.60f, 10.dp, 12.dp, RoundedCornerShape(3.dp), 8.sp)
 
-            // 5. Right Stick — directly under R (78,32)
-            Badge("STICK_R_PRESS", "R3", 0.78f, 0.32f, 20.dp, 20.dp, CircleShape, 10.sp)
-            Badge("STICK_R_UP", "▲", 0.78f, 0.19f, 17.dp, 14.dp, RoundedCornerShape(4.dp), 10.sp)
-            Badge("STICK_R_DOWN", "▼", 0.78f, 0.45f, 17.dp, 14.dp, RoundedCornerShape(4.dp), 10.sp)
-            Badge("STICK_R_LEFT", "◀", 0.69f, 0.32f, 14.dp, 17.dp, RoundedCornerShape(4.dp), 10.sp)
-            Badge("STICK_R_RIGHT", "▶", 0.87f, 0.32f, 14.dp, 17.dp, RoundedCornerShape(4.dp), 10.sp)
+            // 5. Right Stick — directly under R (78,33) — smaller + tighter
+            Badge("STICK_R_PRESS", "R3", 0.78f, 0.33f, 16.dp, 16.dp, CircleShape, 9.sp)
+            Badge("STICK_R_UP", "▲", 0.78f, 0.24f, 12.dp, 10.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("STICK_R_DOWN", "▼", 0.78f, 0.42f, 12.dp, 10.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("STICK_R_LEFT", "◀", 0.71f, 0.33f, 10.dp, 12.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("STICK_R_RIGHT", "▶", 0.85f, 0.33f, 10.dp, 12.dp, RoundedCornerShape(3.dp), 8.sp)
 
             // 6. Face Buttons ABXY — moved slightly up (67,60)
             Badge("X", "X", 0.67f, 0.47f, 20.dp, 20.dp, CircleShape, 11.sp)
