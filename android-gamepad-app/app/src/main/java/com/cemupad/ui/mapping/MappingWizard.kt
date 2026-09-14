@@ -334,7 +334,8 @@ private fun TestingBody(screen: MappingWizardScreen.Testing) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "Press buttons — each should light up. (${screen.profileName})",
+                if (screen.profileName == "Debug Preview") "Press buttons — each should light up."
+                else "Press buttons — each should light up. (${screen.profileName})",
                 color = Muted,
                 fontSize = 12.sp,
                 modifier = Modifier.weight(1f, fill = false)
