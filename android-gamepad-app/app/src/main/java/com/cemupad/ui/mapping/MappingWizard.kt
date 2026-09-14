@@ -189,7 +189,7 @@ fun MappingWizard(
         ) {
             Column(
                 modifier = Modifier
-                    .widthIn(max = 740.dp)
+                    .widthIn(max = 520.dp)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 6.dp, vertical = if (screen is MappingWizardScreen.Capturing) 6.dp else 8.dp),
                 verticalArrangement = Arrangement.spacedBy(if (screen is MappingWizardScreen.Capturing) 6.dp else 10.dp)

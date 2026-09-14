@@ -1178,6 +1178,27 @@ class MainActivity : ComponentActivity() {
             return true
         }
 
+        // New-controller banner over drawer: don't let drawer behind handle controller.
+        // A = Set up (open wizard), B = Dismiss, others consumed so drawer doesn't move.
+        if (mappingPrompt.value != null && !isSystemPassthroughKey(event)) {
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                when (event.keyCode) {
+                    KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                        mappingPrompt.value?.let { prompt ->
+                            mappingPrompt.value = null
+                            openWizardForDescriptor(prompt.descriptor)
+                        }
+                        return true
+                    }
+                    KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
+                        mappingPrompt.value = null
+                        return true
+                    }
+                }
+            }
+            return true
+        }
+
         // Swallowed trailing key release after closing menu
         if (menuClosingKeyCode != null && event.action == KeyEvent.ACTION_UP && event.keyCode == menuClosingKeyCode) {
             menuClosingKeyCode = null
@@ -1311,6 +1332,10 @@ class MainActivity : ComponentActivity() {
             if (captureEngine.current != before) captureFlash.value = null
             captureTick.value++
             refreshCaptureScreen()
+            return true
+        }
+        // Banner over drawer: consume motion so drawer doesn't scroll behind prompt.
+        if (mappingPrompt.value != null) {
             return true
         }
         if (configMenuState.isOpen) {
