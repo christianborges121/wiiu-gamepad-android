@@ -128,6 +128,12 @@ class MainActivity : ComponentActivity() {
     private val videoFps = mutableFloatStateOf(0f)
     private val displaySettings = mutableStateOf(DisplaySettings())
     private val choreographerPacer = com.cemupad.video.ChoreographerPacer()
+    private val networkQualityTracker = com.cemupad.network.NetworkQualityTracker()
+    private val telemetryHandler = Handler(Looper.getMainLooper())
+    private var lastTelemetryDatagramsReceived = 0L
+    private var lastTelemetryPacketsLost = 0L
+    private var lastTelemetryFramesCompleted = 0L
+    private var lastTelemetryFramesDropped = 0L
     private var wifiLock: WifiManager.WifiLock? = null
 
     private val requestAudioPermissionLauncher = registerForActivityResult(
@@ -149,6 +155,42 @@ class MainActivity : ComponentActivity() {
     // Also covers the stable deadlock where DSU stays subscribed but no
     // video client exists (nothing would otherwise recreate it).
     private val watchdogHandler = Handler(Looper.getMainLooper())
+    private val telemetryRunnable = object : Runnable {
+        override fun run() {
+            try {
+                val vc = videoClient
+                val receiver = udpReceiver
+                if (vc != null && vc.isConnected && receiver != null) {
+                    val s = receiver.stats
+                    val newReceived = s.datagramsReceived
+                    val newLost = s.packetsLost
+                    val newCompleted = s.framesCompleted
+                    val newDropped = s.framesDropped
+                    val deltaReceived = (newReceived - lastTelemetryDatagramsReceived).coerceAtLeast(0L).toInt()
+                    val deltaLost = (newLost - lastTelemetryPacketsLost).coerceAtLeast(0L).toInt()
+                    val deltaCompleted = (newCompleted - lastTelemetryFramesCompleted).coerceAtLeast(0L).toInt()
+                    val deltaDropped = (newDropped - lastTelemetryFramesDropped).coerceAtLeast(0L).toInt()
+                    if (deltaReceived + deltaLost > 0) {
+                        networkQualityTracker.onPacketExpected(deltaReceived + deltaLost)
+                        networkQualityTracker.onPacketReceived(deltaReceived)
+                    }
+                    repeat(deltaCompleted) { networkQualityTracker.onFrameEvaluated(false) }
+                    repeat(deltaDropped) { networkQualityTracker.onFrameEvaluated(true) }
+                    lastTelemetryDatagramsReceived = newReceived
+                    lastTelemetryPacketsLost = newLost
+                    lastTelemetryFramesCompleted = newCompleted
+                    lastTelemetryFramesDropped = newDropped
+                    val sample = networkQualityTracker.sample()
+                    vc.sendStatsReport(sample.lossHundredths, sample.dropHundredths)
+                    Logger.v("MainActivity", "Telemetry sent loss=${sample.lossHundredths} drop=${sample.dropHundredths} jitter=${sample.jitterMs} latency=${sample.avgLatencyMs}")
+                }
+            } catch (t: Throwable) {
+                Logger.w("MainActivity", "Telemetry pass failed: ${t.message}")
+            }
+            telemetryHandler.postDelayed(this, 500)
+        }
+    }
+
     private val watchdogRunnable = object : Runnable {
         override fun run() {
             try {
@@ -597,6 +639,12 @@ class MainActivity : ComponentActivity() {
             registerReceiver(debugInputReceiver, filter)
         }
         watchdogHandler.postDelayed(watchdogRunnable, WATCHDOG_INTERVAL_MS)
+        networkQualityTracker.reset()
+        lastTelemetryDatagramsReceived = 0L
+        lastTelemetryPacketsLost = 0L
+        lastTelemetryFramesCompleted = 0L
+        lastTelemetryFramesDropped = 0L
+        telemetryHandler.postDelayed(telemetryRunnable, 500)
     }
 
     override fun onResume() {
@@ -617,6 +665,7 @@ class MainActivity : ComponentActivity() {
             unregisterReceiver(debugInputReceiver)
         } catch (_: Exception) {}
         watchdogHandler.removeCallbacks(watchdogRunnable)
+        telemetryHandler.removeCallbacks(telemetryRunnable)
         discoveryClient?.stop()
         discoveryResponder?.stop()
         micBlowDetector.stop()

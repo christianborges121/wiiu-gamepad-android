@@ -62,8 +62,8 @@ Adopt the battle-tested streaming techniques from **Apollo (Sunshine)** and **Mo
 ---
 
 ### Phase 7.4: Adaptive Dynamic Bitrate & Congestion Control (Tier 3)
-- [ ] **Step 7.4.1: Client Network Telemetry Tracker**
-  - [ ] Implement `NetworkQualityTracker.kt` calculating rolling packet loss %, frame latency, and jitter.
-  - [ ] Transmit `0x17 STATS_REPORT` telemetry to Cemu every 500ms.
-- [ ] **Step 7.4.2: Host Adaptive Rate Controller**
-  - [ ] In `VideoStreamServer.cpp`, dynamically adjust `VideoEncoder` bitrate property (`CODECAPI_AVEncCommonMeanBitRate`) based on client telemetry.
+- [x] **Step 7.4.1: Client Network Telemetry Tracker**
+  - [x] Implement `NetworkQualityTracker.kt` calculating rolling packet loss %, frame latency, and jitter.
+  - [x] Transmit `0x17 STATS_REPORT` telemetry to Cemu every 500ms.
+- [x] **Step 7.4.2: Host Adaptive Rate Controller**
+  - [x] In `VideoStreamServer.cpp`, dynamically adjust `VideoEncoder` bitrate property (`CODECAPI_AVEncCommonMeanBitRate`) based on client telemetry.
