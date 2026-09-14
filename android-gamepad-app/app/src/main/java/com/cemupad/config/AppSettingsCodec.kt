@@ -20,6 +20,8 @@ object AppSettingsCodec {
     const val KEY_VIBRATION_INTENSITY = "vibration_intensity"
     const val KEY_STICK_DEADZONE = "stick_deadzone"
     const val KEY_MIC_ENABLED = "mic_enabled"
+    const val KEY_FRAME_PACING = "frame_pacing"
+    const val KEY_VIDEO_CODEC = "video_codec"
 
     fun decode(
         fitModeName: String?,
@@ -35,7 +37,9 @@ object AppSettingsCodec {
         vibrationEnabled: Boolean? = null,
         vibrationIntensity: Float? = null,
         stickDeadzone: Float? = null,
-        micEnabled: Boolean? = null
+        micEnabled: Boolean? = null,
+        framePacingName: String? = null,
+        videoCodecName: String? = null
     ): DisplaySettings {
         val fitMode = fitModeName
             ?.let { name -> DisplayFitMode.values().firstOrNull { it.name == name } }
@@ -43,6 +47,12 @@ object AppSettingsCodec {
         val resolution = resolutionName
             ?.let { name -> DisplayResolutionPreset.values().firstOrNull { it.name == name } }
             ?: DisplayResolutionPreset.NATIVE_854x480
+        val framePacing = framePacingName
+            ?.let { name -> FramePacingMode.values().firstOrNull { it.name == name } }
+            ?: FramePacingMode.IMMEDIATE
+        val videoCodec = videoCodecName
+            ?.let { name -> VideoCodecPreference.values().firstOrNull { it.name == name } }
+            ?: VideoCodecPreference.AUTO
         return DisplaySettings(
             fitMode = fitMode,
             resolutionPreset = resolution,
@@ -57,7 +67,9 @@ object AppSettingsCodec {
             vibrationEnabled = vibrationEnabled ?: true,
             vibrationIntensity = (vibrationIntensity ?: 1.0f).coerceIn(0f, 1f),
             stickDeadzone = stickDeadzone ?: 0.08f,
-            micEnabled = micEnabled ?: true
+            micEnabled = micEnabled ?: true,
+            framePacing = framePacing,
+            videoCodec = videoCodec
         )
     }
 
@@ -76,7 +88,9 @@ object AppSettingsCodec {
             vibrationEnabled = settings.vibrationEnabled,
             vibrationIntensity = settings.vibrationIntensity,
             stickDeadzone = settings.stickDeadzone,
-            micEnabled = settings.micEnabled
+            micEnabled = settings.micEnabled,
+            framePacingName = settings.framePacing.name,
+            videoCodecName = settings.videoCodec.name
         )
     }
 }
@@ -95,6 +109,8 @@ data class EncodedAppSettings(
     val vibrationEnabled: Boolean,
     val vibrationIntensity: Float,
     val stickDeadzone: Float,
-    val micEnabled: Boolean
+    val micEnabled: Boolean,
+    val framePacingName: String,
+    val videoCodecName: String
 )
 

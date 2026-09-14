@@ -32,7 +32,8 @@ class FrameReassembler(
         var datagramsMalformed: Long = 0,
         var packetsLost: Long = 0,
         var framesCompleted: Long = 0,
-        var framesDropped: Long = 0
+        var framesDropped: Long = 0,
+        var framesFecRecovered: Long = 0
     )
 
     val stats = Stats()
@@ -40,11 +41,13 @@ class FrameReassembler(
     private data class Slot(
         val frameId: Long,
         val packetCount: Int,
+        val parityCount: Int,
         var ptsUs: Long,
         var isIdr: Boolean,
         var firstSeenMs: Long,
         val parts: Array<ByteArray?>,
-        var received: Int = 0
+        var receivedData: Int = 0,
+        var receivedTotal: Int = 0
     )
 
     private val slots = LinkedHashMap<Long, Slot>()
@@ -71,43 +74,91 @@ class FrameReassembler(
             slot = Slot(
                 frameId = decoded.header.frameId,
                 packetCount = decoded.header.packetCount,
+                parityCount = decoded.header.parityCount,
                 ptsUs = decoded.header.ptsUs,
                 isIdr = decoded.header.isIdr,
                 firstSeenMs = now,
-                parts = arrayOfNulls(decoded.header.packetCount)
+                parts = arrayOfNulls(decoded.header.totalCount)
             )
             slots[decoded.header.frameId] = slot
         }
-        if (decoded.header.packetCount != slot.packetCount) {
+        if (decoded.header.packetCount != slot.packetCount || decoded.header.parityCount != slot.parityCount) {
             stats.datagramsMalformed++
             return events
         }
         slot.isIdr = slot.isIdr || decoded.header.isIdr
-        if (slot.parts[decoded.header.packetIndex] == null) {
-            slot.parts[decoded.header.packetIndex] = decoded.payload
-            slot.received++
+        val packetIdx = decoded.header.packetIndex
+        if (packetIdx in slot.parts.indices && slot.parts[packetIdx] == null) {
+            slot.parts[packetIdx] = decoded.payload
+            slot.receivedTotal++
+            if (packetIdx < slot.packetCount) {
+                slot.receivedData++
+            }
         }
-        if (slot.received >= slot.packetCount) {
+
+        var canComplete = false
+        if (slot.receivedData >= slot.packetCount) {
+            canComplete = true
+        } else if (slot.parityCount > 0 && slot.receivedTotal >= slot.packetCount) {
+            val blockSize = slot.parts.filterNotNull().maxOfOrNull { it.size } ?: 1362
+            for (i in slot.parts.indices) {
+                val part = slot.parts[i]
+                if (part != null && part.size < blockSize) {
+                    slot.parts[i] = part.copyOf(blockSize)
+                }
+            }
+            if (ReedSolomonDecoder.decode(slot.parts, slot.packetCount, slot.parityCount, blockSize)) {
+                canComplete = true
+                stats.framesFecRecovered++
+            }
+        }
+
+        if (canComplete) {
             slots.remove(decoded.header.frameId)
             stats.framesCompleted++
-            var total = 0
-            for (part in slot.parts) total += part!!.size
-            val out = ByteArray(total)
-            var pos = 0
-            for (part in slot.parts) {
-                part!!.copyInto(out, pos)
-                pos += part.size
+
+            val out = if (slot.parityCount > 0) {
+                var total = 0
+                val chunks = Array(slot.packetCount) { i ->
+                    val part = slot.parts[i]!!
+                    val chunkLen = if (part.size >= 2) {
+                        (part[0].toInt() and 0xFF) or ((part[1].toInt() and 0xFF) shl 8)
+                    } else 0
+                    val validLen = chunkLen.coerceIn(0, (part.size - 2).coerceAtLeast(0))
+                    total += validLen
+                    part.copyOfRange(2, 2 + validLen)
+                }
+                val assembled = ByteArray(total)
+                var pos = 0
+                for (chunk in chunks) {
+                    chunk.copyInto(assembled, pos)
+                    pos += chunk.size
+                }
+                assembled
+            } else {
+                var total = 0
+                for (i in 0 until slot.packetCount) total += slot.parts[i]!!.size
+                val assembled = ByteArray(total)
+                var pos = 0
+                for (i in 0 until slot.packetCount) {
+                    val part = slot.parts[i]!!
+                    part.copyInto(assembled, pos)
+                    pos += part.size
+                }
+                assembled
             }
-			// Trust the IDR flag from the UDP header (set by Cemu's encoder);
-			// re-parsing the full Annex-B payload adds unnecessary CPU on every frame.
-			events += OfferResult.FrameComplete(
-				CompletedFrame(
-					data = out,
-					ptsUs = slot.ptsUs,
-					isIdr = slot.isIdr,
-					frameId = slot.frameId
-				)
-			)
+
+            if (stats.framesCompleted % 300L == 0L) {
+                com.cemupad.util.Logger.i("FrameReassembler", "UDP Video: ${stats.framesCompleted} frames completed, ${stats.framesFecRecovered} FEC-recovered, ${stats.framesDropped} dropped, ${stats.packetsLost} packets lost")
+            }
+            events += OfferResult.FrameComplete(
+                CompletedFrame(
+                    data = out,
+                    ptsUs = slot.ptsUs,
+                    isIdr = slot.isIdr,
+                    frameId = slot.frameId
+                )
+            )
         }
         return events
     }

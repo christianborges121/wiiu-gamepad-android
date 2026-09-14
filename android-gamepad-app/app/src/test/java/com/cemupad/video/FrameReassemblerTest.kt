@@ -117,4 +117,105 @@ class FrameReassemblerTest {
         assertTrue(done != null)
         assertEquals(1L, r.stats.framesCompleted)
     }
+
+    @Test
+    fun `fec parity packets recover lost data packets`() {
+        val r = reassembler()
+        val dataCount = 4
+        val parityCount = 2
+        val blockSize = 100
+
+        // Create 4 data chunks of 50 bytes each
+        val rawChunks = Array(dataCount) { i ->
+            ByteArray(50) { b -> (i * 10 + b).toByte() }
+        }
+
+        // Each data shard has 2-byte LE length prefix (50 = 0x0032), padded to blockSize
+        val encodedDataShards = Array(dataCount) { i ->
+            val shard = ByteArray(blockSize)
+            shard[0] = 50.toByte()
+            shard[1] = 0
+            rawChunks[i].copyInto(shard, 2)
+            shard
+        }
+
+        val parityShards = Array(parityCount) { ByteArray(blockSize) }
+        ReedSolomonDecoder.encode(encodedDataShards, parityShards, blockSize)
+
+        // Frame packets:
+        // Index 0: Data shard 0
+        // Index 1: Data shard 1 (DROPPED!)
+        // Index 2: Data shard 2
+        // Index 3: Data shard 3
+        // Index 4: Parity shard 0 (RECEIVED!)
+        // Index 5: Parity shard 1 (IGNORED / NOT NEEDED)
+
+        val p0 = UdpVideoPacket.encode(
+            UdpVideoPacket.Header(
+                frameId = 50,
+                seq = 500,
+                packetIndex = 0,
+                packetCount = dataCount,
+                ptsUs = 50000L,
+                flags = UdpVideoPacket.FLAG_START,
+                parityCount = parityCount
+            ),
+            encodedDataShards[0]
+        )
+        val p2 = UdpVideoPacket.encode(
+            UdpVideoPacket.Header(
+                frameId = 50,
+                seq = 502,
+                packetIndex = 2,
+                packetCount = dataCount,
+                ptsUs = 50000L,
+                flags = 0,
+                parityCount = parityCount
+            ),
+            encodedDataShards[2]
+        )
+        val p3 = UdpVideoPacket.encode(
+            UdpVideoPacket.Header(
+                frameId = 50,
+                seq = 503,
+                packetIndex = 3,
+                packetCount = dataCount,
+                ptsUs = 50000L,
+                flags = UdpVideoPacket.FLAG_END,
+                parityCount = parityCount
+            ),
+            encodedDataShards[3]
+        )
+        val pFec0 = UdpVideoPacket.encode(
+            UdpVideoPacket.Header(
+                frameId = 50,
+                seq = 504,
+                packetIndex = 4,
+                packetCount = dataCount,
+                ptsUs = 50000L,
+                flags = UdpVideoPacket.FLAG_FEC,
+                parityCount = parityCount
+            ),
+            parityShards[0]
+        )
+
+        // Offer 0, 2, 3 (data missing packet 1) -> Frame incomplete
+        assertTrue(completes(r.offer(p0)) == null)
+        assertTrue(completes(r.offer(p2)) == null)
+        assertTrue(completes(r.offer(p3)) == null)
+
+        // Now offer pFec0 -> Total packets = 4 == dataCount!
+        val done = completes(r.offer(pFec0))
+        assertTrue("Frame must be completed via FEC reconstruction", done != null)
+        assertEquals(50L, done!!.frameId)
+        assertEquals(1L, r.stats.framesFecRecovered)
+        assertEquals(1L, r.stats.framesCompleted)
+
+        // Verify assembled frame content matches concatenation of rawChunks 0, 1, 2, 3
+        val expected = ByteArray(200)
+        for (i in 0 until dataCount) {
+            rawChunks[i].copyInto(expected, i * 50)
+        }
+        assertEquals(expected.toList(), done.data.toList())
+    }
 }

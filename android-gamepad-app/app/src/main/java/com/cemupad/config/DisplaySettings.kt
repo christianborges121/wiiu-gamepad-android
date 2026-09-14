@@ -40,6 +40,17 @@ enum class DisplayResolutionPreset(
     }
 }
 
+enum class FramePacingMode(val label: String) {
+    IMMEDIATE("Lowest Latency (Immediate)"),
+    VSYNC("Smooth VSync (Choreographer)");
+}
+
+enum class VideoCodecPreference(val label: String, val mimeType: String) {
+    AUTO("Auto", "video/avc"),
+    H264("H.264 (AVC)", "video/avc"),
+    HEVC("HEVC (H.265)", "video/hevc");
+}
+
 data class DisplaySettings(
     val fitMode: DisplayFitMode = DisplayFitMode.ASPECT_FIT,
     val resolutionPreset: DisplayResolutionPreset = DisplayResolutionPreset.NATIVE_854x480,
@@ -54,7 +65,9 @@ data class DisplaySettings(
     val vibrationEnabled: Boolean = true,
     val vibrationIntensity: Float = 1.0f,
     val stickDeadzone: Float = 0.08f,
-    val micEnabled: Boolean = true
+    val micEnabled: Boolean = true,
+    val framePacing: FramePacingMode = FramePacingMode.IMMEDIATE,
+    val videoCodec: VideoCodecPreference = VideoCodecPreference.AUTO
 ) {
     companion object {
         const val VIDEO_BITRATE_DEFAULT_MBPS = 6

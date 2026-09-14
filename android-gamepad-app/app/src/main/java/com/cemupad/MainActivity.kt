@@ -58,6 +58,7 @@ import com.cemupad.util.Logger
 import com.cemupad.video.UdpVideoReceiver
 import com.cemupad.video.VideoDecoder
 import com.cemupad.video.VideoStreamClient
+import android.media.MediaFormat
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
@@ -126,6 +127,7 @@ class MainActivity : ComponentActivity() {
     private val isVideoStreaming = mutableStateOf(false)
     private val videoFps = mutableFloatStateOf(0f)
     private val displaySettings = mutableStateOf(DisplaySettings())
+    private val choreographerPacer = com.cemupad.video.ChoreographerPacer()
     private var wifiLock: WifiManager.WifiLock? = null
 
     private val requestAudioPermissionLauncher = registerForActivityResult(
@@ -337,8 +339,10 @@ class MainActivity : ComponentActivity() {
                 prefs.getBoolean(AppSettingsCodec.KEY_MIC_ENABLED, true)
             } else {
                 null
-            }
+            },
+            framePacingName = prefs.getString(AppSettingsCodec.KEY_FRAME_PACING, null)
         )
+        choreographerPacer.start()
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
         WindowInsetsControllerCompat(window, window.decorView).apply {
@@ -436,6 +440,7 @@ class MainActivity : ComponentActivity() {
                             val oldSettings = displaySettings.value
                             displaySettings.value = newSettings
                             videoDecoder?.maxFps = if (newSettings.limitTo30Fps) 30 else 60
+                            videoDecoder?.framePacingMode = newSettings.framePacing
                             audioReceiver?.isMuted = !newSettings.audioEnabled
                             audioReceiver?.volume = newSettings.audioVolume
                             rumbleHandler.isEnabled = newSettings.vibrationEnabled
@@ -474,6 +479,24 @@ class MainActivity : ComponentActivity() {
                             )
                             if (resolvedNew != resolvedOld && resolvedNew.width > 0 && resolvedNew.height > 0) {
                                 videoClient?.sendResolution(resolvedNew.width, resolvedNew.height)
+                            }
+                            if (newSettings.videoCodec != oldSettings.videoCodec) {
+                                val targetMime = resolveVideoMimeType(newSettings.videoCodec)
+                                val useHevc = targetMime == MediaFormat.MIMETYPE_VIDEO_HEVC
+                                videoClient?.sendCodec(useHevc)
+                                activeSurface?.let { surface ->
+                                    if (videoDecoder?.mimeType != targetMime) {
+                                        videoDecoder?.release()
+                                        val decoder = VideoDecoder(surface, onRequestIDR = { videoClient?.requestIDR() }, mimeType = targetMime)
+                                        decoder.maxFps = if (newSettings.limitTo30Fps) 30 else 60
+                                        decoder.framePacingMode = newSettings.framePacing
+                                        decoder.choreographerPacer = choreographerPacer
+                                        if (decoder.init()) {
+                                            videoDecoder = decoder
+                                            videoClient?.requestIDR()
+                                        }
+                                    }
+                                }
                             }
                             persistDisplaySettings(newSettings)
                         },
@@ -600,6 +623,7 @@ class MainActivity : ComponentActivity() {
         audioReceiver?.stop()
         audioReceiver = null
         rumbleHandler.cancel()
+        choreographerPacer.stop()
         stopUdpReceiver()
         stopVideoStream()
         handleSurfaceDestroyed()
@@ -626,13 +650,36 @@ class MainActivity : ComponentActivity() {
             .putFloat(AppSettingsCodec.KEY_VIBRATION_INTENSITY, encoded.vibrationIntensity)
             .putFloat(AppSettingsCodec.KEY_STICK_DEADZONE, encoded.stickDeadzone)
             .putBoolean(AppSettingsCodec.KEY_MIC_ENABLED, encoded.micEnabled)
+            .putString(AppSettingsCodec.KEY_FRAME_PACING, encoded.framePacingName)
+            .putString(AppSettingsCodec.KEY_VIDEO_CODEC, encoded.videoCodecName)
             .apply()
+    }
+
+    private fun resolveVideoMimeType(pref: com.cemupad.config.VideoCodecPreference): String {
+        return when (pref) {
+            com.cemupad.config.VideoCodecPreference.HEVC -> MediaFormat.MIMETYPE_VIDEO_HEVC
+            com.cemupad.config.VideoCodecPreference.H264 -> MediaFormat.MIMETYPE_VIDEO_AVC
+            com.cemupad.config.VideoCodecPreference.AUTO -> {
+                val hasHardwareHevc = try {
+                    android.media.MediaCodecList(android.media.MediaCodecList.REGULAR_CODECS).codecInfos.any { info ->
+                        !info.isEncoder && info.supportedTypes.any { it.equals(MediaFormat.MIMETYPE_VIDEO_HEVC, ignoreCase = true) } &&
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) info.isHardwareAccelerated else true
+                    }
+                } catch (_: Exception) {
+                    false
+                }
+                if (hasHardwareHevc) MediaFormat.MIMETYPE_VIDEO_HEVC else MediaFormat.MIMETYPE_VIDEO_AVC
+            }
+        }
     }
 
     private fun handleSurfaceAvailable(surface: Surface) {
         activeSurface = surface
-        val decoder = VideoDecoder(surface, onRequestIDR = { videoClient?.requestIDR() })
+        val targetMime = resolveVideoMimeType(displaySettings.value.videoCodec)
+        val decoder = VideoDecoder(surface, onRequestIDR = { videoClient?.requestIDR() }, mimeType = targetMime)
         decoder.maxFps = if (displaySettings.value.limitTo30Fps) 30 else 60
+        decoder.framePacingMode = displaySettings.value.framePacing
+        decoder.choreographerPacer = choreographerPacer
         if (decoder.init()) {
             videoDecoder = decoder
             videoClient?.requestIDR()
@@ -745,6 +792,8 @@ class MainActivity : ComponentActivity() {
                 if (resolvedPreset.width > 0 && resolvedPreset.height > 0) {
                     videoClient?.sendResolution(resolvedPreset.width, resolvedPreset.height)
                 }
+                val targetMime = resolveVideoMimeType(displaySettings.value.videoCodec)
+                videoClient?.sendCodec(targetMime == MediaFormat.MIMETYPE_VIDEO_HEVC)
                 startVoiceStream(host)
                 requestIDR()
             }

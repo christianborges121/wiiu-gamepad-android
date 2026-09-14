@@ -29,6 +29,8 @@ class AppSettingsCodecTest {
         assertTrue(settings.vibrationEnabled)
         assertEquals(1.0f, settings.vibrationIntensity, 0.001f)
         assertTrue(settings.micEnabled)
+        assertEquals(FramePacingMode.IMMEDIATE, settings.framePacing)
+        assertEquals(VideoCodecPreference.AUTO, settings.videoCodec)
         assertEquals(6, settings.videoBitrateMbps)
     }
 
@@ -51,7 +53,9 @@ class AppSettingsCodecTest {
             resolutionName = "4K",
             diagnosticsOverlayEnabled = true,
             connectionHelpVisible = false,
-            limitTo30Fps = false
+            limitTo30Fps = false,
+            framePacingName = "TURBO",
+            videoCodecName = "AV1_UNKNOWN"
         )
 
         assertEquals(DisplayFitMode.ASPECT_FIT, settings.fitMode)
@@ -60,6 +64,8 @@ class AppSettingsCodecTest {
         assertFalse(settings.showConnectionHelp)
         assertFalse(settings.limitTo30Fps)
         assertTrue(settings.micEnabled)
+        assertEquals(FramePacingMode.IMMEDIATE, settings.framePacing)
+        assertEquals(VideoCodecPreference.AUTO, settings.videoCodec)
     }
 
     @Test
@@ -77,7 +83,9 @@ class AppSettingsCodecTest {
             audioVolume = 0.42f,
             vibrationEnabled = false,
             vibrationIntensity = 0.35f,
-            micEnabled = false
+            micEnabled = false,
+            framePacing = FramePacingMode.VSYNC,
+            videoCodec = VideoCodecPreference.HEVC
         )
 
         val encoded = AppSettingsCodec.encode(original)
@@ -95,7 +103,9 @@ class AppSettingsCodecTest {
             vibrationEnabled = encoded.vibrationEnabled,
             vibrationIntensity = encoded.vibrationIntensity,
             stickDeadzone = encoded.stickDeadzone,
-            micEnabled = encoded.micEnabled
+            micEnabled = encoded.micEnabled,
+            framePacingName = encoded.framePacingName,
+            videoCodecName = encoded.videoCodecName
         )
 
         assertEquals(original, restored)

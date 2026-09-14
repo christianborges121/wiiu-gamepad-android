@@ -134,9 +134,13 @@ fun MainScreen(
     var selectedFitMode by remember { mutableStateOf(displaySettings.fitMode) }
     var selectedResolution by remember { mutableStateOf(displaySettings.resolutionPreset) }
     var selectedBitrateMbps by remember { mutableStateOf(displaySettings.videoBitrateMbps) }
+    var selectedFramePacing by remember { mutableStateOf(displaySettings.framePacing) }
+    var selectedVideoCodec by remember { mutableStateOf(displaySettings.videoCodec) }
     var showFitMenu by remember { mutableStateOf(false) }
     var showResolutionMenu by remember { mutableStateOf(false) }
     var showBitrateMenu by remember { mutableStateOf(false) }
+    var showFramePacingMenu by remember { mutableStateOf(false) }
+    var showVideoCodecMenu by remember { mutableStateOf(false) }
     var videoHolder by remember { mutableStateOf<SurfaceHolder?>(null) }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -160,6 +164,8 @@ fun MainScreen(
         vibrationIntensity = displaySettings.vibrationIntensity
         stickDeadzone = displaySettings.stickDeadzone
         micEnabled = displaySettings.micEnabled
+        selectedFramePacing = displaySettings.framePacing
+        selectedVideoCodec = displaySettings.videoCodec
     }
 
     fun currentSettings() = DisplaySettings(
@@ -176,7 +182,9 @@ fun MainScreen(
         vibrationEnabled = vibrationEnabled,
         vibrationIntensity = vibrationIntensity,
         stickDeadzone = stickDeadzone,
-        micEnabled = micEnabled
+        micEnabled = micEnabled,
+        framePacing = selectedFramePacing,
+        videoCodec = selectedVideoCodec
     )
 
     LaunchedEffect(dsuServer) {
@@ -393,6 +401,90 @@ fun MainScreen(
                                                 selectedBitrateMbps = bitrate
                                                 showBitrateMenu = false
                                                 onDisplaySettingsChanged(currentSettings().copy(videoBitrateMbps = bitrate))
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            HorizontalDivider(color = Color(0xFF222B3D))
+
+                            // Frame pacing selector (Phase 7.2)
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Frame pacing", color = Color(0xFFEAF2FF), fontSize = 14.sp)
+                                    OutlinedButton(
+                                        onClick = { showFramePacingMenu = true },
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF00E5FF)),
+                                        border = BorderStroke(1.dp, Color(0xFF2A3446))
+                                    ) {
+                                        Text(selectedFramePacing.label, fontSize = 13.sp)
+                                    }
+                                }
+                                DropdownMenu(
+                                    expanded = showFramePacingMenu,
+                                    onDismissRequest = { showFramePacingMenu = false },
+                                    modifier = Modifier.background(Color(0xFF1A2332))
+                                ) {
+                                    com.cemupad.config.FramePacingMode.values().forEach { mode ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(
+                                                    mode.label,
+                                                    color = if (mode == selectedFramePacing) Color(0xFF00E5FF) else Color.White
+                                                )
+                                            },
+                                            onClick = {
+                                                selectedFramePacing = mode
+                                                showFramePacingMenu = false
+                                                onDisplaySettingsChanged(currentSettings().copy(framePacing = mode))
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            HorizontalDivider(color = Color(0xFF222B3D))
+
+                            // Video Codec selector (Phase 7.3)
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Video codec", color = Color(0xFFEAF2FF), fontSize = 14.sp)
+                                    OutlinedButton(
+                                        onClick = { showVideoCodecMenu = true },
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF00E5FF)),
+                                        border = BorderStroke(1.dp, Color(0xFF2A3446))
+                                    ) {
+                                        Text(selectedVideoCodec.label, fontSize = 13.sp)
+                                    }
+                                }
+                                DropdownMenu(
+                                    expanded = showVideoCodecMenu,
+                                    onDismissRequest = { showVideoCodecMenu = false },
+                                    modifier = Modifier.background(Color(0xFF1A2332))
+                                ) {
+                                    com.cemupad.config.VideoCodecPreference.values().forEach { pref ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(
+                                                    pref.label,
+                                                    color = if (pref == selectedVideoCodec) Color(0xFF00E5FF) else Color.White
+                                                )
+                                            },
+                                            onClick = {
+                                                selectedVideoCodec = pref
+                                                showVideoCodecMenu = false
+                                                onDisplaySettingsChanged(currentSettings().copy(videoCodec = pref))
                                             }
                                         )
                                     }
@@ -922,6 +1014,7 @@ fun MainScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .verticalScroll(rememberScrollState())
                                 .padding(18.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -983,7 +1076,10 @@ fun MainScreen(
 
                             if (discoveredServer != null) {
                                 Card(
-                                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 6.dp)
+                                        .clickable { onConnectToServer?.invoke(discoveredServer.ip) },
                                     colors = CardDefaults.cardColors(containerColor = Color(0xFF16253B)),
                                     shape = RoundedCornerShape(12.dp)
                                 ) {

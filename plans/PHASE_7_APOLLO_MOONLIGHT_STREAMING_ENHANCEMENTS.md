@@ -23,38 +23,41 @@ Adopt the battle-tested streaming techniques from **Apollo (Sunshine)** and **Mo
 ---
 
 ### Phase 7.1: Reed-Solomon Forward Error Correction (FEC) (Tier 2)
-- [ ] **Step 7.1.1: Embed `nanors` in Cemu Host**
-  - [ ] Add `Cemu/src/streaming/nanors.h` and `nanors.c` (SIMD-accelerated Reed-Solomon erasure coding).
-  - [ ] Update `Cemu/src/streaming/CMakeLists.txt` to compile `nanors.c`.
-- [ ] **Step 7.1.2: Host FEC Parity Packet Generation**
-  - [ ] Update `VideoStreamServer.cpp` to calculate $K \approx 20\% \times N$ parity packets for each frame using `reed_solomon_encode()`.
-  - [ ] Add packet type identifier (`0x01` Data vs `0x02` FEC Parity) in datagram header.
-- [ ] **Step 7.1.3: Client FEC Erasure Reconstruction (`android-gamepad-app`)**
-  - [ ] Implement `ReedSolomonDecoder.kt` in `com.cemupad.video`.
-  - [ ] Update `FrameReassembler.kt` to mathematically reconstruct missing UDP datagrams without requesting IDR keyframes.
-- [ ] **Step 7.1.4: Unit & Loopback Verification**
-  - [ ] Create `ReedSolomonDecoderTest.kt` simulating 1, 2, and 3 dropped packets per frame and verifying 100% byte recovery.
+- [x] **Step 7.1.1: Embed Cauchy Reed-Solomon Codec in Cemu Host**
+  - [x] Add `Cemu/src/streaming/ReedSolomon.h` and `ReedSolomon.cpp` (Cauchy $GF(2^8)$ erasure coding with polynomial 285 matching `nanors`).
+  - [x] Update `Cemu/src/streaming/CMakeLists.txt` to compile `ReedSolomon.cpp`.
+- [x] **Step 7.1.2: Host FEC Parity Packet Generation**
+  - [x] Update `VideoStreamServer.cpp` to calculate $K \approx 20\% \times N$ parity packets for each frame using `CemuPad::ReedSolomon::Encode()`.
+  - [x] Add packet type identifier (`0x01` Data vs `0x02` FEC Parity) and parity count in datagram header byte 15.
+- [x] **Step 7.1.3: Client FEC Erasure Reconstruction (`android-gamepad-app`)**
+  - [x] Implement `ReedSolomonDecoder.kt` in `com.cemupad.video`.
+  - [x] Update `FrameReassembler.kt` to mathematically reconstruct missing UDP datagrams without requesting IDR keyframes.
+- [x] **Step 7.1.4: Unit & Loopback Verification**
+  - [x] Create `ReedSolomonDecoderTest.kt` and `FrameReassemblerTest.kt` simulating 1, 2, and 3 dropped packets per frame and verifying 100% byte recovery.
+  - [x] Live verified on physical Samsung Galaxy S23 FE running Super Mario 3D World over UDP.
 
 ---
 
 ### Phase 7.2: Choreographer VSync Alignment & Jitter Smoothing (Tier 2)
-- [ ] **Step 7.2.1: Choreographer Frame Callback Loop**
-  - [ ] Implement `ChoreographerPacer.kt` on a dedicated `URGENT_DISPLAY` HandlerThread.
-  - [ ] Schedule frame presentation timestamps with `videoDecoder.releaseOutputBuffer(index, frameTimeNanos)`.
-- [ ] **Step 7.2.2: Settings Drawer Frame Pacing Toggle**
-  - [ ] Add `Frame Pacing` selector in Settings Drawer (`Lowest Latency (Immediate)` vs `Smooth VSync (Choreographer)`).
-  - [ ] Persist selection in `AppSettingsCodec.kt`.
+- [x] **Step 7.2.1: Choreographer Frame Callback Loop**
+  - [x] Implement `ChoreographerPacer.kt` to monitor physical display refresh rate and compute next VSync deadline timestamps.
+  - [x] Schedule frame presentation timestamps in `VideoDecoder.drainOutput()` via `videoDecoder.releaseOutputBuffer(latestIndex, targetVsyncNanos)`.
+- [x] **Step 7.2.2: Settings Drawer Frame Pacing Toggle**
+  - [x] Add `Frame Pacing` selector in Settings Drawer DISPLAY accordion (`Lowest Latency (Immediate)` vs `Smooth VSync (Choreographer)`).
+  - [x] Persist selection in `AppSettingsCodec.kt` and `DisplaySettings.kt`.
+  - [x] Live verified toggle on Samsung Galaxy S23 FE with real-time video stream.
 
 ---
 
 ### Phase 7.3: HEVC (H.265) Streaming Support (Tier 3)
-- [ ] **Step 7.3.1: Host HEVC MFT Encoder Support**
-  - [ ] Add `MFVideoFormat_HEVC` transform pipeline to `VideoEncoder.cpp` (NVENC / AMF / QSV) with automatic H.264 fallback.
-- [ ] **Step 7.3.2: Codec Negotiation Protocol**
-  - [ ] Add opcode `0x16 CODEC_SELECT` to `VideoStreamServer.cpp` (0 = H.264, 1 = HEVC).
-- [ ] **Step 7.3.3: Client HEVC Decoding (`android-gamepad-app`)**
-  - [ ] Support `MediaFormat.MIMETYPE_VIDEO_HEVC` in `VideoDecoder.kt` with VPS/SPS/PPS parameter-set detection.
-  - [ ] Add Codec selector (`Auto / HEVC / H.264`) in Settings Drawer.
+- [x] **Step 7.3.1: Host HEVC MFT Encoder Support**
+  - [x] Add `MFVideoFormat_HEVC` transform pipeline to `VideoEncoder.cpp` (NVENC / AMF / QSV) with automatic H.264 fallback.
+- [x] **Step 7.3.2: Codec Negotiation Protocol**
+  - [x] Add opcode `0x16 CODEC_SELECT` to `VideoStreamServer.cpp` (0 = H.264, 1 = HEVC).
+- [x] **Step 7.3.3: Client HEVC Decoding (`android-gamepad-app`)**
+  - [x] Support `MediaFormat.MIMETYPE_VIDEO_HEVC` in `VideoDecoder.kt` with VPS/SPS/PPS parameter-set detection.
+  - [x] Add Codec selector (`Auto / HEVC / H.264`) in Settings Drawer.
+  - [x] Live verified HEVC hardware stream from AMDh265Encoder to `c2.qti.hevc.decoder.low_latency` on Samsung Galaxy S23 FE.
 
 ---
 
