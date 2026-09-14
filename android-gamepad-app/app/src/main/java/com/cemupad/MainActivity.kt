@@ -845,6 +845,10 @@ class MainActivity : ComponentActivity() {
                 }
                 val targetMime = resolveVideoMimeType(displaySettings.value.videoCodec)
                 videoClient?.sendCodec(targetMime == MediaFormat.MIMETYPE_VIDEO_HEVC)
+                pendingPushedEntries?.let { entries ->
+                    videoClient?.sendPushedMappings(entries)
+                    pendingPushedEntries = null
+                }
                 startVoiceStream(host)
                 requestIDR()
             }
@@ -1258,9 +1262,9 @@ class MainActivity : ComponentActivity() {
         onRemap = { startCapture() },
         onSaveTest = {
             val descriptor = activeGamepadDescriptor.value ?: return@MappingWizardActions
-            deviceProfileStore.save(
-                gamepadHandler.profile.copy(deviceDescriptor = descriptor)
-            )
+            val toSave = gamepadHandler.profile.copy(deviceDescriptor = descriptor)
+            deviceProfileStore.save(toSave)
+            pushCemuMappings(toSave)
             wizardScreen.value = null
         },
         onWizardClose = { wizardScreen.value = null },
@@ -1318,11 +1322,26 @@ class MainActivity : ComponentActivity() {
                 val bound = built.copy(deviceDescriptor = descriptor)
                 deviceProfileStore.save(bound)
                 gamepadHandler.profile = bound
+                pushCemuMappings(bound)
             }
             wizardScreen.value = null
         },
         onDiscardCapture = { wizardScreen.value = null }
     )
+
+    private var pendingPushedEntries: List<Pair<Int, Int>>? = null
+
+    private fun pushCemuMappings(profile: com.cemupad.input.ControllerProfile) {
+        val entries = com.cemupad.config.InputMappingCodec.toVpadEntries(profile)
+        val vc = videoClient
+        if (vc != null && vc.isConnected) {
+            vc.sendPushedMappings(entries)
+            com.cemupad.util.Logger.i("MainActivity", "Pushed ${entries.size} mappings to Cemu")
+        } else {
+            pendingPushedEntries = entries
+            com.cemupad.util.Logger.i("MainActivity", "Queued ${entries.size} mappings for next Cemu connect")
+        }
+    }
 
     private val stickCaptureAxes = intArrayOf(
         MotionEvent.AXIS_X,

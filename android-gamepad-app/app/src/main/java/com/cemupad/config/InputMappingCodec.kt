@@ -105,4 +105,43 @@ object InputMappingCodec {
             displayName = values[KEY_DISPLAY_NAME] ?: name
         )
     }
+
+    /**
+     * Translate a ControllerProfile into VPAD mapping entries (mappingId -> DSU buttonId)
+     * for pushing to Cemu. Mapping IDs match VPADController::kButtonId_* (see CemuPadBridge).
+     * DSU button constants mirror ControllerBase kButton* (kButton14=Cross etc.).
+     */
+    fun toVpadEntries(profile: com.cemupad.input.ControllerProfile): List<Pair<Int, Int>> {
+        // VPAD mapping ids as defined in VPADController.h
+        // 1:A 2:B 3:X 4:Y 5:L 6:R 7:ZL 8:ZR 9:Plus 10:Minus 11:Up 12:Down 13:Left 14:Right
+        // 15:StickL 16:StickR 17:StickL_Up 18:StickL_Down 19:StickL_Left 20:StickL_Right
+        // 21:StickR_Up 22:StickR_Down 23:StickR_Left 24:StickR_Right 25:Mic 48:Home  (see header)
+        // We map only the button-like entries that have Android keycodes; stick axes are local.
+        // For now, push the core digital mappings that correspond to DSU buttons.
+        // DSU button mapping: use stored Android keycodes directly as opaque identifiers is incorrect,
+        // so we map via ControllerProfile's intent: keyA->DSU Cross (14), keyB->Circle(13), etc.
+        // However for push we need (VPAD mappingId, DSU buttonId). The DSU buttonIds are the
+        // logical DSU ids derived from the profile's purpose, not raw Android keycodes.
+        // We therefore emit the canonical DSU mapping used in CemuPadBridge::kMapping:
+        // This keeps Cemu's side identical to default but allows future per-profile overrides
+        // where Android profile intentionally swaps A/B. For swapped profiles (e.g. Nintendo),
+        // we detect by comparing to NINTENDO_LAYOUT.
+        val isNintendo = profile.keyA == android.view.KeyEvent.KEYCODE_BUTTON_B
+        return if (isNintendo) {
+            listOf(
+                1 to 13, // A -> Circle
+                2 to 14, // B -> Cross (swapped)
+                3 to 12, // X -> Triangle swapped with Y
+                4 to 15, // Y -> Square
+                5 to 10, 6 to 11, 7 to 42, 8 to 43, 9 to 3, 10 to 0, 11 to 4, 12 to 6, 13 to 7, 14 to 5,
+                15 to 1, 16 to 2
+            )
+        } else {
+            listOf(
+                1 to 14, 2 to 13, 3 to 15, 4 to 12,
+                5 to 10, 6 to 11, 7 to 42, 8 to 43, 9 to 3, 10 to 0, 11 to 4, 12 to 6, 13 to 7, 14 to 5,
+                15 to 1, 16 to 2
+            )
+        }
+    }
 }

@@ -53,12 +53,36 @@ class VideoStreamClient(
         private const val AUTH_TIMEOUT_MS = 8000
         private const val PIN_WAIT_SECONDS = 90L
 
+        const val OPCODE_PUSH_MAPPINGS = 0x18
+        const val OPCODE_SET_MAPPING = 0x19
+
         /**
          * Builds the 2-byte CODEC_SELECT packet: [0x16][uint8 codec] (0 = H.264, 1 = HEVC).
          * Pure function for unit tests.
          */
         fun buildCodecSelectPacket(useHevc: Boolean): ByteArray {
             return byteArrayOf(OPCODE_CODEC_SELECT.toByte(), if (useHevc) 1.toByte() else 0.toByte())
+        }
+
+        fun buildPushMappingsPacket(entries: List<Pair<Int, Int>>): ByteArray {
+            require(entries.isNotEmpty() && entries.size <= 32)
+            val buf = ByteBuffer.allocate(1 + 1 + entries.size * 8).order(ByteOrder.LITTLE_ENDIAN)
+            buf.put(OPCODE_PUSH_MAPPINGS.toByte())
+            buf.put(entries.size.toByte())
+            for ((mapping, button) in entries) {
+                buf.putInt(mapping)
+                buf.putInt(button)
+            }
+            return buf.array()
+        }
+
+        fun buildSetMappingPacket(mapping: Int, button: Int, applyNow: Boolean = true): ByteArray {
+            val buf = ByteBuffer.allocate(1 + 4 + 4 + 1).order(ByteOrder.LITTLE_ENDIAN)
+            buf.put(OPCODE_SET_MAPPING.toByte())
+            buf.putInt(mapping)
+            buf.putInt(button)
+            buf.put(if (applyNow) 1 else 0)
+            return buf.array()
         }
 
         /**
@@ -264,13 +288,25 @@ class VideoStreamClient(
     }
 
     /**
-     * Sends rolling network and frame telemetry to Cemu for adaptive dynamic bitrate adjustment.
-     */
+      * Sends rolling network and frame telemetry to Cemu for adaptive dynamic bitrate adjustment.
+      */
     fun sendStatsReport(lossHundredths: Int, dropHundredths: Int, rttMs: Int = 0, flags: Int = 0) {
         sendControlPacket(
             buildStatsReportPacket(lossHundredths, dropHundredths, rttMs, flags),
             "STATS_REPORT(loss=${lossHundredths / 100f}%, drop=${dropHundredths / 100f}%)"
         )
+    }
+
+    fun sendPushedMappings(entries: List<Pair<Int, Int>>) {
+        if (entries.isEmpty()) return
+        // Chunk to 32 per bulk packet
+        for (chunk in entries.chunked(32)) {
+            sendControlPacket(buildPushMappingsPacket(chunk), "PUSH_MAPPINGS(${chunk.size})")
+        }
+    }
+
+    fun sendMapping(mapping: Int, button: Int) {
+        sendControlPacket(buildSetMappingPacket(mapping, button), "SET_MAPPING($mapping->$button)")
     }
 
     private fun sendControlPacket(packet: ByteArray, name: String) {
