@@ -200,6 +200,13 @@ class ConfigMenuState {
 
             ConfigScreen.INPUT_HAPTICS -> listOf(
                 ConfigMenuItem(
+                    id = "input_remap",
+                    title = "Physical Controller",
+                    subtitle = activeControllerName ?: "Configure button & stick mapping",
+                    type = ConfigItemType.ACTION,
+                    valueText = "Map Controls"
+                ),
+                ConfigMenuItem(
                     id = "input_vibration",
                     title = "Vibration & Rumble",
                     subtitle = "Haptic feedback from GamePad rumble events",
@@ -245,13 +252,6 @@ class ConfigMenuState {
                     subtitle = if (isCalibrated) "Calibrated ✓" else "Recalibrate device level position",
                     type = ConfigItemType.ACTION,
                     valueText = if (isCalibrated) "Calibrated ✓" else "Calibrate"
-                ),
-                ConfigMenuItem(
-                    id = "input_remap",
-                    title = "Physical Controller",
-                    subtitle = activeControllerName ?: "Configure button & stick mapping",
-                    type = ConfigItemType.ACTION,
-                    valueText = "Map Controls"
                 )
             )
 

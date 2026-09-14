@@ -293,17 +293,6 @@ private fun ConfigItemCard(
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left indicator bar when focused
-            if (isFocused) {
-                Box(
-                    modifier = Modifier
-                        .width(4.dp)
-                        .height(36.dp)
-                        .background(Color(0xFF00E5FF), RoundedCornerShape(2.dp))
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-            }
-
             // Title and description
             Column(modifier = Modifier.weight(1f)) {
                 Text(

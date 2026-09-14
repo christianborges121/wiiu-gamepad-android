@@ -26,12 +26,12 @@ class AppSettingsCodecTest {
         assertEquals(0.5f, settings.virtualControlsOpacity, 0.001f)
         assertTrue(settings.audioEnabled)
         assertEquals(1.0f, settings.audioVolume, 0.001f)
-        assertTrue(settings.vibrationEnabled)
+        assertFalse(settings.vibrationEnabled)
         assertEquals(1.0f, settings.vibrationIntensity, 0.001f)
-        assertTrue(settings.micEnabled)
+        assertFalse(settings.micEnabled)
         assertEquals(FramePacingMode.IMMEDIATE, settings.framePacing)
         assertEquals(VideoCodecPreference.AUTO, settings.videoCodec)
-        assertEquals(6, settings.videoBitrateMbps)
+        assertEquals(10, settings.videoBitrateMbps)
     }
 
     @Test
@@ -43,7 +43,7 @@ class AppSettingsCodecTest {
             diagnosticsOverlayEnabled = null
         )
 
-        assertEquals(6, settings.videoBitrateMbps)
+        assertEquals(10, settings.videoBitrateMbps)
     }
 
     @Test
@@ -63,7 +63,7 @@ class AppSettingsCodecTest {
         assertTrue(settings.diagnosticsOverlayEnabled)
         assertFalse(settings.showConnectionHelp)
         assertFalse(settings.limitTo30Fps)
-        assertTrue(settings.micEnabled)
+        assertFalse(settings.micEnabled)
         assertEquals(FramePacingMode.IMMEDIATE, settings.framePacing)
         assertEquals(VideoCodecPreference.AUTO, settings.videoCodec)
     }

@@ -64,10 +64,10 @@ object AppSettingsCodec {
             virtualControlsOpacity = virtualControlsOpacity ?: 0.5f,
             audioEnabled = audioEnabled ?: true,
             audioVolume = audioVolume ?: 1.0f,
-            vibrationEnabled = vibrationEnabled ?: true,
+            vibrationEnabled = vibrationEnabled ?: false,
             vibrationIntensity = (vibrationIntensity ?: 1.0f).coerceIn(0f, 1f),
             stickDeadzone = stickDeadzone ?: 0.08f,
-            micEnabled = micEnabled ?: true,
+            micEnabled = micEnabled ?: false,
             framePacing = framePacing,
             videoCodec = videoCodec
         )

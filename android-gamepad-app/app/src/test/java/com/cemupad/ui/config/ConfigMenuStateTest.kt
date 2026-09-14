@@ -137,11 +137,11 @@ class ConfigMenuStateTest {
         state.onLeft(items, currentSettings) { currentSettings = it }
         assertEquals(DisplayResolutionPreset.DEVICE_AUTO, currentSettings.resolutionPreset)
 
-        // Focus on Bitrate (index 2)
+        // Focus on Bitrate (index 2) — default now 10 Mbps
         state.focusedIndex = 2
-        assertEquals(6, currentSettings.videoBitrateMbps)
+        assertEquals(10, currentSettings.videoBitrateMbps)
         state.onRight(items, currentSettings) { currentSettings = it }
-        assertEquals(8, currentSettings.videoBitrateMbps)
+        assertEquals(12, currentSettings.videoBitrateMbps)
     }
 
     @Test
@@ -165,17 +165,17 @@ class ConfigMenuStateTest {
         state.open(ConfigScreen.INPUT_HAPTICS)
         val items = state.getItems(state.currentScreen, currentSettings)
 
-        // Focus on "Motion & Gyroscope" (index 5)
-        state.focusedIndex = 5
-        assertEquals("input_gyro_calibrate", items[5].id)
-        state.onSelectA(items, currentSettings, { currentSettings = it }, { lastAction = it })
-        assertEquals(ConfigAction.CALIBRATE_GYRO, lastAction)
-
-        // Focus on "Physical Controller" (index 6)
-        state.focusedIndex = 6
-        assertEquals("input_remap", items[6].id)
+        // Focus on "Physical Controller" now at index 0 per new order
+        state.focusedIndex = 0
+        assertEquals("input_remap", items[0].id)
         state.onSelectA(items, currentSettings, { currentSettings = it }, { lastAction = it })
         assertEquals(ConfigAction.MAP_CONTROLLER, lastAction)
+
+        // Focus on "Motion & Gyroscope" (now index 6)
+        state.focusedIndex = 6
+        assertEquals("input_gyro_calibrate", items[6].id)
+        state.onSelectA(items, currentSettings, { currentSettings = it }, { lastAction = it })
+        assertEquals(ConfigAction.CALIBRATE_GYRO, lastAction)
     }
 
     @Test
