@@ -559,42 +559,42 @@ private fun ControllerLineDiagram(
                 }
             }
 
-            // 1. Shoulders & Triggers — ZL above L, ZR above R (stacked, 0.09H gap, x-offset)
-            Badge("ZL", "ZL", 0.20f, 0.02f, 28.dp, 18.dp, RoundedCornerShape(5.dp), 10.sp)
-            Badge("L", "L", 0.20f, 0.13f, 26.dp, 18.dp, RoundedCornerShape(5.dp), 11.sp)
-            Badge("ZR", "ZR", 0.80f, 0.02f, 28.dp, 18.dp, RoundedCornerShape(5.dp), 10.sp)
-            Badge("R", "R", 0.80f, 0.13f, 26.dp, 18.dp, RoundedCornerShape(5.dp), 11.sp)
+            // 1. Shoulders & Triggers — ZL above L, ZR above R (+10% scale)
+            Badge("ZL", "ZL", 0.20f, 0.02f, 31.dp, 20.dp, RoundedCornerShape(5.dp), 11.sp)
+            Badge("L", "L", 0.20f, 0.13f, 29.dp, 20.dp, RoundedCornerShape(5.dp), 12.sp)
+            Badge("ZR", "ZR", 0.80f, 0.02f, 31.dp, 20.dp, RoundedCornerShape(5.dp), 11.sp)
+            Badge("R", "R", 0.80f, 0.13f, 29.dp, 20.dp, RoundedCornerShape(5.dp), 12.sp)
 
-            // 2. Center Buttons (Minus, Home, Plus) — enlarged
-            Badge("MINUS", "−", 0.43f, 0.28f, 20.dp, 17.dp, RoundedCornerShape(7.dp), 11.sp)
-            Badge("HOME", "⌂", 0.50f, 0.40f, 20.dp, 20.dp, CircleShape, 12.sp)
-            Badge("PLUS", "+", 0.57f, 0.28f, 20.dp, 17.dp, RoundedCornerShape(7.dp), 11.sp)
+            // 2. Center Buttons (Minus, Home, Plus) — +10%
+            Badge("MINUS", "−", 0.43f, 0.28f, 22.dp, 19.dp, RoundedCornerShape(7.dp), 12.sp)
+            Badge("HOME", "⌂", 0.50f, 0.40f, 22.dp, 22.dp, CircleShape, 13.sp)
+            Badge("PLUS", "+", 0.57f, 0.28f, 22.dp, 19.dp, RoundedCornerShape(7.dp), 12.sp)
 
-            // 3. Left Stick — directly under L (22,33) — tighter left/right
-            Badge("STICK_L_PRESS", "L3", 0.22f, 0.33f, 16.dp, 16.dp, CircleShape, 9.sp)
-            Badge("STICK_L_UP", "▲", 0.22f, 0.24f, 12.dp, 10.dp, RoundedCornerShape(3.dp), 7.sp)
-            Badge("STICK_L_DOWN", "▼", 0.22f, 0.42f, 12.dp, 10.dp, RoundedCornerShape(3.dp), 7.sp)
-            Badge("STICK_L_LEFT", "◀", 0.17f, 0.33f, 10.dp, 12.dp, RoundedCornerShape(3.dp), 7.sp)
-            Badge("STICK_L_RIGHT", "▶", 0.27f, 0.33f, 10.dp, 12.dp, RoundedCornerShape(3.dp), 7.sp)
+            // 3. Left Stick — directly under L (22,33) — +10%
+            Badge("STICK_L_PRESS", "L3", 0.22f, 0.33f, 18.dp, 18.dp, CircleShape, 10.sp)
+            Badge("STICK_L_UP", "▲", 0.22f, 0.24f, 13.dp, 11.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("STICK_L_DOWN", "▼", 0.22f, 0.42f, 13.dp, 11.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("STICK_L_LEFT", "◀", 0.17f, 0.33f, 11.dp, 13.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("STICK_L_RIGHT", "▶", 0.27f, 0.33f, 11.dp, 13.dp, RoundedCornerShape(3.dp), 8.sp)
 
-            // 4. D-Pad — tightened left/right gap (was 56dp → 40dp)
-            Badge("DPAD_UP", "▲", 0.33f, 0.51f, 12.dp, 10.dp, RoundedCornerShape(3.dp), 7.sp)
-            Badge("DPAD_DOWN", "▼", 0.33f, 0.69f, 12.dp, 10.dp, RoundedCornerShape(3.dp), 7.sp)
-            Badge("DPAD_LEFT", "◀", 0.28f, 0.60f, 10.dp, 12.dp, RoundedCornerShape(3.dp), 7.sp)
-            Badge("DPAD_RIGHT", "▶", 0.38f, 0.60f, 10.dp, 12.dp, RoundedCornerShape(3.dp), 7.sp)
+            // 4. D-Pad — tightened left/right gap +10%
+            Badge("DPAD_UP", "▲", 0.33f, 0.51f, 13.dp, 11.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("DPAD_DOWN", "▼", 0.33f, 0.69f, 13.dp, 11.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("DPAD_LEFT", "◀", 0.28f, 0.60f, 11.dp, 13.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("DPAD_RIGHT", "▶", 0.38f, 0.60f, 11.dp, 13.dp, RoundedCornerShape(3.dp), 8.sp)
 
-            // 5. Right Stick — directly under R (78,33) — tighter left/right
-            Badge("STICK_R_PRESS", "R3", 0.78f, 0.33f, 16.dp, 16.dp, CircleShape, 9.sp)
-            Badge("STICK_R_UP", "▲", 0.78f, 0.24f, 12.dp, 10.dp, RoundedCornerShape(3.dp), 7.sp)
-            Badge("STICK_R_DOWN", "▼", 0.78f, 0.42f, 12.dp, 10.dp, RoundedCornerShape(3.dp), 7.sp)
-            Badge("STICK_R_LEFT", "◀", 0.73f, 0.33f, 10.dp, 12.dp, RoundedCornerShape(3.dp), 7.sp)
-            Badge("STICK_R_RIGHT", "▶", 0.83f, 0.33f, 10.dp, 12.dp, RoundedCornerShape(3.dp), 7.sp)
+            // 5. Right Stick — directly under R (78,33) — +10%
+            Badge("STICK_R_PRESS", "R3", 0.78f, 0.33f, 18.dp, 18.dp, CircleShape, 10.sp)
+            Badge("STICK_R_UP", "▲", 0.78f, 0.24f, 13.dp, 11.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("STICK_R_DOWN", "▼", 0.78f, 0.42f, 13.dp, 11.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("STICK_R_LEFT", "◀", 0.73f, 0.33f, 11.dp, 13.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("STICK_R_RIGHT", "▶", 0.83f, 0.33f, 11.dp, 13.dp, RoundedCornerShape(3.dp), 8.sp)
 
-            // 6. Face Buttons ABXY — Y/A brought closer (was 72dp → 40dp)
-            Badge("X", "X", 0.67f, 0.47f, 20.dp, 20.dp, CircleShape, 11.sp)
-            Badge("Y", "Y", 0.62f, 0.60f, 18.dp, 18.dp, CircleShape, 10.sp)
-            Badge("A", "A", 0.72f, 0.60f, 18.dp, 18.dp, CircleShape, 10.sp)
-            Badge("B", "B", 0.67f, 0.73f, 20.dp, 20.dp, CircleShape, 11.sp)
+            // 6. Face Buttons ABXY — Y/A 40dp, X/B matched to same 40dp +10% scale
+            Badge("X", "X", 0.67f, 0.51f, 22.dp, 22.dp, CircleShape, 12.sp)
+            Badge("Y", "Y", 0.62f, 0.60f, 20.dp, 20.dp, CircleShape, 11.sp)
+            Badge("A", "A", 0.72f, 0.60f, 20.dp, 20.dp, CircleShape, 11.sp)
+            Badge("B", "B", 0.67f, 0.69f, 22.dp, 22.dp, CircleShape, 12.sp)
         }
     }
 }
