@@ -582,11 +582,11 @@ private fun ControllerLineDiagram(
                 }
             }
 
-            // 1. Shoulders & Triggers — ZL/L/ZR/R +50% width, slightly thinner (20→14dp)
-            Badge("ZL", "ZL", 0.20f, 0.02f, 46.dp, 14.dp, RoundedCornerShape(5.dp), 11.sp)
-            Badge("L", "L", 0.20f, 0.13f, 44.dp, 14.dp, RoundedCornerShape(5.dp), 12.sp)
-            Badge("ZR", "ZR", 0.80f, 0.02f, 46.dp, 14.dp, RoundedCornerShape(5.dp), 11.sp)
-            Badge("R", "R", 0.80f, 0.13f, 44.dp, 14.dp, RoundedCornerShape(5.dp), 12.sp)
+            // 1. Shoulders & Triggers — ZL/L and ZR/R pulled closer (gap 24→13dp)
+            Badge("ZL", "ZL", 0.20f, 0.04f, 46.dp, 14.dp, RoundedCornerShape(5.dp), 11.sp)
+            Badge("L", "L", 0.20f, 0.10f, 44.dp, 14.dp, RoundedCornerShape(5.dp), 12.sp)
+            Badge("ZR", "ZR", 0.80f, 0.04f, 46.dp, 14.dp, RoundedCornerShape(5.dp), 11.sp)
+            Badge("R", "R", 0.80f, 0.10f, 44.dp, 14.dp, RoundedCornerShape(5.dp), 12.sp)
 
             // 2. Center Buttons (Minus, Home, Plus) — +10%
             Badge("MINUS", "−", 0.43f, 0.28f, 22.dp, 19.dp, RoundedCornerShape(7.dp), 12.sp)
