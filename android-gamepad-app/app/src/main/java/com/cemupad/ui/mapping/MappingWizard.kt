@@ -328,9 +328,32 @@ private fun DetectedBody(screen: MappingWizardScreen.Detected) {
 @Composable
 private fun TestingBody(screen: MappingWizardScreen.Testing) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("Press buttons — each should light up. (${screen.profileName})", color = Muted, fontSize = 12.sp)
-        screen.lastPressedLabel?.let {
-            Text("Last pressed: $it", color = LastBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Press buttons — each should light up. (${screen.profileName})",
+                color = Muted,
+                fontSize = 12.sp,
+                modifier = Modifier.weight(1f, fill = false)
+            )
+            // Reserve fixed 12sp line height on right so diagram never shifts when lastPressed appears.
+            Box(modifier = Modifier.padding(start = 12.dp)) {
+                if (screen.lastPressedLabel != null) {
+                    Text(
+                        "Last pressed: ${screen.lastPressedLabel}",
+                        color = LastBlue,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                } else {
+                    // Invisible placeholder keeps row height stable (no shift on first press).
+                    Text(" ", color = Color.Transparent, fontSize = 12.sp, maxLines = 1)
+                }
+            }
         }
         ControllerLineDiagram(
             getHighlight = { label -> highlightForTesting(label, screen) },
