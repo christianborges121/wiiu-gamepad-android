@@ -36,15 +36,20 @@ class InputMappingPushTest {
     }
 
     @Test
-    fun `profile to vpad entries default has 24 mappings`() {
+    fun `profile to vpad entries default has 25 mappings`() {
         val entries = InputMappingCodec.toVpadEntries(ControllerProfile.DEFAULT)
-        assertEquals(24, entries.size)
+        assertEquals(25, entries.size)
         // A->Cross(14), B->Circle(13)
         assertTrue(entries.contains(1 to 14))
         assertTrue(entries.contains(2 to 13))
-        // Stick dirs
-        assertTrue(entries.contains(17 to 59))
-        assertTrue(entries.contains(24 to 68))
+        // Triggers ZL->kButton8(8), ZR->kButton9(9)
+        assertTrue(entries.contains(7 to 8))
+        assertTrue(entries.contains(8 to 9))
+        // Stick dirs: StickL_Up -> kAxisYP (39), StickR_Right -> kRotationXP (40)
+        assertTrue(entries.contains(17 to 39))
+        assertTrue(entries.contains(24 to 40))
+        // Mic -> kButton16 (16)
+        assertTrue(entries.contains(25 to 16))
     }
 
     @Test

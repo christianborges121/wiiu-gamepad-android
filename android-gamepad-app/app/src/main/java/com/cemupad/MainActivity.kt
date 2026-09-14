@@ -847,10 +847,10 @@ class MainActivity : ComponentActivity() {
                 }
                 val targetMime = resolveVideoMimeType(displaySettings.value.videoCodec)
                 videoClient?.sendCodec(targetMime == MediaFormat.MIMETYPE_VIDEO_HEVC)
-                pendingPushedEntries?.let { entries ->
-                    videoClient?.sendPushedMappings(entries)
-                    pendingPushedEntries = null
-                }
+                val activeProfile = if (::gamepadHandler.isInitialized) gamepadHandler.profile else com.cemupad.input.ControllerProfile.DEFAULT
+                val entries = pendingPushedEntries ?: com.cemupad.config.InputMappingCodec.toVpadEntries(activeProfile)
+                videoClient?.sendPushedMappings(entries)
+                pendingPushedEntries = null
                 startVoiceStream(host)
                 requestIDR()
             }
@@ -1178,10 +1178,12 @@ class MainActivity : ComponentActivity() {
             } catch (_: Exception) {
                 null
             }
-            gamepadHandler.profile = deviceProfileStore.activeFor(
+            val active = deviceProfileStore.activeFor(
                 descriptor, lastDetectedProfile?.profile
             )
+            gamepadHandler.profile = active
             lastProfileDescriptor = descriptor
+            pushCemuMappings(active)
         }
         if (!deviceProfileStore.has(descriptor) && !promptedDescriptors.contains(descriptor)) {
             promptedDescriptors.add(descriptor)
@@ -1328,8 +1330,10 @@ class MainActivity : ComponentActivity() {
                     null
                 }
                 lastDetectedProfile = detected
-                gamepadHandler.profile = deviceProfileStore.activeFor(descriptor, detected?.profile)
+                val resetProfile = deviceProfileStore.activeFor(descriptor, detected?.profile)
+                gamepadHandler.profile = resetProfile
                 lastProfileDescriptor = descriptor
+                pushCemuMappings(resetProfile)
             }
             wizardScreen.value = null
         },

@@ -231,4 +231,66 @@ class CaptureEngineTest {
         assertEquals(255, ControllerProfile.normalizeAxis(-1.0f, invertY = true, deadzone = 0f))
         assertEquals(0, ControllerProfile.normalizeAxis(1.0f, invertY = true, deadzone = 0f))
     }
+
+    @Test
+    fun testRemapSwapDoesNotFalseConflict() {
+        // User wants to swap A and B: A gets physical B, B gets physical A.
+        val engine = CaptureEngine(clock = { 0L })
+        engine.start(listOf(MappableControl.A, MappableControl.B), base = ControllerProfile.DEFAULT)
+
+        // Mapping A to physical B must succeed cleanly, not say "Already assigned"
+        assertEquals(
+            CaptureEngine.RecordResult.Assigned,
+            engine.recordKey(KeyEvent.KEYCODE_BUTTON_B)
+        )
+        // Mapping B to physical A must succeed cleanly
+        assertEquals(
+            CaptureEngine.RecordResult.Assigned,
+            engine.recordKey(KeyEvent.KEYCODE_BUTTON_A)
+        )
+
+        val profile = engine.buildProfile(ControllerProfile.DEFAULT)!!
+        assertEquals(KeyEvent.KEYCODE_BUTTON_B, profile.keyA)
+        assertEquals(KeyEvent.KEYCODE_BUTTON_A, profile.keyB)
+    }
+
+    @Test
+    fun testStickAxisCaptureUpdatesProfile() {
+        val engine = CaptureEngine(clock = { 0L })
+        engine.start(
+            listOf(
+                MappableControl.STICK_R_UP,
+                MappableControl.STICK_R_DOWN,
+                MappableControl.STICK_R_LEFT,
+                MappableControl.STICK_R_RIGHT
+            ),
+            base = ControllerProfile.DEFAULT
+        )
+
+        // Controller with swapped axes (e.g. Backbone One):
+        // Moving right stick Up deflects AXIS_Z negative
+        assertEquals(
+            CaptureEngine.RecordResult.Assigned,
+            engine.recordAxes(mapOf(MotionEvent.AXIS_Z to -0.8f))
+        )
+        // Moving right stick Down deflects AXIS_Z positive
+        assertEquals(
+            CaptureEngine.RecordResult.Assigned,
+            engine.recordAxes(mapOf(MotionEvent.AXIS_Z to 0.8f))
+        )
+        // Moving right stick Left deflects AXIS_RZ negative
+        assertEquals(
+            CaptureEngine.RecordResult.Assigned,
+            engine.recordAxes(mapOf(MotionEvent.AXIS_RZ to -0.8f))
+        )
+        // Moving right stick Right deflects AXIS_RZ positive
+        assertEquals(
+            CaptureEngine.RecordResult.Assigned,
+            engine.recordAxes(mapOf(MotionEvent.AXIS_RZ to 0.8f))
+        )
+
+        val profile = engine.buildProfile(ControllerProfile.DEFAULT)!!
+        assertEquals(MotionEvent.AXIS_RZ, profile.axisRX)
+        assertEquals(MotionEvent.AXIS_Z, profile.axisRY)
+    }
 }
