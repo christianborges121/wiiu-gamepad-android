@@ -109,6 +109,7 @@ fun MainScreen(
     onSurfaceAvailable: ((Surface) -> Unit)? = null,
     onSurfaceDestroyed: (() -> Unit)? = null,
     onExportDebug: (() -> Unit)? = null,
+    forceDiagnosticsOverlay: Boolean = false,
     mappingPrompt: MappingPromptUi? = null,
     onMappingSetup: (() -> Unit)? = null,
     onMappingDismiss: (() -> Unit)? = null,
@@ -973,7 +974,7 @@ fun MainScreen(
                 )
             }
 
-            if (diagnosticsEnabled) {
+            if (diagnosticsEnabled || forceDiagnosticsOverlay) {
                 val streamStatus = if (isVideoStreaming) {
                     "${videoFps.toInt()} FPS"
                 } else {
@@ -982,7 +983,7 @@ fun MainScreen(
                 Text(
                     text = "$ipAddress:${dsuServer?.port ?: 26760}  $streamStatus  c$clientCount  tx$packetsSent  rx$packetsReceived",
                     modifier = Modifier
-                        .align(Alignment.TopStart)
+                        .align(Alignment.TopEnd)
                         .padding(8.dp),
                     color = Color(0xFFEAF2FF),
                     fontFamily = FontFamily.Monospace,

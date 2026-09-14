@@ -127,6 +127,7 @@ class MainActivity : ComponentActivity() {
     private val isVideoStreaming = mutableStateOf(false)
     private val videoFps = mutableFloatStateOf(0f)
     private val displaySettings = mutableStateOf(DisplaySettings())
+    private val debugBundleForcedDiagnostics = mutableStateOf(false)
     private val choreographerPacer = com.cemupad.video.ChoreographerPacer()
     private val networkQualityTracker = com.cemupad.network.NetworkQualityTracker()
     private val telemetryHandler = Handler(Looper.getMainLooper())
@@ -599,6 +600,7 @@ class MainActivity : ComponentActivity() {
                         },
                         wizardScreen = wizardScreen.value,
                         wizardActions = wizardActions(),
+                        forceDiagnosticsOverlay = debugBundleForcedDiagnostics.value,
                         onSurfaceAvailable = { surface -> handleSurfaceAvailable(surface) },
                         onSurfaceDestroyed = { handleSurfaceDestroyed() },
                         onExportDebug = { exportDebugBundle() }
@@ -899,76 +901,93 @@ class MainActivity : ComponentActivity() {
      * Builds the remote-debugging bundle (log file + window screenshot +
      * device/codec report) and opens the system share sheet. Screenshot via
      * PixelCopy so SurfaceView frames are captured correctly.
+     *
+     * Temporarily forces diagnostics overlay on so the screenshot always
+     * contains FPS / packet counters for remote triage, then restores.
      */
     private fun exportDebugBundle() {
         try {
-            val rootView = window.decorView.rootView
-            val width = rootView.width
-            val height = rootView.height
-            if (width <= 0 || height <= 0) {
-                Toast.makeText(this, "Screen not ready, try again", Toast.LENGTH_SHORT).show()
-                return
-            }
-            Toast.makeText(this, "Capturing debug bundle…", Toast.LENGTH_SHORT).show()
-            val bitmap = android.graphics.Bitmap.createBitmap(
-                width, height, android.graphics.Bitmap.Config.ARGB_8888
-            )
-            android.view.PixelCopy.request(
-                window,
-                bitmap,
-                { result ->
-                    Thread {
-                        try {
-                            val png = if (result == android.view.PixelCopy.SUCCESS) {
-                                com.cemupad.util.DebugBundle.screenshotPng(bitmap)
-                            } else {
-                                com.cemupad.util.Logger.w("DebugBundle", "Screenshot failed: $result")
-                                null
-                            }
-                            val report = com.cemupad.util.DebugBundle.collectDeviceReport(
-                                applicationContext, displaySettings.value
-                            )
-                            val reportText = com.cemupad.util.DebugBundle.formatReport(report)
-                            val logText = com.cemupad.util.Logger.logFiles()
-                                .joinToString("\n") { file ->
-                                    "===== ${file.name} =====\n" + try {
-                                        file.readText()
-                                    } catch (_: Exception) {
-                                        "<unreadable>"
-                                    }
-                                }.ifEmpty { "<no log file — restart the app once>" }
-                            val dir = java.io.File(cacheDir, "debug")
-                            if (!dir.exists()) dir.mkdirs()
-                            val zip = java.io.File(dir, "cemupad-debug.zip")
-                            if (zip.exists()) zip.delete()
-                            com.cemupad.util.DebugBundle.buildZip(zip, reportText, logText, png)
-                            runOnUiThread {
+            debugBundleForcedDiagnostics.value = true
+            // Give Compose one frame to recompose with overlay visible before capture
+            window.decorView.postDelayed({
+                try {
+                    val rootView = window.decorView.rootView
+                    val width = rootView.width
+                    val height = rootView.height
+                    if (width <= 0 || height <= 0) {
+                        Toast.makeText(this, "Screen not ready, try again", Toast.LENGTH_SHORT).show()
+                        debugBundleForcedDiagnostics.value = false
+                        return@postDelayed
+                    }
+                    Toast.makeText(this, "Capturing debug bundle…", Toast.LENGTH_SHORT).show()
+                    val bitmap = android.graphics.Bitmap.createBitmap(
+                        width, height, android.graphics.Bitmap.Config.ARGB_8888
+                    )
+                    android.view.PixelCopy.request(
+                        window,
+                        bitmap,
+                        { result ->
+                            // Restore overlay state immediately after capture request
+                            debugBundleForcedDiagnostics.value = false
+                            Thread {
                                 try {
-                                    com.cemupad.util.DebugBundle.shareZip(this, zip)
-                                } catch (_: Exception) {
-                                    Toast.makeText(
-                                        this,
-                                        "No app available to share with",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    val png = if (result == android.view.PixelCopy.SUCCESS) {
+                                        com.cemupad.util.DebugBundle.screenshotPng(bitmap)
+                                    } else {
+                                        com.cemupad.util.Logger.w("DebugBundle", "Screenshot failed: $result")
+                                        null
+                                    }
+                                    val report = com.cemupad.util.DebugBundle.collectDeviceReport(
+                                        applicationContext, displaySettings.value
+                                    )
+                                    val reportText = com.cemupad.util.DebugBundle.formatReport(report)
+                                    val logText = com.cemupad.util.Logger.logFiles()
+                                        .joinToString("\n") { file ->
+                                            "===== ${file.name} =====\n" + try {
+                                                file.readText()
+                                            } catch (_: Exception) {
+                                                "<unreadable>"
+                                            }
+                                        }.ifEmpty { "<no log file — restart the app once>" }
+                                    val dir = java.io.File(cacheDir, "debug")
+                                    if (!dir.exists()) dir.mkdirs()
+                                    val zip = java.io.File(dir, "cemupad-debug.zip")
+                                    if (zip.exists()) zip.delete()
+                                    com.cemupad.util.DebugBundle.buildZip(zip, reportText, logText, png)
+                                    runOnUiThread {
+                                        try {
+                                            com.cemupad.util.DebugBundle.shareZip(this, zip)
+                                        } catch (_: Exception) {
+                                            Toast.makeText(
+                                                this,
+                                                "No app available to share with",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    com.cemupad.util.Logger.w("DebugBundle", "Export failed: ${e.message}")
+                                    runOnUiThread {
+                                        Toast.makeText(this, "Export failed", Toast.LENGTH_SHORT).show()
+                                    }
+                                } finally {
+                                    try {
+                                        bitmap.recycle()
+                                    } catch (_: Exception) {
+                                    }
                                 }
-                            }
-                        } catch (e: Exception) {
-                            com.cemupad.util.Logger.w("DebugBundle", "Export failed: ${e.message}")
-                            runOnUiThread {
-                                Toast.makeText(this, "Export failed", Toast.LENGTH_SHORT).show()
-                            }
-                        } finally {
-                            try {
-                                bitmap.recycle()
-                            } catch (_: Exception) {
-                            }
-                        }
-                    }.apply { isDaemon = true; start() }
-                },
-                android.os.Handler(android.os.Looper.getMainLooper())
-            )
+                            }.apply { isDaemon = true; start() }
+                        },
+                        android.os.Handler(android.os.Looper.getMainLooper())
+                    )
+                } catch (e: Exception) {
+                    debugBundleForcedDiagnostics.value = false
+                    com.cemupad.util.Logger.w("DebugBundle", "Export failed: ${e.message}")
+                    Toast.makeText(this, "Export failed", Toast.LENGTH_SHORT).show()
+                }
+            }, 150)
         } catch (e: Exception) {
+            debugBundleForcedDiagnostics.value = false
             com.cemupad.util.Logger.w("DebugBundle", "Export failed: ${e.message}")
             Toast.makeText(this, "Export failed", Toast.LENGTH_SHORT).show()
         }
