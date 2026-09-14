@@ -99,8 +99,10 @@ class MainActivity : ComponentActivity() {
     private val captureTick = mutableStateOf(0)
     private val captureFlash = mutableStateOf<String?>(null)
     private var lastShownHatDir: String? = null
+    private var lastShownStickDir: String? = null
     private val testHistoryKeys = mutableSetOf<Int>()
     private val testHistoryDirs = mutableSetOf<String>()
+    private val testHistoryStickDirs = mutableSetOf<String>()
 
     /** Active hat D-pad directions in priority order (UP/DOWN/LEFT/RIGHT). */
     private fun activeHatDirs(hatX: Float, hatY: Float): List<String> {
@@ -1047,10 +1049,12 @@ class MainActivity : ComponentActivity() {
                     wizardScreen.value = wizard.copy(
                         lastKeyCode = event.keyCode,
                         lastPressedLabel = KeyEvent.keyCodeToString(event.keyCode),
-                        // A key press supersedes any lingering hat direction.
+                        // A key press supersedes any lingering hat/stick direction.
                         lastDpadDir = null,
+                        lastStickDir = null,
                         historyKeys = testHistoryKeys.toSet(),
-                        historyDirs = testHistoryDirs.toSet()
+                        historyDirs = testHistoryDirs.toSet(),
+                        historyStickDirs = testHistoryStickDirs.toSet()
                     )
                 }
             } else if (wizard is MappingWizardScreen.Capturing) {
@@ -1071,8 +1075,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
-        // Test screen: surface hat D-pad activity (keys alone can't show it —
-        // hat-driven rows carry keyCode 0). Change-gated to avoid recompose storms.
+        // Test screen: surface hat D-pad + stick directions (keys alone can't show them).
+        // Change-gated to avoid recompose storms.
         (wizardScreen.value as? MappingWizardScreen.Testing)?.let { testing ->
             val dirs = activeHatDirs(
                 event.getAxisValue(MotionEvent.AXIS_HAT_X),
@@ -1086,11 +1090,40 @@ class MainActivity : ComponentActivity() {
                     lastKeyCode = null,
                     lastPressedLabel = "D-Pad ${dir.lowercase().replaceFirstChar { it.uppercase() }} (hat)",
                     lastDpadDir = dir,
+                    lastStickDir = null,
                     historyKeys = testHistoryKeys.toSet(),
-                    historyDirs = testHistoryDirs.toSet()
+                    historyDirs = testHistoryDirs.toSet(),
+                    historyStickDirs = testHistoryStickDirs.toSet()
                 )
             } else if (dir == null) {
                 lastShownHatDir = null
+            }
+            // Stick directions (threshold 0.5)
+            if (::gamepadHandler.isInitialized) {
+                val p = gamepadHandler.profile
+                val lx = event.getAxisValue(p.axisLX); val ly = event.getAxisValue(p.axisLY)
+                val rx = event.getAxisValue(p.axisRX); val ry = event.getAxisValue(p.axisRY)
+                val stickDir = when {
+                    ly < -0.5f -> "L_UP"; ly > 0.5f -> "L_DOWN"; lx < -0.5f -> "L_LEFT"; lx > 0.5f -> "L_RIGHT"
+                    ry < -0.5f -> "R_UP"; ry > 0.5f -> "R_DOWN"; rx < -0.5f -> "R_LEFT"; rx > 0.5f -> "R_RIGHT"
+                    else -> null
+                }
+                if (stickDir != null && stickDir != lastShownStickDir) {
+                    lastShownStickDir = stickDir
+                    testHistoryStickDirs.add(stickDir)
+                    val cur = wizardScreen.value as? MappingWizardScreen.Testing ?: testing
+                    wizardScreen.value = cur.copy(
+                        lastKeyCode = null,
+                        lastPressedLabel = "Stick ${stickDir.replace("_", " ")}",
+                        lastDpadDir = null,
+                        lastStickDir = stickDir,
+                        historyKeys = testHistoryKeys.toSet(),
+                        historyDirs = testHistoryDirs.toSet(),
+                        historyStickDirs = testHistoryStickDirs.toSet()
+                    )
+                } else if (stickDir == null) {
+                    lastShownStickDir = null
+                }
             }
         }
         if (wizardScreen.value is MappingWizardScreen.Capturing) {
@@ -1173,6 +1206,9 @@ class MainActivity : ComponentActivity() {
         if (deviceProfileStore.has(descriptor)) {
             testHistoryKeys.clear()
             testHistoryDirs.clear()
+            testHistoryStickDirs.clear()
+            lastShownHatDir = null
+            lastShownStickDir = null
             wizardScreen.value = MappingWizardScreen.Testing(
                 profileName = deviceProfileStore.load(descriptor)?.displayName ?: "Saved layout",
                 rows = testRowsFor(gamepadHandler.profile),
@@ -1208,6 +1244,14 @@ class MainActivity : ComponentActivity() {
             MappingTestRow("D-Pad Down", profile.keyDpadDown, "DOWN"),
             MappingTestRow("D-Pad Left", profile.keyDpadLeft, "LEFT"),
             MappingTestRow("D-Pad Right", profile.keyDpadRight, "RIGHT"),
+            MappingTestRow("Stick L Up", 0, null, "L_UP"),
+            MappingTestRow("Stick L Down", 0, null, "L_DOWN"),
+            MappingTestRow("Stick L Left", 0, null, "L_LEFT"),
+            MappingTestRow("Stick L Right", 0, null, "L_RIGHT"),
+            MappingTestRow("Stick R Up", 0, null, "R_UP"),
+            MappingTestRow("Stick R Down", 0, null, "R_DOWN"),
+            MappingTestRow("Stick R Left", 0, null, "R_LEFT"),
+            MappingTestRow("Stick R Right", 0, null, "R_RIGHT"),
             MappingTestRow("L", profile.keyL),
             MappingTestRow("R", profile.keyR),
             MappingTestRow("ZL", profile.keyZL),
@@ -1253,6 +1297,9 @@ class MainActivity : ComponentActivity() {
         onConfirmDetected = {
             testHistoryKeys.clear()
             testHistoryDirs.clear()
+            testHistoryStickDirs.clear()
+            lastShownHatDir = null
+            lastShownStickDir = null
             wizardScreen.value = MappingWizardScreen.Testing(
                 profileName = gamepadHandler.profile.displayName,
                 rows = testRowsFor(gamepadHandler.profile),

@@ -43,7 +43,7 @@ import kotlinx.coroutines.delay
  * dark drawer card style.
  */
 
-data class MappingTestRow(val label: String, val keyCode: Int, val dpadDir: String? = null)
+data class MappingTestRow(val label: String, val keyCode: Int, val dpadDir: String? = null, val stickDir: String? = null)
 
 /** Non-blocking first-sight prompt state (owned by MainActivity). */
 data class MappingPromptUi(
@@ -66,8 +66,10 @@ sealed interface MappingWizardScreen {
         val lastKeyCode: Int?,
         val lastPressedLabel: String? = null,
         val lastDpadDir: String? = null,
+        val lastStickDir: String? = null,
         val historyKeys: Set<Int> = emptySet(),
-        val historyDirs: Set<String> = emptySet()
+        val historyDirs: Set<String> = emptySet(),
+        val historyStickDirs: Set<String> = emptySet()
     ) : MappingWizardScreen
 
     data class Capturing(
@@ -328,30 +330,204 @@ private fun TestingBody(screen: MappingWizardScreen.Testing) {
             Text("Last pressed: $it", color = LastBlue, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         }
         Spacer(modifier = Modifier.height(8.dp))
-        // No inner scroll: the card itself scrolls, so the action buttons
-        // below can never be stranded off-screen on short landscape displays.
-        Column(
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            for (row in screen.rows) {
-                val isLast = (row.keyCode != 0 && row.keyCode == screen.lastKeyCode) ||
-                    (row.dpadDir != null && row.dpadDir == screen.lastDpadDir)
-                val inHistory = (row.keyCode != 0 && screen.historyKeys.contains(row.keyCode)) ||
-                    (row.dpadDir != null && screen.historyDirs.contains(row.dpadDir))
-                val rowColor = when {
-                    isLast -> LastBlue
-                    inHistory -> HistoryGreen
-                    else -> Title
+        ProControllerDiagram(
+            getHighlight = { label -> highlightForTesting(label, screen) },
+            targetLabel = null
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text("● Last  ● Tested  ○ Untouched", color = Muted, fontSize = 11.sp)
+    }
+}
+
+private fun highlightForTesting(label: String, screen: MappingWizardScreen.Testing): Color {
+    val isLast = when {
+        label.startsWith("Stick L ") || label.startsWith("Stick R ") -> {
+            // Map stick direction labels to stickDir tag
+            val tag = when (label) {
+                "Stick L Up" -> "L_UP"; "Stick L Down" -> "L_DOWN"; "Stick L Left" -> "L_LEFT"; "Stick L Right" -> "L_RIGHT"
+                "Stick R Up" -> "R_UP"; "Stick R Down" -> "R_DOWN"; "Stick R Left" -> "R_LEFT"; "Stick R Right" -> "R_RIGHT"
+                else -> null
+            }
+            tag != null && tag == screen.lastStickDir
+        }
+        label.startsWith("D-Pad") -> {
+            val dir = when (label) { "D-Pad Up" -> "UP"; "D-Pad Down" -> "DOWN"; "D-Pad Left" -> "LEFT"; "D-Pad Right" -> "RIGHT"; else -> null }
+            dir == screen.lastDpadDir
+        }
+        else -> {
+            screen.rows.find { it.label == label }?.let { row ->
+                row.keyCode != 0 && row.keyCode == screen.lastKeyCode
+            } ?: false
+        }
+    }
+    val inHistory = when {
+        label.startsWith("Stick L ") || label.startsWith("Stick R ") -> {
+            val tag = when (label) {
+                "Stick L Up" -> "L_UP"; "Stick L Down" -> "L_DOWN"; "Stick L Left" -> "L_LEFT"; "Stick L Right" -> "L_RIGHT"
+                "Stick R Up" -> "R_UP"; "Stick R Down" -> "R_DOWN"; "Stick R Left" -> "R_LEFT"; "Stick R Right" -> "R_RIGHT"
+                else -> null
+            }
+            tag != null && screen.historyStickDirs.contains(tag)
+        }
+        label.startsWith("D-Pad") -> {
+            val dir = when (label) { "D-Pad Up" -> "UP"; "D-Pad Down" -> "DOWN"; "D-Pad Left" -> "LEFT"; "D-Pad Right" -> "RIGHT"; else -> null }
+            dir != null && screen.historyDirs.contains(dir)
+        }
+        else -> {
+            screen.rows.find { it.label == label }?.let { row -> row.keyCode != 0 && screen.historyKeys.contains(row.keyCode) } ?: false
+        }
+    }
+    return when {
+        isLast -> LastBlue
+        inHistory -> HistoryGreen
+        else -> Color(0xFF2A3446)
+    }
+}
+
+@Composable
+private fun ProControllerDiagram(
+    getHighlight: (String) -> Color,
+    targetLabel: String?
+) {
+    // Background controller shape
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFF0F141E), RoundedCornerShape(16.dp))
+            .padding(12.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            // Shoulders + center
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    DiagramShoulder("L", getHighlight("L"), targetLabel == "L")
+                    DiagramShoulder("ZL", getHighlight("ZL"), targetLabel == "ZL")
                 }
-                Text(
-                    (if (isLast || inHistory) "● " else "○ ") + row.label +
-                        if (row.keyCode == 0 && row.dpadDir != null) " (hat)" else "",
-                    color = rowColor,
-                    fontWeight = if (isLast || inHistory) FontWeight.Bold else FontWeight.Normal,
-                    fontSize = 13.sp
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    DiagramSmall("−", getHighlight("Minus"), targetLabel == "Minus")
+                    DiagramSmall("⌂", getHighlight("Home"), targetLabel == "Home")
+                    DiagramSmall("+", getHighlight("Plus"), targetLabel == "Plus")
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    DiagramShoulder("ZR", getHighlight("ZR"), targetLabel == "ZR")
+                    DiagramShoulder("R", getHighlight("R"), targetLabel == "R")
+                }
+            }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                // Left cluster: Stick L + D-Pad
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
+                    DiagramStick("L", getHighlight, targetLabel)
+                    DiagramDPad(getHighlight, targetLabel)
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                // Right cluster: Face buttons + Stick R
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
+                    DiagramFaceButtons(getHighlight, targetLabel)
+                    DiagramStick("R", getHighlight, targetLabel)
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun DiagramShoulder(label: String, color: Color, isTarget: Boolean) {
+    Box(
+        modifier = Modifier
+            .background(if (isTarget) Accent else color, RoundedCornerShape(6.dp))
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(label, color = if (color == Title || isTarget) Color(0xFF0B111B) else Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun DiagramSmall(label: String, color: Color, isTarget: Boolean) {
+    Box(
+        modifier = Modifier
+            .background(if (isTarget) Accent else color, RoundedCornerShape(20.dp))
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(label, color = if (isTarget) Color(0xFF0B111B) else if (color == Title) Color(0xFF0B111B) else Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun DiagramDPad(getHighlight: (String) -> Color, targetLabel: String?) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("D-PAD", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+        Spacer(modifier = Modifier.height(2.dp))
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            DiagramPadArrow("▲", "D-Pad Up", getHighlight, targetLabel)
+            Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
+                DiagramPadArrow("◀", "D-Pad Left", getHighlight, targetLabel)
+                Box(modifier = Modifier.background(Color(0xFF1A2332), RoundedCornerShape(4.dp)).padding(6.dp)) { Text("·", color = Muted, fontSize = 10.sp) }
+                DiagramPadArrow("▶", "D-Pad Right", getHighlight, targetLabel)
+            }
+            DiagramPadArrow("▼", "D-Pad Down", getHighlight, targetLabel)
+        }
+    }
+}
+
+@Composable
+private fun DiagramPadArrow(symbol: String, label: String, getHighlight: (String) -> Color, targetLabel: String?) {
+    val c = getHighlight(label)
+    val isTarget = targetLabel == label
+    Box(
+        modifier = Modifier
+            .background(if (isTarget) Accent else c, RoundedCornerShape(6.dp))
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(symbol, color = if (isTarget || c == Title) Color(0xFF0B111B) else Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun DiagramStick(side: String, getHighlight: (String) -> Color, targetLabel: String?) {
+    val up = getHighlight("Stick $side Up"); val down = getHighlight("Stick $side Down")
+    val left = getHighlight("Stick $side Left"); val right = getHighlight("Stick $side Right")
+    val press = getHighlight("Stick $side Press")
+    val isTargetPress = targetLabel == "Stick $side Press"
+    val isTargetMove = targetLabel == "Stick $side Move"
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("STICK $side", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+        Spacer(modifier = Modifier.height(2.dp))
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Box(modifier = Modifier.background(if (isTargetMove) Accent else up, RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 2.dp), contentAlignment = Alignment.Center) { Text("▲", color = if (up == Title || isTargetMove) Color(0xFF0B111B) else Color.White, fontSize = 10.sp) }
+            Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.background(if (isTargetMove) Accent else left, RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 2.dp), contentAlignment = Alignment.Center) { Text("◀", color = if (left == Title || isTargetMove) Color(0xFF0B111B) else Color.White, fontSize = 10.sp) }
+                Box(modifier = Modifier.background(if (isTargetPress) Accent else press, RoundedCornerShape(20.dp)).padding(horizontal = 10.dp, vertical = 4.dp), contentAlignment = Alignment.Center) { Text("●", color = if (press == Title || isTargetPress) Color(0xFF0B111B) else Color.White, fontSize = 10.sp) }
+                Box(modifier = Modifier.background(if (isTargetMove) Accent else right, RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 2.dp), contentAlignment = Alignment.Center) { Text("▶", color = if (right == Title || isTargetMove) Color(0xFF0B111B) else Color.White, fontSize = 10.sp) }
+            }
+            Box(modifier = Modifier.background(if (isTargetMove) Accent else down, RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 2.dp), contentAlignment = Alignment.Center) { Text("▼", color = if (down == Title || isTargetMove) Color(0xFF0B111B) else Color.White, fontSize = 10.sp) }
+        }
+    }
+}
+
+@Composable
+private fun DiagramFaceButtons(getHighlight: (String) -> Color, targetLabel: String?) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("A/B/X/Y", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+        Spacer(modifier = Modifier.height(2.dp))
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            DiagramFace("X", getHighlight("X"), targetLabel == "X")
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                DiagramFace("Y", getHighlight("Y"), targetLabel == "Y")
+                Box(modifier = Modifier.padding(8.dp)) {}
+                DiagramFace("A", getHighlight("A"), targetLabel == "A")
+            }
+            DiagramFace("B", getHighlight("B"), targetLabel == "B")
+        }
+    }
+}
+
+@Composable
+private fun DiagramFace(label: String, color: Color, isTarget: Boolean) {
+    Box(modifier = Modifier.background(if (isTarget) Accent else color, RoundedCornerShape(20.dp)).padding(horizontal = 12.dp, vertical = 6.dp), contentAlignment = Alignment.Center) {
+        Text(label, color = if (isTarget || color == Title) Color(0xFF0B111B) else Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -364,15 +540,23 @@ private fun CapturingBody(screen: MappingWizardScreen.Capturing, actions: Mappin
             actions.onCaptureTick()
         }
     }
-    Column {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             if (screen.isStickTarget) "Circle the stick, then Done wiggling:" else "Press for:",
             color = Muted,
             fontSize = 13.sp
         )
-        Spacer(modifier = Modifier.height(4.dp))
         Text(screen.targetLabel, color = Title, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(8.dp))
+        ProControllerDiagram(
+            getHighlight = { label ->
+                if (label == screen.targetLabel) Accent
+                else if (label == "Stick L Move" || label == "Stick R Move") {
+                    // Highlight all 4 dirs for move target handled inside DiagramStick via isTargetMove
+                    Color(0xFF2A3446)
+                } else Color(0xFF2A3446)
+            },
+            targetLabel = screen.targetLabel
+        )
         LinearProgressIndicator(
             progress = { screen.done.toFloat() / screen.total.coerceAtLeast(1) },
             modifier = Modifier.fillMaxWidth(),
@@ -381,7 +565,6 @@ private fun CapturingBody(screen: MappingWizardScreen.Capturing, actions: Mappin
         )
         Text("${screen.done}/${screen.total}", color = Muted, fontSize = 12.sp)
         screen.flash?.let {
-            Spacer(modifier = Modifier.height(4.dp))
             Text(it, color = Color(0xFFFF8A80), fontSize = 12.sp)
         }
     }
