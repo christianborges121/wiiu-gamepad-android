@@ -16,8 +16,8 @@ import com.cemupad.input.ControllerProfile
 enum class ConfigScreen(val title: String) {
     ROOT("Configuration"),
     DISPLAY("Display Settings"),
+    INPUT_HAPTICS("Input"),
     AUDIO("Audio Settings"),
-    INPUT_HAPTICS("Input & Haptics"),
     NETWORK("Network Information"),
     DEBUG("Debug & Troubleshooting")
 }
@@ -98,18 +98,18 @@ class ConfigMenuState {
                     iconName = "tv"
                 ),
                 ConfigMenuItem(
+                    id = "menu_input",
+                    title = "Input",
+                    subtitle = "Vibration ${if (settings.vibrationEnabled) "${(settings.vibrationIntensity * 100).toInt()}%" else "Off"} · ${activeControllerName ?: "Backbone One"}",
+                    type = ConfigItemType.SUBMENU_LINK,
+                    iconName = "gamepad"
+                ),
+                ConfigMenuItem(
                     id = "menu_audio",
                     title = "Audio",
                     subtitle = if (settings.audioEnabled) "On (${(settings.audioVolume * 100).toInt()}%) · Mic ${if (settings.micEnabled) "On" else "Off"}" else "Muted",
                     type = ConfigItemType.SUBMENU_LINK,
                     iconName = "volume"
-                ),
-                ConfigMenuItem(
-                    id = "menu_input",
-                    title = "Input & Haptics",
-                    subtitle = "Vibration ${if (settings.vibrationEnabled) "${(settings.vibrationIntensity * 100).toInt()}%" else "Off"} · ${activeControllerName ?: "Backbone One"}",
-                    type = ConfigItemType.SUBMENU_LINK,
-                    iconName = "gamepad"
                 ),
                 ConfigMenuItem(
                     id = "menu_network",
@@ -209,7 +209,7 @@ class ConfigMenuState {
                 ConfigMenuItem(
                     id = "input_vibration_intensity",
                     title = "Vibration Intensity",
-                    subtitle = "Haptic motor strength",
+                    subtitle = "Haptic motor strength — Not configurable on all devices",
                     type = ConfigItemType.SLIDER,
                     valueText = if (settings.vibrationIntensity <= 0f) "Off" else "${(settings.vibrationIntensity * 100).toInt()}%",
                     sliderProgress = settings.vibrationIntensity,
@@ -486,8 +486,8 @@ class ConfigMenuState {
         if (currentScreen != ConfigScreen.ROOT) {
             val returnIndex = when (currentScreen) {
                 ConfigScreen.DISPLAY -> 0
-                ConfigScreen.AUDIO -> 1
-                ConfigScreen.INPUT_HAPTICS -> 2
+                ConfigScreen.INPUT_HAPTICS -> 1
+                ConfigScreen.AUDIO -> 2
                 ConfigScreen.NETWORK -> 3
                 ConfigScreen.DEBUG -> 4
                 ConfigScreen.ROOT -> 0
@@ -521,36 +521,30 @@ class ConfigMenuState {
     ): Boolean {
         if (!isOpen) return false
         if (action != KeyEvent.ACTION_DOWN) return true
-
-        val keyA = profile?.keyA ?: KeyEvent.KEYCODE_BUTTON_A
-        val keyB = profile?.keyB ?: KeyEvent.KEYCODE_BUTTON_B
-        val keyDpadUp = profile?.keyDpadUp ?: KeyEvent.KEYCODE_DPAD_UP
-        val keyDpadDown = profile?.keyDpadDown ?: KeyEvent.KEYCODE_DPAD_DOWN
-        val keyDpadLeft = profile?.keyDpadLeft ?: KeyEvent.KEYCODE_DPAD_LEFT
-        val keyDpadRight = profile?.keyDpadRight ?: KeyEvent.KEYCODE_DPAD_RIGHT
-
+        // Menu navigation uses fixed physical keys (south=A/east=B) so remapped
+        // Wii U profiles don't swap confirm/back. profile is ignored intentionally.
         return when (keyCode) {
-            keyA, KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+            KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
                 onSelectA(items, settings, onSettingsChanged, onAction)
                 true
             }
-            keyB, KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_ESCAPE -> {
+            KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
                 onBackB()
                 true
             }
-            keyDpadUp, KeyEvent.KEYCODE_DPAD_UP -> {
+            KeyEvent.KEYCODE_DPAD_UP -> {
                 onUp(items)
                 true
             }
-            keyDpadDown, KeyEvent.KEYCODE_DPAD_DOWN -> {
+            KeyEvent.KEYCODE_DPAD_DOWN -> {
                 onDown(items)
                 true
             }
-            keyDpadLeft, KeyEvent.KEYCODE_DPAD_LEFT -> {
+            KeyEvent.KEYCODE_DPAD_LEFT -> {
                 onLeft(items, settings, onSettingsChanged)
                 true
             }
-            keyDpadRight, KeyEvent.KEYCODE_DPAD_RIGHT -> {
+            KeyEvent.KEYCODE_DPAD_RIGHT -> {
                 onRight(items, settings, onSettingsChanged)
                 true
             }

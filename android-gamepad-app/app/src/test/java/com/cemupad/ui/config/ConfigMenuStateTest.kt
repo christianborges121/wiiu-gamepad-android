@@ -82,18 +82,18 @@ class ConfigMenuStateTest {
         assertEquals(ConfigScreen.ROOT, state.currentScreen)
         assertEquals(0, state.focusedIndex) // returns to Display row
 
-        // Focus on "Audio" (index 1) and press A
+        // Focus on "Input" (index 1) and press A (Display first, Input second per new order)
         val updatedRootItems = state.getItems(state.currentScreen, currentSettings)
         state.focusedIndex = 1
         state.onSelectA(updatedRootItems, currentSettings, { currentSettings = it }, { lastAction = it })
 
-        assertEquals(ConfigScreen.AUDIO, state.currentScreen)
+        assertEquals(ConfigScreen.INPUT_HAPTICS, state.currentScreen)
         assertEquals(0, state.focusedIndex)
 
         // Press B to return to root
         state.onBackB()
         assertEquals(ConfigScreen.ROOT, state.currentScreen)
-        assertEquals(1, state.focusedIndex) // returns to Audio row
+        assertEquals(1, state.focusedIndex) // returns to Input row
 
         // Press B on Root closes menu
         state.onBackB()

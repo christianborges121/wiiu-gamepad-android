@@ -222,10 +222,10 @@ private fun ConfigMenuHeader(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        "B",
+                        "<",
                         color = Color(0xFF00E5FF),
                         fontWeight = FontWeight.Black,
-                        fontSize = 13.sp
+                        fontSize = 16.sp
                     )
                 }
                 Spacer(modifier = Modifier.width(10.dp))
@@ -353,26 +353,12 @@ private fun ConfigItemCard(
             // Right interactive control
             when (item.type) {
                 ConfigItemType.SUBMENU_LINK -> {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (isFocused) {
-                            Text(
-                                "A Enter",
-                                color = Color(0xFF00E5FF),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier
-                                    .background(Color(0xFF0A2B3D), RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                        }
-                        Text(
-                            "▶",
-                            color = if (isFocused) Color(0xFF00E5FF) else Color(0xFF7A8B9E),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    Text(
+                        "▶",
+                        color = if (isFocused) Color(0xFF00E5FF) else Color(0xFF7A8B9E),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
 
                 ConfigItemType.MULTI_CHOICE -> {
@@ -525,7 +511,7 @@ private fun ConfigControllerFooter(isRoot: Boolean) {
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            BadgeHint("B")
+            BadgeHint("<")
             Spacer(modifier = Modifier.width(4.dp))
             Text(if (isRoot) "Close" else "Back", color = Color(0xFF7A8B9E), fontSize = 11.sp)
         }
