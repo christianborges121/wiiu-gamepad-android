@@ -26,10 +26,12 @@ class AppSettingsCodecTest {
         assertEquals(0.5f, settings.virtualControlsOpacity, 0.001f)
         assertTrue(settings.audioEnabled)
         assertEquals(1.0f, settings.audioVolume, 0.001f)
-        assertTrue(settings.vibrationEnabled)
+        assertFalse(settings.vibrationEnabled)
         assertEquals(1.0f, settings.vibrationIntensity, 0.001f)
-        assertTrue(settings.micEnabled)
-        assertEquals(6, settings.videoBitrateMbps)
+        assertFalse(settings.micEnabled)
+        assertEquals(FramePacingMode.IMMEDIATE, settings.framePacing)
+        assertEquals(VideoCodecPreference.AUTO, settings.videoCodec)
+        assertEquals(10, settings.videoBitrateMbps)
     }
 
     @Test
@@ -41,7 +43,7 @@ class AppSettingsCodecTest {
             diagnosticsOverlayEnabled = null
         )
 
-        assertEquals(6, settings.videoBitrateMbps)
+        assertEquals(10, settings.videoBitrateMbps)
     }
 
     @Test
@@ -51,7 +53,9 @@ class AppSettingsCodecTest {
             resolutionName = "4K",
             diagnosticsOverlayEnabled = true,
             connectionHelpVisible = false,
-            limitTo30Fps = false
+            limitTo30Fps = false,
+            framePacingName = "TURBO",
+            videoCodecName = "AV1_UNKNOWN"
         )
 
         assertEquals(DisplayFitMode.ASPECT_FIT, settings.fitMode)
@@ -59,7 +63,9 @@ class AppSettingsCodecTest {
         assertTrue(settings.diagnosticsOverlayEnabled)
         assertFalse(settings.showConnectionHelp)
         assertFalse(settings.limitTo30Fps)
-        assertTrue(settings.micEnabled)
+        assertFalse(settings.micEnabled)
+        assertEquals(FramePacingMode.IMMEDIATE, settings.framePacing)
+        assertEquals(VideoCodecPreference.AUTO, settings.videoCodec)
     }
 
     @Test
@@ -77,7 +83,9 @@ class AppSettingsCodecTest {
             audioVolume = 0.42f,
             vibrationEnabled = false,
             vibrationIntensity = 0.35f,
-            micEnabled = false
+            micEnabled = false,
+            framePacing = FramePacingMode.VSYNC,
+            videoCodec = VideoCodecPreference.HEVC
         )
 
         val encoded = AppSettingsCodec.encode(original)
@@ -95,7 +103,9 @@ class AppSettingsCodecTest {
             vibrationEnabled = encoded.vibrationEnabled,
             vibrationIntensity = encoded.vibrationIntensity,
             stickDeadzone = encoded.stickDeadzone,
-            micEnabled = encoded.micEnabled
+            micEnabled = encoded.micEnabled,
+            framePacingName = encoded.framePacingName,
+            videoCodecName = encoded.videoCodecName
         )
 
         assertEquals(original, restored)

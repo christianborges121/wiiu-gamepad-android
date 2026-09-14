@@ -18,6 +18,7 @@ object UdpVideoPacket {
     const val FLAG_START = 0x01
     const val FLAG_END = 0x02
     const val FLAG_IDR = 0x04
+    const val FLAG_FEC = 0x08
 
     data class Header(
         val frameId: Long,
@@ -25,11 +26,14 @@ object UdpVideoPacket {
         val packetIndex: Int,
         val packetCount: Int,
         val ptsUs: Long,
-        val flags: Int
+        val flags: Int,
+        val parityCount: Int = 0
     ) {
         val isStart: Boolean get() = (flags and FLAG_START) != 0
         val isEnd: Boolean get() = (flags and FLAG_END) != 0
         val isIdr: Boolean get() = (flags and FLAG_IDR) != 0
+        val isFec: Boolean get() = (flags and FLAG_FEC) != 0
+        val totalCount: Int get() = packetCount + parityCount
     }
 
     data class Decoded(val header: Header, val payload: ByteArray)
@@ -44,7 +48,8 @@ object UdpVideoPacket {
         buf.putInt(header.frameId.toInt())
         buf.putInt(header.seq.toInt())
         buf.putShort(header.packetIndex.toShort())
-        buf.putShort(header.packetCount.toShort())
+        buf.put(header.packetCount.toByte())
+        buf.put(header.parityCount.toByte())
         buf.putLong(header.ptsUs)
         buf.put(payload, payloadOffset, payloadSize)
         return buf.array()
@@ -60,10 +65,12 @@ object UdpVideoPacket {
         val frameId = buf.int.toLong() and 0xFFFFFFFFL
         val seq = buf.int.toLong() and 0xFFFFFFFFL
         val packetIndex = buf.short.toInt() and 0xFFFF
-        val packetCount = buf.short.toInt() and 0xFFFF
+        val packetCount = buf.get().toInt() and 0xFF
+        val parityCount = buf.get().toInt() and 0xFF
         val ptsUs = buf.long
-        if (packetCount <= 0 || packetCount > 4096) return null
-        if (packetIndex >= packetCount) return null
+        val totalCount = packetCount + parityCount
+        if (packetCount <= 0) return null
+        if (packetIndex >= totalCount) return null
         val payloadSize = length - HEADER_SIZE
         if (payloadSize <= 0 || payloadSize > MAX_PAYLOAD) return null
         val payload = datagram.copyOfRange(HEADER_SIZE, HEADER_SIZE + payloadSize)
@@ -74,7 +81,8 @@ object UdpVideoPacket {
                 packetIndex = packetIndex,
                 packetCount = packetCount,
                 ptsUs = ptsUs,
-                flags = flags
+                flags = flags,
+                parityCount = parityCount
             ),
             payload
         )

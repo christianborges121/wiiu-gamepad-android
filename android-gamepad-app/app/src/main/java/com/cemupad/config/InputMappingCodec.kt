@@ -105,4 +105,38 @@ object InputMappingCodec {
             displayName = values[KEY_DISPLAY_NAME] ?: name
         )
     }
+
+    /**
+     * Translate a ControllerProfile into VPAD mapping entries (mappingId -> DSU buttonId)
+     * for pushing to Cemu. Mapping IDs match VPADController::kButtonId_* (see CemuPadBridge).
+     * DSU button constants mirror ControllerBase kButton* (kButton14=Cross etc.).
+     *
+     * Note: The DSU mapping is the logical Wii U -> DSU translation and is the same for
+     * every physical profile. Handler always sends Cross for Wii U A regardless of which
+     * physical key is bound to A, so the Cemu side is profile-agnostic. We keep this
+     * pure and deterministic for testing.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    fun toVpadEntries(profile: com.cemupad.input.ControllerProfile): List<Pair<Int, Int>> {
+        // 25 entries: face + shoulders + dpad + sticks (press + 8 dirs) + mic.
+        // Mapping IDs match VPADController::ButtonId in Cemu:
+        // 1..4: A, B, X, Y -> Cross (14), Circle (13), Square (15), Triangle (12)
+        // 5..6: L, R -> L (10), R (11)
+        // 7..8: ZL, ZR -> ZL (8), ZR (9)
+        // 9..10: Plus, Minus -> Options (3), Share (0)
+        // 11..14: Up, Down, Left, Right -> Up (4), Down (6), Left (7), Right (5)
+        // 15..16: StickL, StickR clicks -> StickL (1), StickR (2)
+        // 17..20: StickL Up, Down, Left, Right -> kAxisYP (39), kAxisYN (45), kAxisXN (44), kAxisXP (38)
+        // 21..24: StickR Up, Down, Left, Right -> kRotationYP (41), kRotationYN (47), kRotationXN (46), kRotationXP (40)
+        // 25: Mic -> kButton16 (16)
+        return listOf(
+            1 to 14, 2 to 13, 3 to 15, 4 to 12,
+            5 to 10, 6 to 11, 7 to 8, 8 to 9,
+            9 to 3, 10 to 0, 11 to 4, 12 to 6, 13 to 7, 14 to 5,
+            15 to 1, 16 to 2,
+            17 to 39, 18 to 45, 19 to 44, 20 to 38,
+            21 to 41, 22 to 47, 23 to 46, 24 to 40,
+            25 to 16
+        )
+    }
 }

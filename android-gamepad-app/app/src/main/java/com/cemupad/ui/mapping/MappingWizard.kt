@@ -1,8 +1,11 @@
 package com.cemupad.ui.mapping
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,13 +13,22 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -32,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cemupad.input.DetectionConfidence
@@ -43,7 +56,7 @@ import kotlinx.coroutines.delay
  * dark drawer card style.
  */
 
-data class MappingTestRow(val label: String, val keyCode: Int, val dpadDir: String? = null)
+data class MappingTestRow(val label: String, val keyCode: Int, val dpadDir: String? = null, val stickDir: String? = null)
 
 /** Non-blocking first-sight prompt state (owned by MainActivity). */
 data class MappingPromptUi(
@@ -66,8 +79,10 @@ sealed interface MappingWizardScreen {
         val lastKeyCode: Int?,
         val lastPressedLabel: String? = null,
         val lastDpadDir: String? = null,
+        val lastStickDir: String? = null,
         val historyKeys: Set<Int> = emptySet(),
-        val historyDirs: Set<String> = emptySet()
+        val historyDirs: Set<String> = emptySet(),
+        val historyStickDirs: Set<String> = emptySet()
     ) : MappingWizardScreen
 
     data class Capturing(
@@ -176,8 +191,8 @@ fun MappingWizard(
                 modifier = Modifier
                     .widthIn(max = 520.dp)
                     .verticalScroll(rememberScrollState())
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(horizontal = 6.dp, vertical = if (screen is MappingWizardScreen.Capturing) 6.dp else 8.dp),
+                verticalArrangement = Arrangement.spacedBy(if (screen is MappingWizardScreen.Capturing) 6.dp else 10.dp)
             ) {
                 if (screen is MappingWizardScreen.Testing) {
                     Row(
@@ -188,7 +203,7 @@ fun MappingWizard(
                         Text(
                             "Test layout",
                             color = Title,
-                            fontSize = 18.sp,
+                            fontSize = 17.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -213,16 +228,14 @@ fun MappingWizard(
                             }
                         }
                     }
-                } else {
+                } else if (screen !is MappingWizardScreen.Capturing) {
                     Text(
                         when (screen) {
                             is MappingWizardScreen.Detected -> "Controller setup"
-                            is MappingWizardScreen.Testing -> "Test layout"
-                            is MappingWizardScreen.Capturing -> "Map buttons"
                             is MappingWizardScreen.Done -> "Mapping done"
                         },
                         color = Title,
-                        fontSize = 18.sp,
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -251,14 +264,7 @@ fun MappingWizard(
                             }
                         }
                         is MappingWizardScreen.Testing -> {
-                            TextButton(onClick = actions.onRemap) { Text("Remap", color = Muted) }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Button(
-                                onClick = actions.onSaveTest,
-                                colors = ButtonDefaults.buttonColors(containerColor = Accent)
-                            ) {
-                                Text("Looks right", color = Color(0xFF0B111B))
-                            }
+                            // Bottom actions removed — top bar (Remap / Looks right / Close) is sole affordance
                         }
                         is MappingWizardScreen.Capturing -> {
                             TextButton(onClick = actions.onCaptureBack) { Text("Back", color = Muted) }
@@ -285,7 +291,7 @@ fun MappingWizard(
                             }
                         }
                     }
-                    if (screen !is MappingWizardScreen.Capturing) {
+                    if (screen is MappingWizardScreen.Detected || screen is MappingWizardScreen.Done) {
                         Spacer(modifier = Modifier.width(8.dp))
                         TextButton(onClick = actions.onWizardClose) { Text("Close", color = Muted) }
                     }
@@ -321,36 +327,298 @@ private fun DetectedBody(screen: MappingWizardScreen.Detected) {
 
 @Composable
 private fun TestingBody(screen: MappingWizardScreen.Testing) {
-    Column {
-        Text("Press buttons — each should light up. (${screen.profileName})", color = Muted, fontSize = 13.sp)
-        screen.lastPressedLabel?.let {
-            Spacer(modifier = Modifier.height(4.dp))
-            Text("Last pressed: $it", color = LastBlue, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        // No inner scroll: the card itself scrolls, so the action buttons
-        // below can never be stranded off-screen on short landscape displays.
-        Column(
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            for (row in screen.rows) {
-                val isLast = (row.keyCode != 0 && row.keyCode == screen.lastKeyCode) ||
-                    (row.dpadDir != null && row.dpadDir == screen.lastDpadDir)
-                val inHistory = (row.keyCode != 0 && screen.historyKeys.contains(row.keyCode)) ||
-                    (row.dpadDir != null && screen.historyDirs.contains(row.dpadDir))
-                val rowColor = when {
-                    isLast -> LastBlue
-                    inHistory -> HistoryGreen
-                    else -> Title
+            Text(
+                if (screen.profileName == "Debug Preview") "Press buttons — each should light up."
+                else "Press buttons — each should light up. (${screen.profileName})",
+                color = Muted,
+                fontSize = 12.sp,
+                modifier = Modifier.weight(1f, fill = false)
+            )
+            // Reserve fixed 12sp line height on right so diagram never shifts when lastPressed appears.
+            Box(modifier = Modifier.padding(start = 12.dp)) {
+                if (screen.lastPressedLabel != null) {
+                    Text(
+                        "Last pressed: ${screen.lastPressedLabel}",
+                        color = LastBlue,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                } else {
+                    // Invisible placeholder keeps row height stable (no shift on first press).
+                    Text(" ", color = Color.Transparent, fontSize = 12.sp, maxLines = 1)
                 }
-                Text(
-                    (if (isLast || inHistory) "● " else "○ ") + row.label +
-                        if (row.keyCode == 0 && row.dpadDir != null) " (hat)" else "",
-                    color = rowColor,
-                    fontWeight = if (isLast || inHistory) FontWeight.Bold else FontWeight.Normal,
-                    fontSize = 13.sp
-                )
             }
+        }
+        ControllerLineDiagram(
+            getHighlight = { label -> highlightForTesting(label, screen) },
+            targetLabel = null
+        )
+        Text("● Last  ● Tested  ○ Untouched", color = Muted, fontSize = 11.sp)
+    }
+}
+
+private fun normalizeControl(name: String): String = when (name.trim()) {
+    "A" -> "A"
+    "B" -> "B"
+    "X" -> "X"
+    "Y" -> "Y"
+    "L" -> "L"
+    "R" -> "R"
+    "ZL" -> "ZL"
+    "ZR" -> "ZR"
+    "Minus", "Minus (-)", "MINUS", "−" -> "MINUS"
+    "Plus", "Plus (+)", "PLUS", "+" -> "PLUS"
+    "Home", "HOME", "⌂" -> "HOME"
+    "D-Pad Up", "Dpad Up", "DPAD_UP" -> "DPAD_UP"
+    "D-Pad Down", "Dpad Down", "DPAD_DOWN" -> "DPAD_DOWN"
+    "D-Pad Left", "Dpad Left", "DPAD_LEFT" -> "DPAD_LEFT"
+    "D-Pad Right", "Dpad Right", "DPAD_RIGHT" -> "DPAD_RIGHT"
+    "Stick L Up", "STICK_L_UP" -> "STICK_L_UP"
+    "Stick L Down", "STICK_L_DOWN" -> "STICK_L_DOWN"
+    "Stick L Left", "STICK_L_LEFT" -> "STICK_L_LEFT"
+    "Stick L Right", "STICK_L_RIGHT" -> "STICK_L_RIGHT"
+    "Left Stick Press", "Stick L Press", "STICK_L_PRESS", "L3" -> "STICK_L_PRESS"
+    "Stick R Up", "STICK_R_UP" -> "STICK_R_UP"
+    "Stick R Down", "STICK_R_DOWN" -> "STICK_R_DOWN"
+    "Stick R Left", "STICK_R_LEFT" -> "STICK_R_LEFT"
+    "Stick R Right", "STICK_R_RIGHT" -> "STICK_R_RIGHT"
+    "Right Stick Press", "Stick R Press", "STICK_R_PRESS", "R3" -> "STICK_R_PRESS"
+    else -> name.uppercase()
+}
+
+private fun matchesControl(labelOrKey: String, targetLabel: String?): Boolean {
+    if (targetLabel == null) return false
+    val targetNorm = normalizeControl(targetLabel)
+    val keyNorm = normalizeControl(labelOrKey)
+    if (targetNorm == keyNorm) return true
+    if (targetLabel == "Stick L Move" && keyNorm.startsWith("STICK_L_")) return true
+    if (targetLabel == "Stick R Move" && keyNorm.startsWith("STICK_R_")) return true
+    return false
+}
+
+private fun highlightForTesting(label: String, screen: MappingWizardScreen.Testing): Color {
+    val norm = normalizeControl(label)
+    val isLast = when (norm) {
+        "STICK_L_UP" -> screen.lastStickDir == "L_UP"
+        "STICK_L_DOWN" -> screen.lastStickDir == "L_DOWN"
+        "STICK_L_LEFT" -> screen.lastStickDir == "L_LEFT"
+        "STICK_L_RIGHT" -> screen.lastStickDir == "L_RIGHT"
+        "STICK_R_UP" -> screen.lastStickDir == "R_UP"
+        "STICK_R_DOWN" -> screen.lastStickDir == "R_DOWN"
+        "STICK_R_LEFT" -> screen.lastStickDir == "R_LEFT"
+        "STICK_R_RIGHT" -> screen.lastStickDir == "R_RIGHT"
+        "DPAD_UP" -> screen.lastDpadDir == "UP"
+        "DPAD_DOWN" -> screen.lastDpadDir == "DOWN"
+        "DPAD_LEFT" -> screen.lastDpadDir == "LEFT"
+        "DPAD_RIGHT" -> screen.lastDpadDir == "RIGHT"
+        else -> {
+            screen.rows.find { normalizeControl(it.label) == norm }?.let { row ->
+                row.keyCode != 0 && row.keyCode == screen.lastKeyCode
+            } ?: false
+        }
+    }
+    val inHistory = when (norm) {
+        "STICK_L_UP" -> screen.historyStickDirs.contains("L_UP")
+        "STICK_L_DOWN" -> screen.historyStickDirs.contains("L_DOWN")
+        "STICK_L_LEFT" -> screen.historyStickDirs.contains("L_LEFT")
+        "STICK_L_RIGHT" -> screen.historyStickDirs.contains("L_RIGHT")
+        "STICK_R_UP" -> screen.historyStickDirs.contains("R_UP")
+        "STICK_R_DOWN" -> screen.historyStickDirs.contains("R_DOWN")
+        "STICK_R_LEFT" -> screen.historyStickDirs.contains("R_LEFT")
+        "STICK_R_RIGHT" -> screen.historyStickDirs.contains("R_RIGHT")
+        "DPAD_UP" -> screen.historyDirs.contains("UP")
+        "DPAD_DOWN" -> screen.historyDirs.contains("DOWN")
+        "DPAD_LEFT" -> screen.historyDirs.contains("LEFT")
+        "DPAD_RIGHT" -> screen.historyDirs.contains("RIGHT")
+        else -> {
+            screen.rows.find { normalizeControl(it.label) == norm }?.let { row ->
+                row.keyCode != 0 && screen.historyKeys.contains(row.keyCode)
+            } ?: false
+        }
+    }
+    return when {
+        isLast -> LastBlue
+        inHistory -> HistoryGreen
+        else -> Color(0xFF1E283A)
+    }
+}
+
+@Composable
+private fun ControllerLineDiagram(
+    getHighlight: (String) -> Color,
+    targetLabel: String?
+) {
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
+    ) {
+        val density = LocalDensity.current
+        val wDp = 400.dp
+        val hDp = 225.dp
+        val wPx = with(density) { wDp.toPx() }
+        val hPx = with(density) { hDp.toPx() }
+
+        Box(
+            modifier = Modifier.size(wDp, hDp)
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val canvasW = size.width
+                val canvasH = size.height
+
+                val bodyPath = Path().apply {
+                    // Top center bridge
+                    moveTo(canvasW * 0.35f, canvasH * 0.14f)
+                    // Left trigger hump
+                    cubicTo(canvasW * 0.28f, canvasH * 0.14f, canvasW * 0.25f, canvasH * 0.04f, canvasW * 0.20f, canvasH * 0.04f)
+                    cubicTo(canvasW * 0.13f, canvasH * 0.04f, canvasW * 0.10f, canvasH * 0.12f, canvasW * 0.09f, canvasH * 0.22f)
+                    // Left grip outer edge
+                    cubicTo(canvasW * 0.06f, canvasH * 0.38f, canvasW * 0.02f, canvasH * 0.62f, canvasW * 0.05f, canvasH * 0.84f)
+                    // Left grip tip
+                    cubicTo(canvasW * 0.07f, canvasH * 0.96f, canvasW * 0.15f, canvasH * 1.00f, canvasW * 0.21f, canvasH * 0.92f)
+                    // Left inner grip rising
+                    cubicTo(canvasW * 0.26f, canvasH * 0.82f, canvasW * 0.28f, canvasH * 0.74f, canvasW * 0.34f, canvasH * 0.72f)
+                    // Bottom center arch
+                    cubicTo(canvasW * 0.42f, canvasH * 0.78f, canvasW * 0.58f, canvasH * 0.78f, canvasW * 0.66f, canvasH * 0.72f)
+                    // Right inner grip descending
+                    cubicTo(canvasW * 0.72f, canvasH * 0.74f, canvasW * 0.74f, canvasH * 0.82f, canvasW * 0.79f, canvasH * 0.92f)
+                    // Right grip tip
+                    cubicTo(canvasW * 0.85f, canvasH * 1.00f, canvasW * 0.93f, canvasH * 0.96f, canvasW * 0.95f, canvasH * 0.84f)
+                    // Right grip outer edge
+                    cubicTo(canvasW * 0.98f, canvasH * 0.62f, canvasW * 0.94f, canvasH * 0.38f, canvasW * 0.91f, canvasH * 0.22f)
+                    cubicTo(canvasW * 0.90f, canvasH * 0.12f, canvasW * 0.87f, canvasH * 0.04f, canvasW * 0.80f, canvasH * 0.04f)
+                    cubicTo(canvasW * 0.75f, canvasH * 0.04f, canvasW * 0.72f, canvasH * 0.14f, canvasW * 0.65f, canvasH * 0.14f)
+                    close()
+                }
+
+                // Chassis background
+                drawPath(bodyPath, color = Color(0xFF0F1522))
+                // Controller silhouette outline line art
+                drawPath(bodyPath, color = Color(0xFF2E4059), style = Stroke(width = 2.dp.toPx()))
+
+                // Grip accent seam lines
+                val leftGripSeam = Path().apply {
+                    moveTo(canvasW * 0.24f, canvasH * 0.24f)
+                    cubicTo(canvasW * 0.20f, canvasH * 0.50f, canvasW * 0.18f, canvasH * 0.72f, canvasW * 0.15f, canvasH * 0.88f)
+                }
+                drawPath(leftGripSeam, color = Color(0xFF1C2738), style = Stroke(width = 1.5.dp.toPx()))
+
+                val rightGripSeam = Path().apply {
+                    moveTo(canvasW * 0.76f, canvasH * 0.24f)
+                    cubicTo(canvasW * 0.80f, canvasH * 0.50f, canvasW * 0.82f, canvasH * 0.72f, canvasW * 0.85f, canvasH * 0.88f)
+                }
+                drawPath(rightGripSeam, color = Color(0xFF1C2738), style = Stroke(width = 1.5.dp.toPx()))
+
+                // Wells for stick, dpad, face button clusters
+                val wellColor = Color(0xFF131A28)
+                val wellBorder = Color(0xFF223046)
+                val wellBorderWidth = 1.dp.toPx()
+
+                // Left stick well — directly under L (shifted down to 0.33 to clear bumper, radius 18)
+                drawCircle(color = wellColor, radius = 18.dp.toPx(), center = Offset(canvasW * 0.22f, canvasH * 0.33f))
+                drawCircle(color = wellBorder, radius = 18.dp.toPx(), center = Offset(canvasW * 0.22f, canvasH * 0.33f), style = Stroke(wellBorderWidth))
+
+                // D-Pad well — slightly up (0.65 → 0.60), radius 18
+                drawCircle(color = wellColor, radius = 18.dp.toPx(), center = Offset(canvasW * 0.33f, canvasH * 0.60f))
+                drawCircle(color = wellBorder, radius = 18.dp.toPx(), center = Offset(canvasW * 0.33f, canvasH * 0.60f), style = Stroke(wellBorderWidth))
+
+                // Right stick well — directly under R (radius 18)
+                drawCircle(color = wellColor, radius = 18.dp.toPx(), center = Offset(canvasW * 0.78f, canvasH * 0.33f))
+                drawCircle(color = wellBorder, radius = 18.dp.toPx(), center = Offset(canvasW * 0.78f, canvasH * 0.33f), style = Stroke(wellBorderWidth))
+
+                // Face buttons well — slightly up (radius 18)
+                drawCircle(color = wellColor, radius = 18.dp.toPx(), center = Offset(canvasW * 0.67f, canvasH * 0.60f))
+                drawCircle(color = wellBorder, radius = 18.dp.toPx(), center = Offset(canvasW * 0.67f, canvasH * 0.60f), style = Stroke(wellBorderWidth))
+            }
+
+            @Composable
+            fun Badge(
+                controlKey: String,
+                symbol: String,
+                rx: Float,
+                ry: Float,
+                w: androidx.compose.ui.unit.Dp,
+                h: androidx.compose.ui.unit.Dp,
+                shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(4.dp),
+                fontSize: androidx.compose.ui.unit.TextUnit = 9.sp
+            ) {
+                val isTarget = matchesControl(controlKey, targetLabel)
+                val color = getHighlight(controlKey)
+                val bgColor = if (isTarget) Accent else color
+                val textColor = if (isTarget || color == Accent || color == Title) Color(0xFF0B111B) else Color.White
+                val borderColor = if (isTarget) Color(0xFF00E5FF) else Color(0xFF2C3E56)
+
+                Box(
+                    modifier = Modifier
+                        .offset {
+                            val centerX = rx * wPx
+                            val centerY = ry * hPx
+                            val bw = w.toPx()
+                            val bh = h.toPx()
+                            IntOffset((centerX - bw / 2f).roundToInt(), (centerY - bh / 2f).roundToInt())
+                        }
+                        .size(w, h)
+                        .background(bgColor, shape)
+                        .border(if (isTarget) 1.5.dp else 0.5.dp, borderColor, shape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = symbol,
+                        color = textColor,
+                        fontSize = fontSize,
+                        fontWeight = if (isTarget) FontWeight.ExtraBold else FontWeight.Bold,
+                        maxLines = 1,
+                        textAlign = TextAlign.Center,
+                        style = androidx.compose.ui.text.TextStyle(
+                            platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false),
+                            lineHeight = fontSize
+                        )
+                    )
+                }
+            }
+
+            // 1. Shoulders & Triggers — ZL/L and ZR/R pulled closer (gap 24→13dp)
+            Badge("ZL", "ZL", 0.20f, 0.04f, 46.dp, 14.dp, RoundedCornerShape(5.dp), 11.sp)
+            Badge("L", "L", 0.20f, 0.10f, 44.dp, 14.dp, RoundedCornerShape(5.dp), 12.sp)
+            Badge("ZR", "ZR", 0.80f, 0.04f, 46.dp, 14.dp, RoundedCornerShape(5.dp), 11.sp)
+            Badge("R", "R", 0.80f, 0.10f, 44.dp, 14.dp, RoundedCornerShape(5.dp), 12.sp)
+
+            // 2. Center Buttons (Minus, Home, Plus) — +10%
+            Badge("MINUS", "−", 0.43f, 0.28f, 22.dp, 19.dp, RoundedCornerShape(7.dp), 12.sp)
+            Badge("HOME", "⌂", 0.50f, 0.40f, 22.dp, 22.dp, CircleShape, 13.sp)
+            Badge("PLUS", "+", 0.57f, 0.28f, 22.dp, 19.dp, RoundedCornerShape(7.dp), 12.sp)
+
+            // 3. Left Stick — directly under L (22,33) — +10%
+            Badge("STICK_L_PRESS", "L3", 0.22f, 0.33f, 18.dp, 18.dp, CircleShape, 10.sp)
+            Badge("STICK_L_UP", "▲", 0.22f, 0.24f, 13.dp, 11.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("STICK_L_DOWN", "▼", 0.22f, 0.42f, 13.dp, 11.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("STICK_L_LEFT", "◀", 0.17f, 0.33f, 11.dp, 13.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("STICK_L_RIGHT", "▶", 0.27f, 0.33f, 11.dp, 13.dp, RoundedCornerShape(3.dp), 8.sp)
+
+            // 4. D-Pad — tightened left/right gap +10%
+            Badge("DPAD_UP", "▲", 0.33f, 0.51f, 13.dp, 11.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("DPAD_DOWN", "▼", 0.33f, 0.69f, 13.dp, 11.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("DPAD_LEFT", "◀", 0.28f, 0.60f, 11.dp, 13.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("DPAD_RIGHT", "▶", 0.38f, 0.60f, 11.dp, 13.dp, RoundedCornerShape(3.dp), 8.sp)
+
+            // 5. Right Stick — directly under R (78,33) — +10%
+            Badge("STICK_R_PRESS", "R3", 0.78f, 0.33f, 18.dp, 18.dp, CircleShape, 10.sp)
+            Badge("STICK_R_UP", "▲", 0.78f, 0.24f, 13.dp, 11.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("STICK_R_DOWN", "▼", 0.78f, 0.42f, 13.dp, 11.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("STICK_R_LEFT", "◀", 0.73f, 0.33f, 11.dp, 13.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("STICK_R_RIGHT", "▶", 0.83f, 0.33f, 11.dp, 13.dp, RoundedCornerShape(3.dp), 8.sp)
+
+            // 6. Face Buttons ABXY — Y/A 40dp, X/B matched to same 40dp +10% scale
+            Badge("X", "X", 0.67f, 0.51f, 22.dp, 22.dp, CircleShape, 12.sp)
+            Badge("Y", "Y", 0.62f, 0.60f, 20.dp, 20.dp, CircleShape, 11.sp)
+            Badge("A", "A", 0.72f, 0.60f, 20.dp, 20.dp, CircleShape, 11.sp)
+            Badge("B", "B", 0.67f, 0.69f, 22.dp, 22.dp, CircleShape, 12.sp)
         }
     }
 }
@@ -364,25 +632,81 @@ private fun CapturingBody(screen: MappingWizardScreen.Capturing, actions: Mappin
             actions.onCaptureTick()
         }
     }
-    Column {
-        Text(
-            if (screen.isStickTarget) "Circle the stick, then Done wiggling:" else "Press for:",
-            color = Muted,
-            fontSize = 13.sp
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        // TOP ROW: "Press for: [Target]" + duplicate set of Back / Skip / Cancel / Done wiggling
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    if (screen.isStickTarget) "Move stick for:" else "Press for:",
+                    color = Muted,
+                    fontSize = 13.sp
+                )
+                Text(
+                    screen.targetLabel,
+                    color = Accent,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                TextButton(
+                    onClick = actions.onCaptureBack,
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text("Back", color = Muted, fontSize = 12.sp)
+                }
+                TextButton(
+                    onClick = actions.onCaptureSkip,
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text("Skip", color = Muted, fontSize = 12.sp)
+                }
+                TextButton(
+                    onClick = actions.onCaptureCancel,
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text("Cancel", color = Muted, fontSize = 12.sp)
+                }
+            }
+        }
+
+        // COMPACT CONTROLLER LINE DIAGRAM (135dp height)
+        ControllerLineDiagram(
+            getHighlight = { label ->
+                if (matchesControl(label, screen.targetLabel)) Accent
+                else Color(0xFF1E283A)
+            },
+            targetLabel = screen.targetLabel
         )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(screen.targetLabel, color = Title, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(8.dp))
+
+        // PROGRESS ROW
         LinearProgressIndicator(
             progress = { screen.done.toFloat() / screen.total.coerceAtLeast(1) },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp),
             color = Accent,
             trackColor = Color(0xFF222B3D)
         )
-        Text("${screen.done}/${screen.total}", color = Muted, fontSize = 12.sp)
-        screen.flash?.let {
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(it, color = Color(0xFFFF8A80), fontSize = 12.sp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("${screen.done}/${screen.total}", color = Muted, fontSize = 11.sp)
+            screen.flash?.let {
+                Text(it, color = Color(0xFFFF8A80), fontSize = 11.sp)
+            }
         }
     }
 }

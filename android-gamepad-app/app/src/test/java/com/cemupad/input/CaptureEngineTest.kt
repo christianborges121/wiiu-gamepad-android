@@ -140,29 +140,30 @@ class CaptureEngineTest {
     }
 
     @Test
-    fun testStickAxisPairCapture() {
+    fun testStickDirectionCapturePerDirection() {
         val engine = CaptureEngine(clock = { 0L })
-        engine.start(listOf(MappableControl.STICK_L_MOVE))
+        engine.start(listOf(MappableControl.STICK_L_UP, MappableControl.STICK_R_RIGHT))
 
-        // Wiggle: X full right, Y full up
-        engine.recordAxes(mapOf(MotionEvent.AXIS_X to 1.0f, MotionEvent.AXIS_Y to -1.0f))
-        // Hat must not leak into stick peaks
-        engine.recordAxes(mapOf(MotionEvent.AXIS_HAT_X to 1.0f))
-        assertEquals(CaptureEngine.RecordResult.Assigned, engine.confirmStick())
-
-        val profile = engine.buildProfile(ControllerProfile.DEFAULT)!!
-        val axes = setOf(profile.axisLX, profile.axisLY)
-        assertEquals(setOf(MotionEvent.AXIS_X, MotionEvent.AXIS_Y), axes)
+        // Left stick up: Y negative
+        assertEquals(CaptureEngine.RecordResult.Assigned, engine.recordAxes(mapOf(MotionEvent.AXIS_Y to -1.0f)))
+        assertEquals(MappableControl.STICK_R_RIGHT, engine.current)
+        // Right stick right: Z positive (or RX)
+        assertEquals(CaptureEngine.RecordResult.Assigned, engine.recordAxes(mapOf(MotionEvent.AXIS_Z to 1.0f)))
+        assertTrue(engine.isFinished)
     }
 
     @Test
-    fun testStickNeedsTwoAxes() {
+    fun testStickDirectionNeedsThreshold() {
         val engine = CaptureEngine(clock = { 0L })
-        engine.start(listOf(MappableControl.STICK_L_MOVE))
+        engine.start(listOf(MappableControl.STICK_L_UP))
 
-        engine.recordAxes(mapOf(MotionEvent.AXIS_X to 1.0f))
-        assertEquals(CaptureEngine.RecordResult.Ignored, engine.confirmStick())
-        assertEquals(MappableControl.STICK_L_MOVE, engine.current)
+        // Small deflection ignored, wrong axis ignored
+        assertEquals(CaptureEngine.RecordResult.Ignored, engine.recordAxes(mapOf(MotionEvent.AXIS_Y to -0.3f)))
+        assertEquals(CaptureEngine.RecordResult.Ignored, engine.recordAxes(mapOf(MotionEvent.AXIS_X to 1.0f)))
+        assertEquals(MappableControl.STICK_L_UP, engine.current)
+        // Correct threshold passes
+        assertEquals(CaptureEngine.RecordResult.Assigned, engine.recordAxes(mapOf(MotionEvent.AXIS_Y to -0.8f)))
+        assertTrue(engine.isFinished)
     }
 
     @Test
@@ -229,5 +230,72 @@ class CaptureEngineTest {
         // Handler contract the capture relies on: inverted Y maps full-up to 255.
         assertEquals(255, ControllerProfile.normalizeAxis(-1.0f, invertY = true, deadzone = 0f))
         assertEquals(0, ControllerProfile.normalizeAxis(1.0f, invertY = true, deadzone = 0f))
+    }
+
+    @Test
+    fun testRemapSwapDoesNotFalseConflict() {
+        // User wants to swap A and B: A gets physical B, B gets physical A.
+        val engine = CaptureEngine(clock = { 0L })
+        engine.start(listOf(MappableControl.A, MappableControl.B), base = ControllerProfile.DEFAULT)
+
+        // Mapping A to physical B must succeed cleanly, not say "Already assigned"
+        assertEquals(
+            CaptureEngine.RecordResult.Assigned,
+            engine.recordKey(KeyEvent.KEYCODE_BUTTON_B)
+        )
+        // Mapping B to physical A must succeed cleanly
+        assertEquals(
+            CaptureEngine.RecordResult.Assigned,
+            engine.recordKey(KeyEvent.KEYCODE_BUTTON_A)
+        )
+
+        val profile = engine.buildProfile(ControllerProfile.DEFAULT)!!
+        assertEquals(KeyEvent.KEYCODE_BUTTON_B, profile.keyA)
+        assertEquals(KeyEvent.KEYCODE_BUTTON_A, profile.keyB)
+    }
+
+    @Test
+    fun testStickAxisCaptureUpdatesProfile() {
+        val engine = CaptureEngine(clock = { 0L })
+        engine.start(
+            listOf(
+                MappableControl.STICK_R_UP,
+                MappableControl.STICK_R_DOWN,
+                MappableControl.STICK_R_LEFT,
+                MappableControl.STICK_R_RIGHT
+            ),
+            base = ControllerProfile.DEFAULT
+        )
+
+        // Controller with swapped axes (e.g. Backbone One):
+        // Moving right stick Up deflects AXIS_Z negative
+        assertEquals(
+            CaptureEngine.RecordResult.Assigned,
+            engine.recordAxes(mapOf(MotionEvent.AXIS_Z to -0.8f))
+        )
+        // Moving right stick Down deflects AXIS_Z positive
+        assertEquals(
+            CaptureEngine.RecordResult.Assigned,
+            engine.recordAxes(mapOf(MotionEvent.AXIS_Z to 0.8f))
+        )
+        // Moving right stick Left deflects AXIS_RZ negative
+        assertEquals(
+            CaptureEngine.RecordResult.Assigned,
+            engine.recordAxes(mapOf(MotionEvent.AXIS_RZ to -0.8f))
+        )
+        // Moving right stick Right deflects AXIS_RZ positive
+        assertEquals(
+            CaptureEngine.RecordResult.Assigned,
+            engine.recordAxes(mapOf(MotionEvent.AXIS_RZ to 0.8f))
+        )
+
+        val profile = engine.buildProfile(ControllerProfile.DEFAULT)!!
+        assertEquals(MotionEvent.AXIS_RZ, profile.axisRX)
+        assertEquals(MotionEvent.AXIS_Z, profile.axisRY)
+    }
+
+    @Test
+    fun testHomeButtonIsLastInOrder() {
+        assertEquals(MappableControl.HOME, MappableControl.ORDER.last())
     }
 }

@@ -53,11 +53,15 @@ import com.cemupad.network.DiscoveryClient
 import com.cemupad.network.DiscoveryResponder
 import com.cemupad.network.DiscoveredServer
 import com.cemupad.theme.CemuPadTheme
+import com.cemupad.ui.config.ConfigAction
+import com.cemupad.ui.config.ConfigMenuState
 import com.cemupad.ui.main.MainScreen
 import com.cemupad.util.Logger
+import com.cemupad.util.NetworkUtils
 import com.cemupad.video.UdpVideoReceiver
 import com.cemupad.video.VideoDecoder
 import com.cemupad.video.VideoStreamClient
+import android.media.MediaFormat
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
@@ -97,9 +101,13 @@ class MainActivity : ComponentActivity() {
     private val wizardScreen = mutableStateOf<MappingWizardScreen?>(null)
     private val captureTick = mutableStateOf(0)
     private val captureFlash = mutableStateOf<String?>(null)
+    private val configMenuState = ConfigMenuState()
+    private var menuClosingKeyCode: Int? = null
     private var lastShownHatDir: String? = null
+    private var lastShownStickDir: String? = null
     private val testHistoryKeys = mutableSetOf<Int>()
     private val testHistoryDirs = mutableSetOf<String>()
+    private val testHistoryStickDirs = mutableSetOf<String>()
 
     /** Active hat D-pad directions in priority order (UP/DOWN/LEFT/RIGHT). */
     private fun activeHatDirs(hatX: Float, hatY: Float): List<String> {
@@ -126,6 +134,14 @@ class MainActivity : ComponentActivity() {
     private val isVideoStreaming = mutableStateOf(false)
     private val videoFps = mutableFloatStateOf(0f)
     private val displaySettings = mutableStateOf(DisplaySettings())
+    private val debugBundleForcedDiagnostics = mutableStateOf(false)
+    private val choreographerPacer = com.cemupad.video.ChoreographerPacer()
+    private val networkQualityTracker = com.cemupad.network.NetworkQualityTracker()
+    private val telemetryHandler = Handler(Looper.getMainLooper())
+    private var lastTelemetryDatagramsReceived = 0L
+    private var lastTelemetryPacketsLost = 0L
+    private var lastTelemetryFramesCompleted = 0L
+    private var lastTelemetryFramesDropped = 0L
     private var wifiLock: WifiManager.WifiLock? = null
 
     private val requestAudioPermissionLauncher = registerForActivityResult(
@@ -147,6 +163,42 @@ class MainActivity : ComponentActivity() {
     // Also covers the stable deadlock where DSU stays subscribed but no
     // video client exists (nothing would otherwise recreate it).
     private val watchdogHandler = Handler(Looper.getMainLooper())
+    private val telemetryRunnable = object : Runnable {
+        override fun run() {
+            try {
+                val vc = videoClient
+                val receiver = udpReceiver
+                if (vc != null && vc.isConnected && receiver != null) {
+                    val s = receiver.stats
+                    val newReceived = s.datagramsReceived
+                    val newLost = s.packetsLost
+                    val newCompleted = s.framesCompleted
+                    val newDropped = s.framesDropped
+                    val deltaReceived = (newReceived - lastTelemetryDatagramsReceived).coerceAtLeast(0L).toInt()
+                    val deltaLost = (newLost - lastTelemetryPacketsLost).coerceAtLeast(0L).toInt()
+                    val deltaCompleted = (newCompleted - lastTelemetryFramesCompleted).coerceAtLeast(0L).toInt()
+                    val deltaDropped = (newDropped - lastTelemetryFramesDropped).coerceAtLeast(0L).toInt()
+                    if (deltaReceived + deltaLost > 0) {
+                        networkQualityTracker.onPacketExpected(deltaReceived + deltaLost)
+                        networkQualityTracker.onPacketReceived(deltaReceived)
+                    }
+                    repeat(deltaCompleted) { networkQualityTracker.onFrameEvaluated(false) }
+                    repeat(deltaDropped) { networkQualityTracker.onFrameEvaluated(true) }
+                    lastTelemetryDatagramsReceived = newReceived
+                    lastTelemetryPacketsLost = newLost
+                    lastTelemetryFramesCompleted = newCompleted
+                    lastTelemetryFramesDropped = newDropped
+                    val sample = networkQualityTracker.sample()
+                    vc.sendStatsReport(sample.lossHundredths, sample.dropHundredths)
+                    Logger.v("MainActivity", "Telemetry sent loss=${sample.lossHundredths} drop=${sample.dropHundredths} jitter=${sample.jitterMs} latency=${sample.avgLatencyMs}")
+                }
+            } catch (t: Throwable) {
+                Logger.w("MainActivity", "Telemetry pass failed: ${t.message}")
+            }
+            telemetryHandler.postDelayed(this, 500)
+        }
+    }
+
     private val watchdogRunnable = object : Runnable {
         override fun run() {
             try {
@@ -184,8 +236,62 @@ class MainActivity : ComponentActivity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             intent ?: return
             val action = intent.action ?: return
+            if (action == "com.cemupad.WIZARD_TEST") {
+                val mode = intent.getStringExtra("mode") ?: "testing"
+                runOnUiThread {
+                    if (mode == "capturing") {
+                        val target = intent.getStringExtra("target") ?: "Stick L Move"
+                        wizardScreen.value = MappingWizardScreen.Capturing(
+                            targetLabel = target,
+                            done = intent.getIntExtra("done", 5),
+                            total = intent.getIntExtra("total", 26),
+                            flash = null,
+                            isStickTarget = target.contains("Stick")
+                        )
+                    } else {
+                        testHistoryKeys.clear()
+                        testHistoryDirs.clear()
+                        testHistoryStickDirs.clear()
+                        lastShownHatDir = null
+                        lastShownStickDir = null
+                        val profile = if (::gamepadHandler.isInitialized) gamepadHandler.profile else com.cemupad.input.ControllerProfile.DEFAULT
+                        wizardScreen.value = MappingWizardScreen.Testing(
+                            profileName = "Debug Preview",
+                            rows = testRowsFor(profile),
+                            lastKeyCode = null
+                        )
+                    }
+                }
+                return
+            }
             if (action == "com.cemupad.INJECT_INPUT") {
+                if (intent.hasExtra("config_menu")) {
+                    val cmd = intent.getStringExtra("config_menu")
+                    if (cmd.equals("open", ignoreCase = true)) {
+                        configMenuState.open()
+                    } else if (cmd.equals("close", ignoreCase = true)) {
+                        configMenuState.close()
+                    }
+                }
                 val button = intent.getStringExtra("button")
+                if (configMenuState.isOpen && button != null) {
+                    val items = configMenuState.getItems(
+                        screen = configMenuState.currentScreen,
+                        settings = displaySettings.value,
+                        activeControllerName = activeGamepadName.value,
+                        phoneIp = NetworkUtils.getLocalIpAddress(),
+                        dsuPort = if (::dsuServer.isInitialized) dsuServer.port else 26760
+                    )
+                    when (button.uppercase()) {
+                        "A" -> configMenuState.onSelectA(items, displaySettings.value, { applyAndPersistSettings(it) }, { handleConfigAction(it) })
+                        "B" -> configMenuState.onBackB()
+                        "UP" -> configMenuState.onUp(items)
+                        "DOWN" -> configMenuState.onDown(items)
+                        "LEFT" -> configMenuState.onLeft(items, displaySettings.value, { applyAndPersistSettings(it) })
+                        "RIGHT" -> configMenuState.onRight(items, displaySettings.value, { applyAndPersistSettings(it) })
+                    }
+                    return
+                }
                 val isDown = if (intent.hasExtra("down")) intent.getBooleanExtra("down", false) else null
                 val durationMs = intent.getLongExtra("duration", 150L)
 
@@ -337,8 +443,10 @@ class MainActivity : ComponentActivity() {
                 prefs.getBoolean(AppSettingsCodec.KEY_MIC_ENABLED, true)
             } else {
                 null
-            }
+            },
+            framePacingName = prefs.getString(AppSettingsCodec.KEY_FRAME_PACING, null)
         )
+        choreographerPacer.start()
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
         WindowInsetsControllerCompat(window, window.decorView).apply {
@@ -433,49 +541,7 @@ class MainActivity : ComponentActivity() {
                         videoFps = videoFps.floatValue,
                         displaySettings = displaySettings.value,
                         onDisplaySettingsChanged = { newSettings ->
-                            val oldSettings = displaySettings.value
-                            displaySettings.value = newSettings
-                            videoDecoder?.maxFps = if (newSettings.limitTo30Fps) 30 else 60
-                            audioReceiver?.isMuted = !newSettings.audioEnabled
-                            audioReceiver?.volume = newSettings.audioVolume
-                            rumbleHandler.isEnabled = newSettings.vibrationEnabled
-                            rumbleHandler.intensityScale = newSettings.vibrationIntensity
-                            gamepadHandler.deadzone = newSettings.stickDeadzone
-                            if (newSettings.micEnabled) {
-                                if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                                    micBlowDetector.start()
-                                    // (Re)start voice PCM when the toggle flips on mid-session.
-                                    if (videoClient?.isConnected == true) {
-                                        val host = lastKnownClientIp
-                                        if (!host.isNullOrEmpty()) startVoiceStream(host)
-                                    }
-                                } else {
-                                    requestAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                                }
-                            } else {
-                                micBlowDetector.stop()
-                                videoClient?.sendMicBlow(false)
-                                stopVoiceStream()
-                            }
-                            // Forward dynamic encoder changes to Cemu (no-op when unchanged).
-                            if (newSettings.videoBitrateMbps != oldSettings.videoBitrateMbps) {
-                                videoClient?.sendBitrate(newSettings.videoBitrateMbps * 1_000_000)
-                            }
-                            val newPreset = newSettings.resolutionPreset
-                            val resolvedNew = newPreset.resolveForDevice(
-                                resources.displayMetrics.widthPixels,
-                                resources.displayMetrics.heightPixels,
-                                newSettings.videoBitrateMbps
-                            )
-                            val resolvedOld = oldSettings.resolutionPreset.resolveForDevice(
-                                resources.displayMetrics.widthPixels,
-                                resources.displayMetrics.heightPixels,
-                                oldSettings.videoBitrateMbps
-                            )
-                            if (resolvedNew != resolvedOld && resolvedNew.width > 0 && resolvedNew.height > 0) {
-                                videoClient?.sendResolution(resolvedNew.width, resolvedNew.height)
-                            }
-                            persistDisplaySettings(newSettings)
+                            applyAndPersistSettings(newSettings)
                         },
                         onPreviewVibration = { scale ->
                             rumbleHandler.preview(scale)
@@ -532,8 +598,10 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         },
+                        configMenuState = configMenuState,
                         wizardScreen = wizardScreen.value,
                         wizardActions = wizardActions(),
+                        forceDiagnosticsOverlay = debugBundleForcedDiagnostics.value,
                         onSurfaceAvailable = { surface -> handleSurfaceAvailable(surface) },
                         onSurfaceDestroyed = { handleSurfaceDestroyed() },
                         onExportDebug = { exportDebugBundle() }
@@ -567,13 +635,19 @@ class MainActivity : ComponentActivity() {
         discoveryClient?.start()
         discoveryResponder?.start()
         startUdpReceiver()
-        val filter = IntentFilter("com.cemupad.INJECT_INPUT")
+        val filter = IntentFilter("com.cemupad.INJECT_INPUT").apply { addAction("com.cemupad.WIZARD_TEST") }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(debugInputReceiver, filter, Context.RECEIVER_EXPORTED)
         } else {
             registerReceiver(debugInputReceiver, filter)
         }
         watchdogHandler.postDelayed(watchdogRunnable, WATCHDOG_INTERVAL_MS)
+        networkQualityTracker.reset()
+        lastTelemetryDatagramsReceived = 0L
+        lastTelemetryPacketsLost = 0L
+        lastTelemetryFramesCompleted = 0L
+        lastTelemetryFramesDropped = 0L
+        telemetryHandler.postDelayed(telemetryRunnable, 500)
     }
 
     override fun onResume() {
@@ -594,18 +668,135 @@ class MainActivity : ComponentActivity() {
             unregisterReceiver(debugInputReceiver)
         } catch (_: Exception) {}
         watchdogHandler.removeCallbacks(watchdogRunnable)
+        telemetryHandler.removeCallbacks(telemetryRunnable)
         discoveryClient?.stop()
         discoveryResponder?.stop()
         micBlowDetector.stop()
         audioReceiver?.stop()
         audioReceiver = null
         rumbleHandler.cancel()
+        choreographerPacer.stop()
         stopUdpReceiver()
         stopVideoStream()
         handleSurfaceDestroyed()
         motionHandler.stop()
         dsuServer.stop()
         releaseWifiLock()
+    }
+
+    private fun applyAndPersistSettings(newSettings: DisplaySettings) {
+        val oldSettings = displaySettings.value
+        displaySettings.value = newSettings
+        videoDecoder?.maxFps = if (newSettings.limitTo30Fps) 30 else 60
+        videoDecoder?.framePacingMode = newSettings.framePacing
+        audioReceiver?.isMuted = !newSettings.audioEnabled
+        audioReceiver?.volume = newSettings.audioVolume
+        rumbleHandler.isEnabled = newSettings.vibrationEnabled
+        rumbleHandler.intensityScale = newSettings.vibrationIntensity
+        gamepadHandler.deadzone = newSettings.stickDeadzone
+        if (newSettings.micEnabled) {
+            if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                micBlowDetector.start()
+                // (Re)start voice PCM when the toggle flips on mid-session.
+                if (videoClient?.isConnected == true) {
+                    val host = lastKnownClientIp
+                    if (!host.isNullOrEmpty()) startVoiceStream(host)
+                }
+            } else {
+                requestAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            }
+        } else {
+            micBlowDetector.stop()
+            videoClient?.sendMicBlow(false)
+            stopVoiceStream()
+        }
+        // Forward dynamic encoder changes to Cemu (no-op when unchanged).
+        if (newSettings.videoBitrateMbps != oldSettings.videoBitrateMbps) {
+            videoClient?.sendBitrate(newSettings.videoBitrateMbps * 1_000_000)
+        }
+        val newPreset = newSettings.resolutionPreset
+        val resolvedNew = newPreset.resolveForDevice(
+            resources.displayMetrics.widthPixels,
+            resources.displayMetrics.heightPixels,
+            newSettings.videoBitrateMbps
+        )
+        val resolvedOld = oldSettings.resolutionPreset.resolveForDevice(
+            resources.displayMetrics.widthPixels,
+            resources.displayMetrics.heightPixels,
+            oldSettings.videoBitrateMbps
+        )
+        if (resolvedNew != resolvedOld && resolvedNew.width > 0 && resolvedNew.height > 0) {
+            videoClient?.sendResolution(resolvedNew.width, resolvedNew.height)
+        }
+        if (newSettings.videoCodec != oldSettings.videoCodec) {
+            val targetMime = resolveVideoMimeType(newSettings.videoCodec)
+            val useHevc = targetMime == MediaFormat.MIMETYPE_VIDEO_HEVC
+            videoClient?.sendCodec(useHevc)
+            activeSurface?.let { surface ->
+                if (videoDecoder?.mimeType != targetMime) {
+                    videoDecoder?.release()
+                    val decoder = VideoDecoder(surface, onRequestIDR = { videoClient?.requestIDR() }, mimeType = targetMime)
+                    decoder.maxFps = if (newSettings.limitTo30Fps) 30 else 60
+                    decoder.framePacingMode = newSettings.framePacing
+                    decoder.choreographerPacer = choreographerPacer
+                    if (decoder.init()) {
+                        videoDecoder = decoder
+                        videoClient?.requestIDR()
+                    }
+                }
+            }
+        }
+        persistDisplaySettings(newSettings)
+    }
+
+    private fun handleConfigAction(action: ConfigAction) {
+        when (action) {
+            ConfigAction.CALIBRATE_GYRO -> {
+                if (::motionHandler.isInitialized) {
+                    motionHandler.calibrateGyro()
+                }
+            }
+            ConfigAction.MAP_CONTROLLER -> {
+                configMenuState.close()
+                val known = activeGamepadDescriptor.value
+                if (known != null) {
+                    openWizardForDescriptor(known)
+                } else {
+                    val found = try {
+                        ControllerDetector.firstGamepad()
+                    } catch (_: Exception) {
+                        null
+                    }
+                    if (found != null) {
+                        val desc = found.first.descriptor ?: ""
+                        if (desc.isEmpty()) {
+                            Toast.makeText(
+                                this@MainActivity,
+                                "Controller has no descriptor",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        } else {
+                            activeGamepadDescriptor.value = desc
+                            activeGamepadName.value = found.first.name ?: "Controller"
+                            lastDetectedProfile = found.second
+                            gamepadHandler.profile = deviceProfileStore.activeFor(
+                                desc, found.second?.profile
+                            )
+                            lastProfileDescriptor = desc
+                            openWizardForDescriptor(desc)
+                        }
+                    } else {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "No gamepad detected — press any controller button first",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            }
+            ConfigAction.EXPORT_DEBUG_BUNDLE -> exportDebugBundle()
+            ConfigAction.RESET_SETTINGS -> applyAndPersistSettings(DisplaySettings())
+        }
     }
 
     private fun persistDisplaySettings(settings: DisplaySettings) {
@@ -626,13 +817,36 @@ class MainActivity : ComponentActivity() {
             .putFloat(AppSettingsCodec.KEY_VIBRATION_INTENSITY, encoded.vibrationIntensity)
             .putFloat(AppSettingsCodec.KEY_STICK_DEADZONE, encoded.stickDeadzone)
             .putBoolean(AppSettingsCodec.KEY_MIC_ENABLED, encoded.micEnabled)
+            .putString(AppSettingsCodec.KEY_FRAME_PACING, encoded.framePacingName)
+            .putString(AppSettingsCodec.KEY_VIDEO_CODEC, encoded.videoCodecName)
             .apply()
+    }
+
+    private fun resolveVideoMimeType(pref: com.cemupad.config.VideoCodecPreference): String {
+        return when (pref) {
+            com.cemupad.config.VideoCodecPreference.HEVC -> MediaFormat.MIMETYPE_VIDEO_HEVC
+            com.cemupad.config.VideoCodecPreference.H264 -> MediaFormat.MIMETYPE_VIDEO_AVC
+            com.cemupad.config.VideoCodecPreference.AUTO -> {
+                val hasHardwareHevc = try {
+                    android.media.MediaCodecList(android.media.MediaCodecList.REGULAR_CODECS).codecInfos.any { info ->
+                        !info.isEncoder && info.supportedTypes.any { it.equals(MediaFormat.MIMETYPE_VIDEO_HEVC, ignoreCase = true) } &&
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) info.isHardwareAccelerated else true
+                    }
+                } catch (_: Exception) {
+                    false
+                }
+                if (hasHardwareHevc) MediaFormat.MIMETYPE_VIDEO_HEVC else MediaFormat.MIMETYPE_VIDEO_AVC
+            }
+        }
     }
 
     private fun handleSurfaceAvailable(surface: Surface) {
         activeSurface = surface
-        val decoder = VideoDecoder(surface, onRequestIDR = { videoClient?.requestIDR() })
+        val targetMime = resolveVideoMimeType(displaySettings.value.videoCodec)
+        val decoder = VideoDecoder(surface, onRequestIDR = { videoClient?.requestIDR() }, mimeType = targetMime)
         decoder.maxFps = if (displaySettings.value.limitTo30Fps) 30 else 60
+        decoder.framePacingMode = displaySettings.value.framePacing
+        decoder.choreographerPacer = choreographerPacer
         if (decoder.init()) {
             videoDecoder = decoder
             videoClient?.requestIDR()
@@ -745,6 +959,12 @@ class MainActivity : ComponentActivity() {
                 if (resolvedPreset.width > 0 && resolvedPreset.height > 0) {
                     videoClient?.sendResolution(resolvedPreset.width, resolvedPreset.height)
                 }
+                val targetMime = resolveVideoMimeType(displaySettings.value.videoCodec)
+                videoClient?.sendCodec(targetMime == MediaFormat.MIMETYPE_VIDEO_HEVC)
+                val activeProfile = if (::gamepadHandler.isInitialized) gamepadHandler.profile else com.cemupad.input.ControllerProfile.DEFAULT
+                val entries = pendingPushedEntries ?: com.cemupad.config.InputMappingCodec.toVpadEntries(activeProfile)
+                videoClient?.sendPushedMappings(entries)
+                pendingPushedEntries = null
                 startVoiceStream(host)
                 requestIDR()
             }
@@ -801,76 +1021,93 @@ class MainActivity : ComponentActivity() {
      * Builds the remote-debugging bundle (log file + window screenshot +
      * device/codec report) and opens the system share sheet. Screenshot via
      * PixelCopy so SurfaceView frames are captured correctly.
+     *
+     * Temporarily forces diagnostics overlay on so the screenshot always
+     * contains FPS / packet counters for remote triage, then restores.
      */
     private fun exportDebugBundle() {
         try {
-            val rootView = window.decorView.rootView
-            val width = rootView.width
-            val height = rootView.height
-            if (width <= 0 || height <= 0) {
-                Toast.makeText(this, "Screen not ready, try again", Toast.LENGTH_SHORT).show()
-                return
-            }
-            Toast.makeText(this, "Capturing debug bundle…", Toast.LENGTH_SHORT).show()
-            val bitmap = android.graphics.Bitmap.createBitmap(
-                width, height, android.graphics.Bitmap.Config.ARGB_8888
-            )
-            android.view.PixelCopy.request(
-                window,
-                bitmap,
-                { result ->
-                    Thread {
-                        try {
-                            val png = if (result == android.view.PixelCopy.SUCCESS) {
-                                com.cemupad.util.DebugBundle.screenshotPng(bitmap)
-                            } else {
-                                com.cemupad.util.Logger.w("DebugBundle", "Screenshot failed: $result")
-                                null
-                            }
-                            val report = com.cemupad.util.DebugBundle.collectDeviceReport(
-                                applicationContext, displaySettings.value
-                            )
-                            val reportText = com.cemupad.util.DebugBundle.formatReport(report)
-                            val logText = com.cemupad.util.Logger.logFiles()
-                                .joinToString("\n") { file ->
-                                    "===== ${file.name} =====\n" + try {
-                                        file.readText()
-                                    } catch (_: Exception) {
-                                        "<unreadable>"
-                                    }
-                                }.ifEmpty { "<no log file — restart the app once>" }
-                            val dir = java.io.File(cacheDir, "debug")
-                            if (!dir.exists()) dir.mkdirs()
-                            val zip = java.io.File(dir, "cemupad-debug.zip")
-                            if (zip.exists()) zip.delete()
-                            com.cemupad.util.DebugBundle.buildZip(zip, reportText, logText, png)
-                            runOnUiThread {
+            debugBundleForcedDiagnostics.value = true
+            // Give Compose one frame to recompose with overlay visible before capture
+            window.decorView.postDelayed({
+                try {
+                    val rootView = window.decorView.rootView
+                    val width = rootView.width
+                    val height = rootView.height
+                    if (width <= 0 || height <= 0) {
+                        Toast.makeText(this, "Screen not ready, try again", Toast.LENGTH_SHORT).show()
+                        debugBundleForcedDiagnostics.value = false
+                        return@postDelayed
+                    }
+                    Toast.makeText(this, "Capturing debug bundle…", Toast.LENGTH_SHORT).show()
+                    val bitmap = android.graphics.Bitmap.createBitmap(
+                        width, height, android.graphics.Bitmap.Config.ARGB_8888
+                    )
+                    android.view.PixelCopy.request(
+                        window,
+                        bitmap,
+                        { result ->
+                            // Restore overlay state immediately after capture request
+                            debugBundleForcedDiagnostics.value = false
+                            Thread {
                                 try {
-                                    com.cemupad.util.DebugBundle.shareZip(this, zip)
-                                } catch (_: Exception) {
-                                    Toast.makeText(
-                                        this,
-                                        "No app available to share with",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    val png = if (result == android.view.PixelCopy.SUCCESS) {
+                                        com.cemupad.util.DebugBundle.screenshotPng(bitmap)
+                                    } else {
+                                        com.cemupad.util.Logger.w("DebugBundle", "Screenshot failed: $result")
+                                        null
+                                    }
+                                    val report = com.cemupad.util.DebugBundle.collectDeviceReport(
+                                        applicationContext, displaySettings.value
+                                    )
+                                    val reportText = com.cemupad.util.DebugBundle.formatReport(report)
+                                    val logText = com.cemupad.util.Logger.logFiles()
+                                        .joinToString("\n") { file ->
+                                            "===== ${file.name} =====\n" + try {
+                                                file.readText()
+                                            } catch (_: Exception) {
+                                                "<unreadable>"
+                                            }
+                                        }.ifEmpty { "<no log file — restart the app once>" }
+                                    val dir = java.io.File(cacheDir, "debug")
+                                    if (!dir.exists()) dir.mkdirs()
+                                    val zip = java.io.File(dir, "cemupad-debug.zip")
+                                    if (zip.exists()) zip.delete()
+                                    com.cemupad.util.DebugBundle.buildZip(zip, reportText, logText, png)
+                                    runOnUiThread {
+                                        try {
+                                            com.cemupad.util.DebugBundle.shareZip(this, zip)
+                                        } catch (_: Exception) {
+                                            Toast.makeText(
+                                                this,
+                                                "No app available to share with",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    com.cemupad.util.Logger.w("DebugBundle", "Export failed: ${e.message}")
+                                    runOnUiThread {
+                                        Toast.makeText(this, "Export failed", Toast.LENGTH_SHORT).show()
+                                    }
+                                } finally {
+                                    try {
+                                        bitmap.recycle()
+                                    } catch (_: Exception) {
+                                    }
                                 }
-                            }
-                        } catch (e: Exception) {
-                            com.cemupad.util.Logger.w("DebugBundle", "Export failed: ${e.message}")
-                            runOnUiThread {
-                                Toast.makeText(this, "Export failed", Toast.LENGTH_SHORT).show()
-                            }
-                        } finally {
-                            try {
-                                bitmap.recycle()
-                            } catch (_: Exception) {
-                            }
-                        }
-                    }.apply { isDaemon = true; start() }
-                },
-                android.os.Handler(android.os.Looper.getMainLooper())
-            )
+                            }.apply { isDaemon = true; start() }
+                        },
+                        android.os.Handler(android.os.Looper.getMainLooper())
+                    )
+                } catch (e: Exception) {
+                    debugBundleForcedDiagnostics.value = false
+                    com.cemupad.util.Logger.w("DebugBundle", "Export failed: ${e.message}")
+                    Toast.makeText(this, "Export failed", Toast.LENGTH_SHORT).show()
+                }
+            }, 150)
         } catch (e: Exception) {
+            debugBundleForcedDiagnostics.value = false
             com.cemupad.util.Logger.w("DebugBundle", "Export failed: ${e.message}")
             Toast.makeText(this, "Export failed", Toast.LENGTH_SHORT).show()
         }
@@ -926,10 +1163,12 @@ class MainActivity : ComponentActivity() {
                     wizardScreen.value = wizard.copy(
                         lastKeyCode = event.keyCode,
                         lastPressedLabel = KeyEvent.keyCodeToString(event.keyCode),
-                        // A key press supersedes any lingering hat direction.
+                        // A key press supersedes any lingering hat/stick direction.
                         lastDpadDir = null,
+                        lastStickDir = null,
                         historyKeys = testHistoryKeys.toSet(),
-                        historyDirs = testHistoryDirs.toSet()
+                        historyDirs = testHistoryDirs.toSet(),
+                        historyStickDirs = testHistoryStickDirs.toSet()
                     )
                 }
             } else if (wizard is MappingWizardScreen.Capturing) {
@@ -938,6 +1177,81 @@ class MainActivity : ComponentActivity() {
             }
             return true
         }
+
+        // New-controller banner over drawer: don't let drawer behind handle controller.
+        // A = Set up (open wizard), B = Dismiss, others consumed so drawer doesn't move.
+        if (mappingPrompt.value != null && !isSystemPassthroughKey(event)) {
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                when (event.keyCode) {
+                    KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                        mappingPrompt.value?.let { prompt ->
+                            mappingPrompt.value = null
+                            openWizardForDescriptor(prompt.descriptor)
+                        }
+                        return true
+                    }
+                    KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
+                        mappingPrompt.value = null
+                        return true
+                    }
+                }
+            }
+            return true
+        }
+
+        // Swallowed trailing key release after closing menu
+        if (menuClosingKeyCode != null && event.action == KeyEvent.ACTION_UP && event.keyCode == menuClosingKeyCode) {
+            menuClosingKeyCode = null
+            return true
+        }
+
+        // System back key delegates to super so OnBackPressedDispatcher / BackHandler handles navigation
+        if (event.keyCode == KeyEvent.KEYCODE_BACK) {
+            return super.dispatchKeyEvent(event)
+        }
+
+        // Intercept controller input while Configuration menu is open
+        if (configMenuState.isOpen && !isSystemPassthroughKey(event)) {
+            Logger.i(
+                "ConfigKeys",
+                "key action=${event.action} code=${event.keyCode} " +
+                    "name=${KeyEvent.keyCodeToString(event.keyCode)} source=${event.source} " +
+                    "screen=${configMenuState.currentScreen.name} focused=${configMenuState.focusedIndex}"
+            )
+            if (::gamepadHandler.isInitialized && (event.action == KeyEvent.ACTION_DOWN || event.action == KeyEvent.ACTION_UP)) {
+                resolveGamepadProfile(event.deviceId)
+            }
+            val profile = if (::gamepadHandler.isInitialized) gamepadHandler.profile else null
+            val items = configMenuState.getItems(
+                screen = configMenuState.currentScreen,
+                settings = displaySettings.value,
+                activeControllerName = activeGamepadName.value,
+                phoneIp = NetworkUtils.getLocalIpAddress(),
+                dsuPort = if (::dsuServer.isInitialized) dsuServer.port else 26760
+            )
+            val wasOpen = configMenuState.isOpen
+            val handled = configMenuState.handleKeyEvent(
+                event = event,
+                profile = profile,
+                settings = displaySettings.value,
+                items = items,
+                onSettingsChanged = { applyAndPersistSettings(it) },
+                onAction = { handleConfigAction(it) }
+            )
+            if (wasOpen && !configMenuState.isOpen && event.action == KeyEvent.ACTION_DOWN) {
+                menuClosingKeyCode = event.keyCode
+            }
+            return handled
+        }
+
+        // Gamepad shortcut to open configuration menu (e.g. Menu / Guide / Select when not captured)
+        if (wizardScreen.value == null && !configMenuState.isOpen && event.action == KeyEvent.ACTION_DOWN) {
+            if (event.keyCode == KeyEvent.KEYCODE_MENU || event.keyCode == KeyEvent.KEYCODE_BUTTON_MODE) {
+                configMenuState.open()
+                return true
+            }
+        }
+
         if (::gamepadHandler.isInitialized) {
             if (event.action == KeyEvent.ACTION_DOWN || event.action == KeyEvent.ACTION_UP) {
                 resolveGamepadProfile(event.deviceId)
@@ -950,8 +1264,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
-        // Test screen: surface hat D-pad activity (keys alone can't show it —
-        // hat-driven rows carry keyCode 0). Change-gated to avoid recompose storms.
+        // Test screen: surface hat D-pad + stick directions (keys alone can't show them).
+        // Change-gated to avoid recompose storms.
         (wizardScreen.value as? MappingWizardScreen.Testing)?.let { testing ->
             val dirs = activeHatDirs(
                 event.getAxisValue(MotionEvent.AXIS_HAT_X),
@@ -965,12 +1279,43 @@ class MainActivity : ComponentActivity() {
                     lastKeyCode = null,
                     lastPressedLabel = "D-Pad ${dir.lowercase().replaceFirstChar { it.uppercase() }} (hat)",
                     lastDpadDir = dir,
+                    lastStickDir = null,
                     historyKeys = testHistoryKeys.toSet(),
-                    historyDirs = testHistoryDirs.toSet()
+                    historyDirs = testHistoryDirs.toSet(),
+                    historyStickDirs = testHistoryStickDirs.toSet()
                 )
             } else if (dir == null) {
                 lastShownHatDir = null
             }
+            // Stick directions (threshold 0.5) — same Testing screen
+            if (::gamepadHandler.isInitialized) {
+                val p = gamepadHandler.profile
+                val lx = event.getAxisValue(p.axisLX); val ly = event.getAxisValue(p.axisLY)
+                val rx = event.getAxisValue(p.axisRX); val ry = event.getAxisValue(p.axisRY)
+                val stickDir = when {
+                    ly < -0.5f -> "L_UP"; ly > 0.5f -> "L_DOWN"; lx < -0.5f -> "L_LEFT"; lx > 0.5f -> "L_RIGHT"
+                    ry < -0.5f -> "R_UP"; ry > 0.5f -> "R_DOWN"; rx < -0.5f -> "R_LEFT"; rx > 0.5f -> "R_RIGHT"
+                    else -> null
+                }
+                if (stickDir != null && stickDir != lastShownStickDir) {
+                    lastShownStickDir = stickDir
+                    testHistoryStickDirs.add(stickDir)
+                    val cur = wizardScreen.value as? MappingWizardScreen.Testing ?: testing
+                    wizardScreen.value = cur.copy(
+                        lastKeyCode = null,
+                        lastPressedLabel = "Stick ${stickDir.replace("_", " ")}",
+                        lastDpadDir = null,
+                        lastStickDir = stickDir,
+                        historyKeys = testHistoryKeys.toSet(),
+                        historyDirs = testHistoryDirs.toSet(),
+                        historyStickDirs = testHistoryStickDirs.toSet()
+                    )
+                } else if (stickDir == null) {
+                    lastShownStickDir = null
+                }
+            }
+            // Consume all motion while Testing — prevents sticks/D-pad from driving the game behind the wizard.
+            return true
         }
         if (wizardScreen.value is MappingWizardScreen.Capturing) {
             val before = captureEngine.current
@@ -988,6 +1333,30 @@ class MainActivity : ComponentActivity() {
             captureTick.value++
             refreshCaptureScreen()
             return true
+        }
+        // Banner over drawer: consume motion so drawer doesn't scroll behind prompt.
+        if (mappingPrompt.value != null) {
+            return true
+        }
+        if (configMenuState.isOpen) {
+            if (::gamepadHandler.isInitialized) {
+                resolveGamepadProfile(event.deviceId)
+            }
+            val profile = if (::gamepadHandler.isInitialized) gamepadHandler.profile else null
+            val items = configMenuState.getItems(
+                screen = configMenuState.currentScreen,
+                settings = displaySettings.value,
+                activeControllerName = activeGamepadName.value,
+                phoneIp = NetworkUtils.getLocalIpAddress(),
+                dsuPort = if (::dsuServer.isInitialized) dsuServer.port else 26760
+            )
+            return configMenuState.handleMotionEvent(
+                event = event,
+                profile = profile,
+                settings = displaySettings.value,
+                items = items,
+                onSettingsChanged = { applyAndPersistSettings(it) }
+            )
         }
         if (::gamepadHandler.isInitialized) {
             resolveGamepadProfile(event.deviceId)
@@ -1024,10 +1393,12 @@ class MainActivity : ComponentActivity() {
             } catch (_: Exception) {
                 null
             }
-            gamepadHandler.profile = deviceProfileStore.activeFor(
+            val active = deviceProfileStore.activeFor(
                 descriptor, lastDetectedProfile?.profile
             )
+            gamepadHandler.profile = active
             lastProfileDescriptor = descriptor
+            pushCemuMappings(active)
         }
         if (!deviceProfileStore.has(descriptor) && !promptedDescriptors.contains(descriptor)) {
             promptedDescriptors.add(descriptor)
@@ -1052,6 +1423,9 @@ class MainActivity : ComponentActivity() {
         if (deviceProfileStore.has(descriptor)) {
             testHistoryKeys.clear()
             testHistoryDirs.clear()
+            testHistoryStickDirs.clear()
+            lastShownHatDir = null
+            lastShownStickDir = null
             wizardScreen.value = MappingWizardScreen.Testing(
                 profileName = deviceProfileStore.load(descriptor)?.displayName ?: "Saved layout",
                 rows = testRowsFor(gamepadHandler.profile),
@@ -1087,6 +1461,14 @@ class MainActivity : ComponentActivity() {
             MappingTestRow("D-Pad Down", profile.keyDpadDown, "DOWN"),
             MappingTestRow("D-Pad Left", profile.keyDpadLeft, "LEFT"),
             MappingTestRow("D-Pad Right", profile.keyDpadRight, "RIGHT"),
+            MappingTestRow("Stick L Up", 0, null, "L_UP"),
+            MappingTestRow("Stick L Down", 0, null, "L_DOWN"),
+            MappingTestRow("Stick L Left", 0, null, "L_LEFT"),
+            MappingTestRow("Stick L Right", 0, null, "L_RIGHT"),
+            MappingTestRow("Stick R Up", 0, null, "R_UP"),
+            MappingTestRow("Stick R Down", 0, null, "R_DOWN"),
+            MappingTestRow("Stick R Left", 0, null, "R_LEFT"),
+            MappingTestRow("Stick R Right", 0, null, "R_RIGHT"),
             MappingTestRow("L", profile.keyL),
             MappingTestRow("R", profile.keyR),
             MappingTestRow("ZL", profile.keyZL),
@@ -1132,6 +1514,9 @@ class MainActivity : ComponentActivity() {
         onConfirmDetected = {
             testHistoryKeys.clear()
             testHistoryDirs.clear()
+            testHistoryStickDirs.clear()
+            lastShownHatDir = null
+            lastShownStickDir = null
             wizardScreen.value = MappingWizardScreen.Testing(
                 profileName = gamepadHandler.profile.displayName,
                 rows = testRowsFor(gamepadHandler.profile),
@@ -1141,9 +1526,9 @@ class MainActivity : ComponentActivity() {
         onRemap = { startCapture() },
         onSaveTest = {
             val descriptor = activeGamepadDescriptor.value ?: return@MappingWizardActions
-            deviceProfileStore.save(
-                gamepadHandler.profile.copy(deviceDescriptor = descriptor)
-            )
+            val toSave = gamepadHandler.profile.copy(deviceDescriptor = descriptor)
+            deviceProfileStore.save(toSave)
+            pushCemuMappings(toSave)
             wizardScreen.value = null
         },
         onWizardClose = { wizardScreen.value = null },
@@ -1160,8 +1545,10 @@ class MainActivity : ComponentActivity() {
                     null
                 }
                 lastDetectedProfile = detected
-                gamepadHandler.profile = deviceProfileStore.activeFor(descriptor, detected?.profile)
+                val resetProfile = deviceProfileStore.activeFor(descriptor, detected?.profile)
+                gamepadHandler.profile = resetProfile
                 lastProfileDescriptor = descriptor
+                pushCemuMappings(resetProfile)
             }
             wizardScreen.value = null
         },
@@ -1201,11 +1588,26 @@ class MainActivity : ComponentActivity() {
                 val bound = built.copy(deviceDescriptor = descriptor)
                 deviceProfileStore.save(bound)
                 gamepadHandler.profile = bound
+                pushCemuMappings(bound)
             }
             wizardScreen.value = null
         },
         onDiscardCapture = { wizardScreen.value = null }
     )
+
+    private var pendingPushedEntries: List<Pair<Int, Int>>? = null
+
+    private fun pushCemuMappings(profile: com.cemupad.input.ControllerProfile) {
+        val entries = com.cemupad.config.InputMappingCodec.toVpadEntries(profile)
+        val vc = videoClient
+        if (vc != null && vc.isConnected) {
+            vc.sendPushedMappings(entries)
+            com.cemupad.util.Logger.i("MainActivity", "Pushed ${entries.size} mappings to Cemu")
+        } else {
+            pendingPushedEntries = entries
+            com.cemupad.util.Logger.i("MainActivity", "Queued ${entries.size} mappings for next Cemu connect")
+        }
+    }
 
     private val stickCaptureAxes = intArrayOf(
         MotionEvent.AXIS_X,

@@ -44,12 +44,64 @@ class VideoStreamClient(
         const val OPCODE_MIC_BLOW = 0x13
         const val OPCODE_SET_BITRATE = 0x14
         const val OPCODE_SET_RESOLUTION = 0x15
+        const val OPCODE_CODEC_SELECT = 0x16
+        const val OPCODE_STATS_REPORT = 0x17
         const val OPCODE_AUTH_REQUEST = 0x30
         const val AUTH_STATUS_OK = 0x00
         private const val CONNECT_TIMEOUT_MS = 5000
         private const val READ_TIMEOUT_MS = 15000
         private const val AUTH_TIMEOUT_MS = 8000
         private const val PIN_WAIT_SECONDS = 90L
+
+        const val OPCODE_PUSH_MAPPINGS = 0x18
+        const val OPCODE_SET_MAPPING = 0x19
+
+        /**
+         * Builds the 2-byte CODEC_SELECT packet: [0x16][uint8 codec] (0 = H.264, 1 = HEVC).
+         * Pure function for unit tests.
+         */
+        fun buildCodecSelectPacket(useHevc: Boolean): ByteArray {
+            return byteArrayOf(OPCODE_CODEC_SELECT.toByte(), if (useHevc) 1.toByte() else 0.toByte())
+        }
+
+        fun buildPushMappingsPacket(entries: List<Pair<Int, Int>>): ByteArray {
+            require(entries.isNotEmpty() && entries.size <= 32)
+            val buf = ByteBuffer.allocate(1 + 1 + entries.size * 8).order(ByteOrder.LITTLE_ENDIAN)
+            buf.put(OPCODE_PUSH_MAPPINGS.toByte())
+            buf.put(entries.size.toByte())
+            for ((mapping, button) in entries) {
+                buf.putInt(mapping)
+                buf.putInt(button)
+            }
+            return buf.array()
+        }
+
+        fun buildSetMappingPacket(mapping: Int, button: Int, applyNow: Boolean = true): ByteArray {
+            val buf = ByteBuffer.allocate(1 + 4 + 4 + 1).order(ByteOrder.LITTLE_ENDIAN)
+            buf.put(OPCODE_SET_MAPPING.toByte())
+            buf.putInt(mapping)
+            buf.putInt(button)
+            buf.put(if (applyNow) 1 else 0)
+            return buf.array()
+        }
+
+        /**
+         * Builds the 9-byte STATS_REPORT packet: [0x17][uint16 loss LE][uint16 drop LE][uint16 rtt LE][uint16 flags LE].
+         * Pure function for unit tests.
+         */
+        fun buildStatsReportPacket(lossHundredths: Int, dropHundredths: Int, rttMs: Int = 0, flags: Int = 0): ByteArray {
+            val packet = ByteArray(9)
+            packet[0] = OPCODE_STATS_REPORT.toByte()
+            packet[1] = (lossHundredths and 0xFF).toByte()
+            packet[2] = ((lossHundredths shr 8) and 0xFF).toByte()
+            packet[3] = (dropHundredths and 0xFF).toByte()
+            packet[4] = ((dropHundredths shr 8) and 0xFF).toByte()
+            packet[5] = (rttMs and 0xFF).toByte()
+            packet[6] = ((rttMs shr 8) and 0xFF).toByte()
+            packet[7] = (flags and 0xFF).toByte()
+            packet[8] = ((flags shr 8) and 0xFF).toByte()
+            return packet
+        }
 
         /**
          * Builds the 9-byte AUTH_REQUEST packet: [0x30][uint64 credential LE].
@@ -225,6 +277,36 @@ class VideoStreamClient(
     fun sendResolution(width: Int, height: Int) {
         if (width <= 0 || height <= 0) return
         sendControlPacket(buildResolutionPacket(width, height), "SET_RESOLUTION=${width}x$height")
+    }
+
+    /**
+     * Asks Cemu to switch host video codec live (false = H.264, true = HEVC).
+     * The PC emits parameter sets and an IDR keyframe immediately after switching.
+     */
+    fun sendCodec(useHevc: Boolean) {
+        sendControlPacket(buildCodecSelectPacket(useHevc), "CODEC_SELECT=${if (useHevc) "HEVC" else "H.264"}")
+    }
+
+    /**
+      * Sends rolling network and frame telemetry to Cemu for adaptive dynamic bitrate adjustment.
+      */
+    fun sendStatsReport(lossHundredths: Int, dropHundredths: Int, rttMs: Int = 0, flags: Int = 0) {
+        sendControlPacket(
+            buildStatsReportPacket(lossHundredths, dropHundredths, rttMs, flags),
+            "STATS_REPORT(loss=${lossHundredths / 100f}%, drop=${dropHundredths / 100f}%)"
+        )
+    }
+
+    fun sendPushedMappings(entries: List<Pair<Int, Int>>) {
+        if (entries.isEmpty()) return
+        // Chunk to 32 per bulk packet
+        for (chunk in entries.chunked(32)) {
+            sendControlPacket(buildPushMappingsPacket(chunk), "PUSH_MAPPINGS(${chunk.size})")
+        }
+    }
+
+    fun sendMapping(mapping: Int, button: Int) {
+        sendControlPacket(buildSetMappingPacket(mapping, button), "SET_MAPPING($mapping->$button)")
     }
 
     private fun sendControlPacket(packet: ByteArray, name: String) {

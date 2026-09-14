@@ -40,6 +40,17 @@ enum class DisplayResolutionPreset(
     }
 }
 
+enum class FramePacingMode(val label: String) {
+    IMMEDIATE("Lowest Latency (Immediate)"),
+    VSYNC("Smooth VSync (Choreographer)");
+}
+
+enum class VideoCodecPreference(val label: String, val mimeType: String) {
+    AUTO("Auto", "video/avc"),
+    H264("H.264 (AVC)", "video/avc"),
+    HEVC("HEVC (H.265)", "video/hevc");
+}
+
 data class DisplaySettings(
     val fitMode: DisplayFitMode = DisplayFitMode.ASPECT_FIT,
     val resolutionPreset: DisplayResolutionPreset = DisplayResolutionPreset.NATIVE_854x480,
@@ -51,14 +62,16 @@ data class DisplaySettings(
     val virtualControlsOpacity: Float = 0.5f,
     val audioEnabled: Boolean = true,
     val audioVolume: Float = 1.0f,
-    val vibrationEnabled: Boolean = true,
+    val vibrationEnabled: Boolean = false,
     val vibrationIntensity: Float = 1.0f,
     val stickDeadzone: Float = 0.08f,
-    val micEnabled: Boolean = true
+    val micEnabled: Boolean = false,
+    val framePacing: FramePacingMode = FramePacingMode.IMMEDIATE,
+    val videoCodec: VideoCodecPreference = VideoCodecPreference.AUTO
 ) {
     companion object {
-        const val VIDEO_BITRATE_DEFAULT_MBPS = 6
-        val VALID_VIDEO_BITRATES_MBPS = listOf(4, 6, 8, 12)
+        const val VIDEO_BITRATE_DEFAULT_MBPS = 10
+        val VALID_VIDEO_BITRATES_MBPS = listOf(4, 6, 8, 10, 12)
 
         fun sanitizeBitrateMbps(value: Int): Int {
             return if (VALID_VIDEO_BITRATES_MBPS.contains(value)) value else VIDEO_BITRATE_DEFAULT_MBPS

@@ -30,11 +30,17 @@ enum class MappableControl(val label: String, val kind: CaptureKind) {
     ZR("ZR", CaptureKind.TRIGGER),
     PLUS("Plus (+)", CaptureKind.BUTTON),
     MINUS("Minus (-)", CaptureKind.BUTTON),
-    HOME("Home", CaptureKind.BUTTON),
     STICK_L_PRESS("Left Stick Press", CaptureKind.BUTTON),
     STICK_R_PRESS("Right Stick Press", CaptureKind.BUTTON),
-    STICK_L_MOVE("Left Stick Move", CaptureKind.STICK),
-    STICK_R_MOVE("Right Stick Move", CaptureKind.STICK);
+    STICK_L_UP("Stick L Up", CaptureKind.STICK),
+    STICK_L_DOWN("Stick L Down", CaptureKind.STICK),
+    STICK_L_LEFT("Stick L Left", CaptureKind.STICK),
+    STICK_L_RIGHT("Stick L Right", CaptureKind.STICK),
+    STICK_R_UP("Stick R Up", CaptureKind.STICK),
+    STICK_R_DOWN("Stick R Down", CaptureKind.STICK),
+    STICK_R_LEFT("Stick R Left", CaptureKind.STICK),
+    STICK_R_RIGHT("Stick R Right", CaptureKind.STICK),
+    HOME("Home", CaptureKind.BUTTON);
 
     companion object {
         val ORDER: List<MappableControl> = values().toList()
@@ -79,10 +85,6 @@ class CaptureEngine(
     private var targetStartedAt: Long = clock()
 
     private var baseProfile: ControllerProfile? = null
-    // Live ownership code -> target, seeded from base (first wins on dupes)
-    // and updated on every assignment, so re-mapping can never stack two
-    // targets onto one key across passes (the saved-profile scramble).
-    private val ownedCodes = mutableMapOf<Int, MappableControl>()
 
     private val assignedKeys = mutableMapOf<MappableControl, Int>()
     private val assignedStickAxes = mutableMapOf<MappableControl, Pair<Int, Int>>()
@@ -91,6 +93,11 @@ class CaptureEngine(
     private val hatDirections = mutableSetOf<MappableControl>()
     private val skipped = mutableSetOf<MappableControl>()
     private val stickPeaks = mutableMapOf<Int, Float>()
+
+    private var capturedAxisLX: Int? = null
+    private var capturedAxisLY: Int? = null
+    private var capturedAxisRX: Int? = null
+    private var capturedAxisRY: Int? = null
 
     val current: MappableControl?
         get() = if (cancelled || index >= targets.size) null else targets[index]
@@ -116,10 +123,13 @@ class CaptureEngine(
         assignedTriggerAxis.clear()
         usedKeyCodes.clear()
         baseProfile = base
-        rebuildOwnership()
         hatDirections.clear()
         skipped.clear()
         stickPeaks.clear()
+        capturedAxisLX = null
+        capturedAxisLY = null
+        capturedAxisRX = null
+        capturedAxisRY = null
         targetStartedAt = clock()
     }
 
@@ -141,7 +151,13 @@ class CaptureEngine(
         assignedStickAxes.remove(target)
         assignedTriggerAxis.remove(target)
         hatDirections.remove(target)
-        rebuildOwnership()
+        when (target) {
+            MappableControl.STICK_L_UP, MappableControl.STICK_L_DOWN -> capturedAxisLY = null
+            MappableControl.STICK_L_LEFT, MappableControl.STICK_L_RIGHT -> capturedAxisLX = null
+            MappableControl.STICK_R_UP, MappableControl.STICK_R_DOWN -> capturedAxisRY = null
+            MappableControl.STICK_R_LEFT, MappableControl.STICK_R_RIGHT -> capturedAxisRX = null
+            else -> {}
+        }
         stickPeaks.clear()
         targetStartedAt = clock()
         return true
@@ -163,12 +179,7 @@ class CaptureEngine(
             return RecordResult.Ignored
         }
         if (keyCode in usedKeyCodes) return RecordResult.Conflict
-        val owner = ownedCodes[keyCode]
-        if (owner != null && owner != target) return RecordResult.Conflict
         usedKeyCodes.add(keyCode)
-        // Target abandons its previous codes; the new code is now its own.
-        ownedCodes.entries.removeAll { it.value == target }
-        ownedCodes[keyCode] = target
         assignedKeys[target] = keyCode
         skipped.remove(target)
         advance()
@@ -203,12 +214,54 @@ class CaptureEngine(
         val target = current ?: return RecordResult.NotArmed
         when (target.kind) {
             CaptureKind.STICK -> {
-                for ((axis, value) in axes) {
-                    if (axis == MotionEvent.AXIS_HAT_X || axis == MotionEvent.AXIS_HAT_Y) continue
-                    val peak = stickPeaks[axis] ?: 0f
-                    if (abs(value) > peak) stickPeaks[axis] = abs(value)
+                val nonStickAxes = setOf(
+                    MotionEvent.AXIS_BRAKE,
+                    MotionEvent.AXIS_GAS,
+                    MotionEvent.AXIS_LTRIGGER,
+                    MotionEvent.AXIS_RTRIGGER,
+                    MotionEvent.AXIS_HAT_X,
+                    MotionEvent.AXIS_HAT_Y
+                )
+                val candidates = axes.filter { (axis, _) -> axis !in nonStickAxes }
+
+                var bestAxis: Int? = null
+                var bestValue = 0f
+                for ((axis, value) in candidates) {
+                    if (abs(value) > abs(bestValue)) {
+                        bestAxis = axis
+                        bestValue = value
+                    }
                 }
-                return RecordResult.Assigned
+
+                if (bestAxis == null || abs(bestValue) < STICK_DEFLECTION) {
+                    return RecordResult.Ignored
+                }
+
+                val active = when (target) {
+                    MappableControl.STICK_L_UP -> bestValue < -STICK_DEFLECTION
+                    MappableControl.STICK_L_DOWN -> bestValue > STICK_DEFLECTION
+                    MappableControl.STICK_L_LEFT -> bestValue < -STICK_DEFLECTION
+                    MappableControl.STICK_L_RIGHT -> bestValue > STICK_DEFLECTION
+                    MappableControl.STICK_R_UP -> bestValue < -STICK_DEFLECTION
+                    MappableControl.STICK_R_DOWN -> bestValue > STICK_DEFLECTION
+                    MappableControl.STICK_R_LEFT -> bestValue < -STICK_DEFLECTION
+                    MappableControl.STICK_R_RIGHT -> bestValue > STICK_DEFLECTION
+                    else -> false
+                }
+
+                if (active) {
+                    when (target) {
+                        MappableControl.STICK_L_UP, MappableControl.STICK_L_DOWN -> capturedAxisLY = bestAxis
+                        MappableControl.STICK_L_LEFT, MappableControl.STICK_L_RIGHT -> capturedAxisLX = bestAxis
+                        MappableControl.STICK_R_UP, MappableControl.STICK_R_DOWN -> capturedAxisRY = bestAxis
+                        MappableControl.STICK_R_LEFT, MappableControl.STICK_R_RIGHT -> capturedAxisRX = bestAxis
+                        else -> {}
+                    }
+                    skipped.remove(target)
+                    advance()
+                    return RecordResult.Assigned
+                }
+                return RecordResult.Ignored
             }
             CaptureKind.TRIGGER -> {
                 for ((axis, value) in axes) {
@@ -248,40 +301,6 @@ class CaptureEngine(
 
     fun skippedTargets(): Set<MappableControl> = skipped.toSet()
 
-    private fun rebuildOwnership() {
-        ownedCodes.clear()
-        val base = baseProfile ?: return
-        val pairs = listOf(
-            MappableControl.A to base.keyA,
-            MappableControl.B to base.keyB,
-            MappableControl.X to base.keyX,
-            MappableControl.Y to base.keyY,
-            MappableControl.DPAD_UP to base.keyDpadUp,
-            MappableControl.DPAD_DOWN to base.keyDpadDown,
-            MappableControl.DPAD_LEFT to base.keyDpadLeft,
-            MappableControl.DPAD_RIGHT to base.keyDpadRight,
-            MappableControl.L to base.keyL,
-            MappableControl.R to base.keyR,
-            MappableControl.ZL to base.keyZL,
-            MappableControl.ZR to base.keyZR,
-            MappableControl.PLUS to base.keyPlus,
-            MappableControl.MINUS to base.keyMinus,
-            MappableControl.HOME to base.keyHome,
-            MappableControl.STICK_L_PRESS to base.keyL3,
-            MappableControl.STICK_R_PRESS to base.keyR3
-        )
-        for ((target, code) in pairs) {
-            if (code != 0 && code != KeyEvent.KEYCODE_UNKNOWN) {
-                ownedCodes.putIfAbsent(code, target)
-            }
-        }
-        // Replay this pass's assignments on top.
-        for ((target, code) in assignedKeys) {
-            ownedCodes.entries.removeAll { it.value == target }
-            ownedCodes[code] = target
-        }
-    }
-
     /**
      * Applies captured assignments onto [base] (skipped targets keep base
      * values). Returns null when cancelled.
@@ -289,6 +308,31 @@ class CaptureEngine(
     fun buildProfile(base: ControllerProfile): ControllerProfile? {
         if (cancelled) return null
         var profile = base
+        // If a key was assigned to target T in this pass, any other target in base
+        // that had that key but wasn't assigned in this pass should have its key cleared
+        // so we don't produce duplicate key mappings for skipped targets.
+        val assignedKeyCodes = assignedKeys.values.toSet()
+        if (assignedKeys.isNotEmpty()) {
+            profile = profile.copy(
+                keyA = if (MappableControl.A in assignedKeys) profile.keyA else if (profile.keyA in assignedKeyCodes) KeyEvent.KEYCODE_UNKNOWN else profile.keyA,
+                keyB = if (MappableControl.B in assignedKeys) profile.keyB else if (profile.keyB in assignedKeyCodes) KeyEvent.KEYCODE_UNKNOWN else profile.keyB,
+                keyX = if (MappableControl.X in assignedKeys) profile.keyX else if (profile.keyX in assignedKeyCodes) KeyEvent.KEYCODE_UNKNOWN else profile.keyX,
+                keyY = if (MappableControl.Y in assignedKeys) profile.keyY else if (profile.keyY in assignedKeyCodes) KeyEvent.KEYCODE_UNKNOWN else profile.keyY,
+                keyL = if (MappableControl.L in assignedKeys) profile.keyL else if (profile.keyL in assignedKeyCodes) KeyEvent.KEYCODE_UNKNOWN else profile.keyL,
+                keyR = if (MappableControl.R in assignedKeys) profile.keyR else if (profile.keyR in assignedKeyCodes) KeyEvent.KEYCODE_UNKNOWN else profile.keyR,
+                keyZL = if (MappableControl.ZL in assignedKeys) profile.keyZL else if (profile.keyZL in assignedKeyCodes) KeyEvent.KEYCODE_UNKNOWN else profile.keyZL,
+                keyZR = if (MappableControl.ZR in assignedKeys) profile.keyZR else if (profile.keyZR in assignedKeyCodes) KeyEvent.KEYCODE_UNKNOWN else profile.keyZR,
+                keyPlus = if (MappableControl.PLUS in assignedKeys) profile.keyPlus else if (profile.keyPlus in assignedKeyCodes) KeyEvent.KEYCODE_UNKNOWN else profile.keyPlus,
+                keyMinus = if (MappableControl.MINUS in assignedKeys) profile.keyMinus else if (profile.keyMinus in assignedKeyCodes) KeyEvent.KEYCODE_UNKNOWN else profile.keyMinus,
+                keyHome = if (MappableControl.HOME in assignedKeys) profile.keyHome else if (profile.keyHome in assignedKeyCodes) KeyEvent.KEYCODE_UNKNOWN else profile.keyHome,
+                keyL3 = if (MappableControl.STICK_L_PRESS in assignedKeys) profile.keyL3 else if (profile.keyL3 in assignedKeyCodes) KeyEvent.KEYCODE_UNKNOWN else profile.keyL3,
+                keyR3 = if (MappableControl.STICK_R_PRESS in assignedKeys) profile.keyR3 else if (profile.keyR3 in assignedKeyCodes) KeyEvent.KEYCODE_UNKNOWN else profile.keyR3,
+                keyDpadUp = if (MappableControl.DPAD_UP in assignedKeys) profile.keyDpadUp else if (profile.keyDpadUp in assignedKeyCodes) KeyEvent.KEYCODE_UNKNOWN else profile.keyDpadUp,
+                keyDpadDown = if (MappableControl.DPAD_DOWN in assignedKeys) profile.keyDpadDown else if (profile.keyDpadDown in assignedKeyCodes) KeyEvent.KEYCODE_UNKNOWN else profile.keyDpadDown,
+                keyDpadLeft = if (MappableControl.DPAD_LEFT in assignedKeys) profile.keyDpadLeft else if (profile.keyDpadLeft in assignedKeyCodes) KeyEvent.KEYCODE_UNKNOWN else profile.keyDpadLeft,
+                keyDpadRight = if (MappableControl.DPAD_RIGHT in assignedKeys) profile.keyDpadRight else if (profile.keyDpadRight in assignedKeyCodes) KeyEvent.KEYCODE_UNKNOWN else profile.keyDpadRight
+            )
+        }
         for ((target, key) in assignedKeys) {
             profile = when (target) {
                 MappableControl.A -> profile.copy(keyA = key)
@@ -313,13 +357,11 @@ class CaptureEngine(
         }
         // Hat-driven directions keep working only when the hat path is on.
         if (hatDirections.isNotEmpty()) profile = profile.copy(hatAsDpad = true)
-        for ((target, axes) in assignedStickAxes) {
-            profile = when (target) {
-                MappableControl.STICK_L_MOVE -> profile.copy(axisLX = axes.first, axisLY = axes.second)
-                MappableControl.STICK_R_MOVE -> profile.copy(axisRX = axes.first, axisRY = axes.second)
-                else -> profile
-            }
-        }
+        // Captured stick axes update the profile
+        capturedAxisLX?.let { profile = profile.copy(axisLX = it) }
+        capturedAxisLY?.let { profile = profile.copy(axisLY = it) }
+        capturedAxisRX?.let { profile = profile.copy(axisRX = it) }
+        capturedAxisRY?.let { profile = profile.copy(axisRY = it) }
         for ((target, axis) in assignedTriggerAxis) {
             profile = when (target) {
                 MappableControl.ZL -> profile.copy(axisLTrigger = axis)

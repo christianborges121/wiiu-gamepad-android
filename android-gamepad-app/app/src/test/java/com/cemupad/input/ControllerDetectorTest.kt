@@ -33,12 +33,24 @@ class ControllerDetectorTest {
         val backbone = ControllerDetector.fingerprint(0, 0, "Backbone One")
         assertTrue(backbone != null)
         assertEquals(DetectionConfidence.HEURISTIC, backbone!!.confidence)
+        assertEquals(MotionEvent.AXIS_RZ, backbone.profile.axisRX)
+        assertEquals(MotionEvent.AXIS_Z, backbone.profile.axisRY)
 
         val kishi = ControllerDetector.fingerprint(0, 0, "Razer Kishi V2 Pro")
         assertTrue(kishi != null)
 
         val eightBitDo = ControllerDetector.fingerprint(0, 0, "8BitDo Pro 2")
         assertTrue(eightBitDo != null)
+    }
+
+    @Test
+    fun testBackboneExactPidMatch() {
+        val backbone = ControllerDetector.fingerprint(0x358A, 0x0302, "Backbone One")
+        assertTrue(backbone != null)
+        assertEquals(DetectionConfidence.EXACT, backbone!!.confidence)
+        assertEquals("Backbone One", backbone.matchedOn)
+        assertEquals(MotionEvent.AXIS_RZ, backbone.profile.axisRX)
+        assertEquals(MotionEvent.AXIS_Z, backbone.profile.axisRY)
     }
 
     @Test

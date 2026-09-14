@@ -49,13 +49,13 @@ class DiscoveryAndControlsTest {
         val dsuServer = DSUServer()
         val handler = GamepadInputHandler(dsuServer)
 
-        // Press Virtual A (mapped to Cemu DSU Circle / Wii U A)
+        // Press Virtual A (mapped to Cemu DSU Cross / Wii U A per Bridge 1->14)
         handler.setVirtualButton(handler.profile.keyA, true)
-        assertTrue((dsuServer.controllerState.state2 and DSUPacket.State2Flags.CIRCLE_B) != 0)
+        assertTrue((dsuServer.controllerState.state2 and DSUPacket.State2Flags.CROSS_A) != 0)
 
         // Release Virtual A
         handler.setVirtualButton(handler.profile.keyA, false)
-        assertTrue((dsuServer.controllerState.state2 and DSUPacket.State2Flags.CIRCLE_B) == 0)
+        assertTrue((dsuServer.controllerState.state2 and DSUPacket.State2Flags.CROSS_A) == 0)
 
         // Press Virtual D-Pad Up
         handler.setVirtualButton(KeyEvent.KEYCODE_DPAD_UP, true)

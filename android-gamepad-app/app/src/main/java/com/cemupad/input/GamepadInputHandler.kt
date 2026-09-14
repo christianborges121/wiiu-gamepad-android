@@ -100,15 +100,15 @@ class GamepadInputHandler(
             profile.keyDpadRight -> dpadKeyRight = true
 
             // Face buttons (mapped to Cemu DSU state2 layout):
-            // Cemu controller0.xml maps:
-            // Wii U GamePad A (East) -> DSU Button 13 (Circle)
-            // Wii U GamePad B (South) -> DSU Button 14 (Cross)
-            // Wii U GamePad X (North) -> DSU Button 12 (Triangle)
-            // Wii U GamePad Y (West) -> DSU Button 15 (Square)
-            profile.keyA -> state2 = state2 or DSUPacket.State2Flags.CIRCLE_B
-            profile.keyB -> state2 = state2 or DSUPacket.State2Flags.CROSS_A
-            profile.keyX -> state2 = state2 or DSUPacket.State2Flags.TRIANGLE_Y
-            profile.keyY -> state2 = state2 or DSUPacket.State2Flags.SQUARE_X
+            // Cemu controller0.xml (via CemuPadBridge) maps:
+            // Wii U GamePad A (East) -> DSU Cross (South, Button 14)
+            // Wii U GamePad B (South) -> DSU Circle (East, Button 13)
+            // Wii U GamePad X (North) -> DSU Square (West, Button 15)
+            // Wii U GamePad Y (West) -> DSU Triangle (North, Button 12)
+            profile.keyA -> state2 = state2 or DSUPacket.State2Flags.CROSS_A
+            profile.keyB -> state2 = state2 or DSUPacket.State2Flags.CIRCLE_B
+            profile.keyX -> state2 = state2 or DSUPacket.State2Flags.SQUARE_X
+            profile.keyY -> state2 = state2 or DSUPacket.State2Flags.TRIANGLE_Y
 
             // Bumpers & Triggers
             profile.keyL -> state2 = state2 or DSUPacket.State2Flags.L
@@ -151,10 +151,10 @@ class GamepadInputHandler(
             profile.keyDpadRight -> dpadKeyRight = false
 
             // Face buttons
-            profile.keyA -> state2 = state2 and DSUPacket.State2Flags.CIRCLE_B.inv()
-            profile.keyB -> state2 = state2 and DSUPacket.State2Flags.CROSS_A.inv()
-            profile.keyX -> state2 = state2 and DSUPacket.State2Flags.TRIANGLE_Y.inv()
-            profile.keyY -> state2 = state2 and DSUPacket.State2Flags.SQUARE_X.inv()
+            profile.keyA -> state2 = state2 and DSUPacket.State2Flags.CROSS_A.inv()
+            profile.keyB -> state2 = state2 and DSUPacket.State2Flags.CIRCLE_B.inv()
+            profile.keyX -> state2 = state2 and DSUPacket.State2Flags.SQUARE_X.inv()
+            profile.keyY -> state2 = state2 and DSUPacket.State2Flags.TRIANGLE_Y.inv()
 
             // Bumpers & Triggers
             profile.keyL -> state2 = state2 and DSUPacket.State2Flags.L.inv()

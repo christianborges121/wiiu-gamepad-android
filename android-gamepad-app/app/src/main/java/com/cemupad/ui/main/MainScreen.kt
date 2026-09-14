@@ -3,7 +3,6 @@ package com.cemupad.ui.main
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
-import android.view.MotionEvent as AndroidMotionEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -48,6 +48,7 @@ import com.cemupad.ui.controls.MicIndicatorDot
 import com.cemupad.ui.controls.VirtualButton
 import com.cemupad.ui.controls.VirtualGamePadOverlay
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -62,7 +63,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.draw.clipToBounds
@@ -80,6 +80,10 @@ import com.cemupad.config.DisplayFitMode
 import com.cemupad.config.DisplayLayout
 import com.cemupad.config.DisplayResolutionPreset
 import com.cemupad.config.DisplaySettings
+import com.cemupad.ui.config.ConfigAction
+import com.cemupad.ui.config.ConfigMenuState
+import com.cemupad.ui.config.ConfigMenuView
+import com.cemupad.ui.config.ConfigScreen
 import com.cemupad.ui.mapping.MappingPromptBanner
 import com.cemupad.ui.mapping.MappingPromptUi
 import com.cemupad.ui.mapping.MappingWizard
@@ -109,6 +113,7 @@ fun MainScreen(
     onSurfaceAvailable: ((Surface) -> Unit)? = null,
     onSurfaceDestroyed: (() -> Unit)? = null,
     onExportDebug: (() -> Unit)? = null,
+    forceDiagnosticsOverlay: Boolean = false,
     mappingPrompt: MappingPromptUi? = null,
     onMappingSetup: (() -> Unit)? = null,
     onMappingDismiss: (() -> Unit)? = null,
@@ -116,68 +121,43 @@ fun MainScreen(
     onOpenInputMapping: (() -> Unit)? = null,
     wizardScreen: MappingWizardScreen? = null,
     wizardActions: MappingWizardActions = MappingWizardActions(),
+    configMenuState: ConfigMenuState? = null,
     modifier: Modifier = Modifier
 ) {
     var ipAddress by remember { mutableStateOf("127.0.0.1") }
     var clientCount by remember { mutableStateOf(0) }
     var packetsReceived by remember { mutableLongStateOf(0L) }
     var packetsSent by remember { mutableLongStateOf(0L) }
-    var diagnosticsEnabled by remember { mutableStateOf(displaySettings.diagnosticsOverlayEnabled) }
-    var showVirtualControls by remember { mutableStateOf(displaySettings.showVirtualControls) }
-    var virtualControlsOpacity by remember { mutableFloatStateOf(displaySettings.virtualControlsOpacity) }
-    var audioEnabled by remember { mutableStateOf(displaySettings.audioEnabled) }
-    var audioVolume by remember { mutableFloatStateOf(displaySettings.audioVolume) }
-    var vibrationEnabled by remember { mutableStateOf(displaySettings.vibrationEnabled) }
-    var vibrationIntensity by remember { mutableFloatStateOf(displaySettings.vibrationIntensity) }
-    var stickDeadzone by remember { mutableFloatStateOf(displaySettings.stickDeadzone) }
-    var micEnabled by remember { mutableStateOf(displaySettings.micEnabled) }
-    var selectedFitMode by remember { mutableStateOf(displaySettings.fitMode) }
-    var selectedResolution by remember { mutableStateOf(displaySettings.resolutionPreset) }
-    var selectedBitrateMbps by remember { mutableStateOf(displaySettings.videoBitrateMbps) }
-    var showFitMenu by remember { mutableStateOf(false) }
-    var showResolutionMenu by remember { mutableStateOf(false) }
-    var showBitrateMenu by remember { mutableStateOf(false) }
     var videoHolder by remember { mutableStateOf<SurfaceHolder?>(null) }
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
-    // Accordion: exactly one drawer section open at a time ("" = all collapsed).
-    var expandedSection by remember { mutableStateOf("DISPLAY") }
-    fun toggleSection(key: String) {
-        expandedSection = if (expandedSection == key) "" else key
-    }
-    val edgeSwipeState = remember { EdgeSwipeState() }
-    val swipeDensity = LocalDensity.current
-    LaunchedEffect(displaySettings) {
-        selectedFitMode = displaySettings.fitMode
-        selectedResolution = displaySettings.resolutionPreset
-        selectedBitrateMbps = displaySettings.videoBitrateMbps
-        diagnosticsEnabled = displaySettings.diagnosticsOverlayEnabled
-        showVirtualControls = displaySettings.showVirtualControls
-        virtualControlsOpacity = displaySettings.virtualControlsOpacity
-        audioEnabled = displaySettings.audioEnabled
-        audioVolume = displaySettings.audioVolume
-        vibrationEnabled = displaySettings.vibrationEnabled
-        vibrationIntensity = displaySettings.vibrationIntensity
-        stickDeadzone = displaySettings.stickDeadzone
-        micEnabled = displaySettings.micEnabled
-    }
-
-    fun currentSettings() = DisplaySettings(
-        fitMode = selectedFitMode,
-        resolutionPreset = selectedResolution,
-        videoBitrateMbps = selectedBitrateMbps,
-        diagnosticsOverlayEnabled = diagnosticsEnabled,
-        showConnectionHelp = true,
-        limitTo30Fps = false,
-        showVirtualControls = showVirtualControls,
-        virtualControlsOpacity = virtualControlsOpacity,
-        audioEnabled = audioEnabled,
-        audioVolume = audioVolume,
-        vibrationEnabled = vibrationEnabled,
-        vibrationIntensity = vibrationIntensity,
-        stickDeadzone = stickDeadzone,
-        micEnabled = micEnabled
+    val menuState = configMenuState ?: remember { ConfigMenuState() }
+    val drawerState = rememberDrawerState(
+        initialValue = if (menuState.isOpen) DrawerValue.Open else DrawerValue.Closed,
+        confirmStateChange = { targetValue ->
+            val willBeOpen = (targetValue == DrawerValue.Open)
+            menuState.isOpen = willBeOpen
+            if (willBeOpen) {
+                menuState.focusedIndex = 0
+            } else {
+                menuState.currentScreen = ConfigScreen.ROOT
+            }
+            true
+        }
     )
+    val scope = rememberCoroutineScope()
+    var isCalibrated by remember { mutableStateOf(false) }
+
+    DisposableEffect(menuState, scope) {
+        menuState.requestOpen = {
+            scope.launch { drawerState.open() }
+        }
+        menuState.requestClose = {
+            scope.launch { drawerState.close() }
+        }
+        onDispose {
+            menuState.requestOpen = null
+            menuState.requestClose = null
+        }
+    }
 
     LaunchedEffect(dsuServer) {
         ipAddress = NetworkUtils.getLocalIpAddress()
@@ -192,610 +172,54 @@ fun MainScreen(
     }
 
     BackHandler {
-        scope.launch {
-            if (drawerState.isOpen) {
-                drawerState.close()
-            } else {
-                drawerState.open()
-            }
+        if (menuState.isOpen || drawerState.isOpen) {
+            menuState.onBackB()
+        } else {
+            menuState.open()
         }
     }
 
-    LaunchedEffect(drawerState.isOpen) {
-        if (!drawerState.isOpen) {
-            onDisplaySettingsChanged(currentSettings())
-        }
-    }
-
-    // NOTE (2026-09-13): PIN prompt removed — feature disabled. Session auth
-    // handshake in VideoStreamClient stays open-session (auto-approve).
-
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        gesturesEnabled = drawerState.isOpen,
-        drawerContent = {
-            ModalDrawerSheet(
-                drawerContainerColor = Color(0xFF0F141E),
-                modifier = Modifier.width(340.dp)
-            ) {
-                val switchColors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
-                    checkedTrackColor = Color(0xFF00B4D8),
-                    uncheckedThumbColor = Color(0xFF7A8B9E),
-                    uncheckedTrackColor = Color(0xFF222B3D),
-                    uncheckedBorderColor = Color.Transparent
+    Box(modifier = Modifier.fillMaxSize()) {
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            gesturesEnabled = true,
+            drawerContent = {
+                ConfigMenuView(
+                    state = menuState,
+                    settings = displaySettings,
+                    onSettingsChanged = onDisplaySettingsChanged,
+                    activeControllerName = activeControllerName,
+                    phoneIp = ipAddress,
+                    dsuPort = dsuServer?.port ?: 26760,
+                    isCalibrated = isCalibrated,
+                    onAction = { action ->
+                        when (action) {
+                            ConfigAction.CALIBRATE_GYRO -> {
+                                onCalibrateGyro?.invoke()
+                                isCalibrated = true
+                                scope.launch {
+                                    kotlinx.coroutines.delay(1800)
+                                    isCalibrated = false
+                                }
+                            }
+                            ConfigAction.MAP_CONTROLLER -> {
+                                scope.launch { drawerState.close() }
+                                onOpenInputMapping?.invoke()
+                            }
+                            ConfigAction.EXPORT_DEBUG_BUNDLE -> onExportDebug?.invoke()
+                            ConfigAction.RESET_SETTINGS -> onDisplaySettingsChanged(DisplaySettings())
+                        }
+                    }
                 )
-                val sliderColors = SliderDefaults.colors(
-                    thumbColor = Color(0xFF00E5FF),
-                    activeTrackColor = Color(0xFF00B4D8),
-                    inactiveTrackColor = Color(0xFF222B3D)
-                )
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 18.dp, vertical = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    // --- Drawer Header ---
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Configuration",
-                            color = Color.White,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        TextButton(
-                            onClick = { scope.launch { drawerState.close() } }
-                        ) {
-                            Text("Done", color = Color(0xFF00E5FF), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-
-                    // --- DISPLAY SECTION (accordion; expanding one collapses the rest) ---
-                    SectionHeader(
-                        title = "DISPLAY",
-                        expanded = expandedSection == "DISPLAY",
-                        onToggle = { toggleSection("DISPLAY") }
-                    )
-
-                    if (expandedSection == "DISPLAY") {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF161D2B)),
-                        border = BorderStroke(1.dp, Color(0xFF222B3D))
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            // Resolution selector (NO description)
-                            Box(modifier = Modifier.fillMaxWidth()) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text("Resolution", color = Color(0xFFEAF2FF), fontSize = 14.sp)
-                                    OutlinedButton(
-                                        onClick = { showResolutionMenu = true },
-                                        shape = RoundedCornerShape(8.dp),
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF00E5FF)),
-                                        border = BorderStroke(1.dp, Color(0xFF2A3446))
-                                    ) {
-                                        Text(selectedResolution.label, fontSize = 13.sp)
-                                    }
-                                }
-                                DropdownMenu(
-                                    expanded = showResolutionMenu,
-                                    onDismissRequest = { showResolutionMenu = false },
-                                    modifier = Modifier.background(Color(0xFF1A2332))
-                                ) {
-                                    DisplayResolutionPreset.values().forEach { preset ->
-                                        DropdownMenuItem(
-                                            text = {
-                                                Text(
-                                                    preset.label,
-                                                    color = if (preset == selectedResolution) Color(0xFF00E5FF) else Color.White
-                                                )
-                                            },
-                                            onClick = {
-                                                selectedResolution = preset
-                                                showResolutionMenu = false
-                                                onDisplaySettingsChanged(currentSettings().copy(resolutionPreset = preset))
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-
-                            HorizontalDivider(color = Color(0xFF222B3D))
-
-                            // Fit mode selector
-                            Box(modifier = Modifier.fillMaxWidth()) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text("Fit mode", color = Color(0xFFEAF2FF), fontSize = 14.sp)
-                                    OutlinedButton(
-                                        onClick = { showFitMenu = true },
-                                        shape = RoundedCornerShape(8.dp),
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF00E5FF)),
-                                        border = BorderStroke(1.dp, Color(0xFF2A3446))
-                                    ) {
-                                        Text(selectedFitMode.label, fontSize = 13.sp)
-                                    }
-                                }
-                                DropdownMenu(
-                                    expanded = showFitMenu,
-                                    onDismissRequest = { showFitMenu = false },
-                                    modifier = Modifier.background(Color(0xFF1A2332))
-                                ) {
-                                    DisplayFitMode.values().forEach { mode ->
-                                        DropdownMenuItem(
-                                            text = {
-                                                Text(
-                                                    mode.label,
-                                                    color = if (mode == selectedFitMode) Color(0xFF00E5FF) else Color.White
-                                                )
-                                            },
-                                            onClick = {
-                                                selectedFitMode = mode
-                                                showFitMenu = false
-                                                onDisplaySettingsChanged(currentSettings().copy(fitMode = mode))
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-
-                            HorizontalDivider(color = Color(0xFF222B3D))
-
-                            // Stream bitrate selector (live encoder control)
-                            Box(modifier = Modifier.fillMaxWidth()) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text("Stream bitrate", color = Color(0xFFEAF2FF), fontSize = 14.sp)
-                                    OutlinedButton(
-                                        onClick = { showBitrateMenu = true },
-                                        shape = RoundedCornerShape(8.dp),
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF00E5FF)),
-                                        border = BorderStroke(1.dp, Color(0xFF2A3446))
-                                    ) {
-                                        Text("$selectedBitrateMbps Mbps", fontSize = 13.sp)
-                                    }
-                                }
-                                DropdownMenu(
-                                    expanded = showBitrateMenu,
-                                    onDismissRequest = { showBitrateMenu = false },
-                                    modifier = Modifier.background(Color(0xFF1A2332))
-                                ) {
-                                    DisplaySettings.VALID_VIDEO_BITRATES_MBPS.forEach { bitrate ->
-                                        DropdownMenuItem(
-                                            text = {
-                                                Text(
-                                                    "$bitrate Mbps",
-                                                    color = if (bitrate == selectedBitrateMbps) Color(0xFF00E5FF) else Color.White
-                                                )
-                                            },
-                                            onClick = {
-                                                selectedBitrateMbps = bitrate
-                                                showBitrateMenu = false
-                                                onDisplaySettingsChanged(currentSettings().copy(videoBitrateMbps = bitrate))
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    } // end DISPLAY accordion
-
-                    // --- AUDIO SECTION ---
-                    SectionHeader(
-                        title = "AUDIO",
-                        expanded = expandedSection == "AUDIO",
-                        onToggle = { toggleSection("AUDIO") }
-                    )
-
-                    if (expandedSection == "AUDIO") {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF161D2B)),
-                        border = BorderStroke(1.dp, Color(0xFF222B3D))
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            // GamePad audio (NO description)
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("GamePad audio", color = Color(0xFFEAF2FF), fontSize = 14.sp)
-                                Switch(
-                                    checked = audioEnabled,
-                                    onCheckedChange = { enabled ->
-                                        audioEnabled = enabled
-                                        onDisplaySettingsChanged(currentSettings().copy(audioEnabled = enabled))
-                                    },
-                                    colors = switchColors
-                                )
-                            }
-
-                            if (audioEnabled) {
-                                HorizontalDivider(color = Color(0xFF222B3D))
-                                Column(modifier = Modifier.fillMaxWidth()) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text("Volume", color = Color(0xFF9FB0C6), fontSize = 13.sp)
-                                        Text("${(audioVolume * 100).toInt()}%", color = Color(0xFF00E5FF), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                                    }
-                                    Slider(
-                                        value = audioVolume,
-                                        onValueChange = {
-                                            audioVolume = it
-                                            onDisplaySettingsChanged(currentSettings().copy(audioVolume = it))
-                                        },
-                                        colors = sliderColors,
-                                        valueRange = 0f..1f
-                                    )
-                                }
-                            }
-
-                            HorizontalDivider(color = Color(0xFF222B3D))
-
-                            // Microphone
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Microphone", color = Color(0xFFEAF2FF), fontSize = 14.sp)
-                                Switch(
-                                    checked = micEnabled,
-                                    onCheckedChange = { enabled ->
-                                        micEnabled = enabled
-                                        onDisplaySettingsChanged(currentSettings().copy(micEnabled = enabled))
-                                    },
-                                    colors = switchColors
-                                )
-                            }
-                        }
-                    }
-                    } // end AUDIO accordion
-
-                    // --- INPUT & HAPTICS SECTION ---
-                    SectionHeader(
-                        title = "INPUT & HAPTICS",
-                        expanded = expandedSection == "INPUT",
-                        onToggle = { toggleSection("INPUT") }
-                    )
-
-                    if (expandedSection == "INPUT") {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF161D2B)),
-                        border = BorderStroke(1.dp, Color(0xFF222B3D))
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            // Vibration (was "Vibration & rumble", NO description)
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Vibration", color = Color(0xFFEAF2FF), fontSize = 14.sp)
-                                Switch(
-                                    checked = vibrationEnabled,
-                                    onCheckedChange = { enabled ->
-                                        vibrationEnabled = enabled
-                                        onDisplaySettingsChanged(currentSettings().copy(vibrationEnabled = enabled))
-                                    },
-                                    colors = switchColors
-                                )
-                            }
-
-                            if (vibrationEnabled) {
-                                HorizontalDivider(color = Color(0xFF222B3D))
-                                Column(modifier = Modifier.fillMaxWidth()) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text("Intensity", color = Color(0xFF9FB0C6), fontSize = 13.sp)
-                                        Text(
-                                            if (vibrationIntensity <= 0f) "Off" else "${(vibrationIntensity * 100).toInt()}%",
-                                            color = if (vibrationIntensity <= 0f) Color(0xFF9FB0C6) else Color(0xFF00E5FF),
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                    }
-                                    Slider(
-                                        value = vibrationIntensity,
-                                        onValueChange = {
-                                            vibrationIntensity = it
-                                            onDisplaySettingsChanged(currentSettings().copy(vibrationIntensity = it))
-                                        },
-                                        onValueChangeFinished = {
-                                            onPreviewVibration?.invoke(vibrationIntensity)
-                                        },
-                                        colors = sliderColors,
-                                        valueRange = 0f..1f
-                                    )
-                                }
-                            }
-
-                            HorizontalDivider(color = Color(0xFF222B3D))
-
-                            // Virtual controls
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Virtual controls", color = Color(0xFFEAF2FF), fontSize = 14.sp)
-                                Switch(
-                                    checked = showVirtualControls,
-                                    onCheckedChange = { enabled ->
-                                        showVirtualControls = enabled
-                                        onDisplaySettingsChanged(currentSettings().copy(showVirtualControls = enabled))
-                                    },
-                                    colors = switchColors
-                                )
-                            }
-
-                            if (showVirtualControls) {
-                                Column(modifier = Modifier.fillMaxWidth()) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text("Controls opacity", color = Color(0xFF9FB0C6), fontSize = 13.sp)
-                                        Text("${(virtualControlsOpacity * 100).toInt()}%", color = Color(0xFF00E5FF), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                                    }
-                                    Slider(
-                                        value = virtualControlsOpacity,
-                                        onValueChange = {
-                                            virtualControlsOpacity = it
-                                            onDisplaySettingsChanged(currentSettings().copy(virtualControlsOpacity = it))
-                                        },
-                                        colors = sliderColors,
-                                        valueRange = 0.15f..1.0f
-                                    )
-                                }
-                                HorizontalDivider(color = Color(0xFF222B3D))
-                            } else {
-                                HorizontalDivider(color = Color(0xFF222B3D))
-                            }
-
-                            // Stick deadzone
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text("Stick deadzone", color = Color(0xFFEAF2FF), fontSize = 14.sp)
-                                    Text("${(stickDeadzone * 100).toInt()}%", color = Color(0xFF00E5FF), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                                }
-                                Slider(
-                                    value = stickDeadzone,
-                                    onValueChange = {
-                                        stickDeadzone = it
-                                        onDisplaySettingsChanged(currentSettings().copy(stickDeadzone = it))
-                                    },
-                                    colors = sliderColors,
-                                    valueRange = 0.02f..0.25f
-                                )
-                            }
-
-                            HorizontalDivider(color = Color(0xFF222B3D))
-
-                            // Motion & Gyroscope calibration
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Motion & gyroscope", color = Color(0xFFEAF2FF), fontSize = 14.sp)
-                                var isCalibrated by remember { mutableStateOf(false) }
-                                OutlinedButton(
-                                    onClick = {
-                                        onCalibrateGyro?.invoke()
-                                        isCalibrated = true
-                                        scope.launch {
-                                            kotlinx.coroutines.delay(1800)
-                                            isCalibrated = false
-                                        }
-                                    },
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                                    shape = RoundedCornerShape(8.dp),
-                                    colors = ButtonDefaults.outlinedButtonColors(
-                                        contentColor = if (isCalibrated) Color(0xFF00E5FF) else Color(0xFFEAF2FF)
-                                    ),
-                                    border = BorderStroke(1.dp, if (isCalibrated) Color(0xFF00E5FF) else Color(0xFF2A3446))
-                                ) {
-                                    Text(if (isCalibrated) "Calibrated ✓" else "Calibrate", fontSize = 12.sp, maxLines = 1)
-                                }
-                            }
-
-                            HorizontalDivider(color = Color(0xFF222B3D))
-
-                            // Physical controller input mapping
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("Physical controller", color = Color(0xFFEAF2FF), fontSize = 14.sp)
-                                    Text(
-                                        activeControllerName ?: "No gamepad seen yet",
-                                        color = Color(0xFF9FB0C6),
-                                        fontSize = 12.sp,
-                                        maxLines = 1
-                                    )
-                                }
-                                OutlinedButton(
-                                    onClick = { onOpenInputMapping?.invoke() },
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                                    shape = RoundedCornerShape(8.dp),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEAF2FF)),
-                                    border = BorderStroke(1.dp, Color(0xFF2A3446))
-                                ) {
-                                    Text("Map", fontSize = 12.sp, maxLines = 1)
-                                }
-                            }
-                        }
-                    }
-                    } // end INPUT accordion
-
-                    // --- NETWORK SECTION (technical details), second to last ---
-                    SectionHeader(
-                        title = "NETWORK",
-                        expanded = expandedSection == "NETWORK",
-                        onToggle = { toggleSection("NETWORK") }
-                    )
-
-                    if (expandedSection == "NETWORK") {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF161D2B)),
-                        border = BorderStroke(1.dp, Color(0xFF222B3D))
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Phone IP", color = Color(0xFFEAF2FF), fontSize = 14.sp)
-                                Text(
-                                    ipAddress,
-                                    color = Color(0xFF00E5FF),
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 13.sp
-                                )
-                            }
-
-                            HorizontalDivider(color = Color(0xFF222B3D))
-
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                Text("Ports", color = Color(0xFFEAF2FF), fontSize = 14.sp)
-                                Text(
-                                    "DSU ${dsuServer?.port ?: 26760} · Video 26761 · Audio 26762",
-                                    color = Color(0xFF9FB0C6),
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 13.sp
-                                )
-                                Text(
-                                    "Discovery broadcast on UDP 26763",
-                                    color = Color(0xFF9FB0C6),
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 13.sp
-                                )
-                            }
-                        }
-                    }
-                    } // end NETWORK accordion
-
-                    // --- DEBUG SECTION (remote troubleshooting bundle), always last ---
-                    SectionHeader(
-                        title = "DEBUG",
-                        expanded = expandedSection == "DEBUG",
-                        onToggle = { toggleSection("DEBUG") }
-                    )
-
-                    if (expandedSection == "DEBUG") {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF161D2B)),
-                        border = BorderStroke(1.dp, Color(0xFF222B3D))
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Diagnostics overlay", color = Color(0xFFEAF2FF), fontSize = 14.sp)
-                                Switch(
-                                    checked = diagnosticsEnabled,
-                                    onCheckedChange = { enabled ->
-                                        diagnosticsEnabled = enabled
-                                        onDisplaySettingsChanged(currentSettings().copy(diagnosticsOverlayEnabled = enabled))
-                                    },
-                                    colors = switchColors
-                                )
-                            }
-
-                            HorizontalDivider(color = Color(0xFF222B3D))
-
-                            Text(
-                                "Sends the app log, a screenshot and device details " +
-                                    "for troubleshooting (e.g. black screen on a new device).",
-                                color = Color(0xFF9FB0C6),
-                                fontSize = 13.sp
-                            )
-                            OutlinedButton(
-                                onClick = { onExportDebug?.invoke() },
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF00E5FF)),
-                                border = BorderStroke(1.dp, Color(0xFF2A3446))
-                            ) {
-                                Text("Export debug bundle", fontSize = 13.sp)
-                            }
-                        }
-                    }
-                    } // end DEBUG accordion
-                }
             }
-        }
-    ) {
-        BoxWithConstraints(
-            modifier = modifier
-                .fillMaxSize()
-                .background(Color.Black)
-                .clipToBounds()
-                .edgeSwipeToOpen(
-                    enabled = !drawerState.isOpen,
-                    state = edgeSwipeState,
-                    edgePx = with(swipeDensity) { 48.dp.toPx() },
-                    needPx = with(swipeDensity) { 96.dp.toPx() },
-                    maxDriftPx = with(swipeDensity) { 64.dp.toPx() }
-                ) {
-                    scope.launch { drawerState.open() }
-                },
-            contentAlignment = Alignment.Center
         ) {
+            BoxWithConstraints(
+                modifier = modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+                    .clipToBounds(),
+                contentAlignment = Alignment.Center
+            ) {
             val density = LocalDensity.current
             val containerPx = with(density) {
                 DisplayBufferSize(maxWidth.roundToPx(), maxHeight.roundToPx())
@@ -803,7 +227,7 @@ fun MainScreen(
             fun applySurfaceSize() {
                 videoHolder?.let { holder ->
                     val size = DisplayLayout.surfaceBufferSize(
-                        preset = selectedResolution,
+                        preset = displaySettings.resolutionPreset,
                         containerWidthPx = containerPx.width,
                         containerHeightPx = containerPx.height
                     )
@@ -813,11 +237,11 @@ fun MainScreen(
             // Keyed on both the preset and the holder: surface recreation
             // reuses the same holder instance, so this does not loop, and it
             // always applies the current preset instead of a stale closure.
-            LaunchedEffect(selectedResolution, videoHolder) {
+            LaunchedEffect(displaySettings.resolutionPreset, videoHolder) {
                 applySurfaceSize()
             }
 
-            val contentModifier = when (selectedFitMode) {
+            val contentModifier = when (displaySettings.fitMode) {
                 DisplayFitMode.ASPECT_FIT -> {
                     val dimensions = DisplayLayout.aspectFitDimensions(
                         containerWidth = maxWidth.value,
@@ -870,18 +294,18 @@ fun MainScreen(
                         TouchSurfaceView(ctx).apply {
                             this.touchHandler = touchHandler
                             this.isVideoStreaming = isVideoStreaming
-                            this.displayFitMode = selectedFitMode
+                            this.displayFitMode = displaySettings.fitMode
                         }
                     },
                     update = { view ->
                         view.touchHandler = touchHandler
                         view.isVideoStreaming = isVideoStreaming
-                        view.displayFitMode = selectedFitMode
+                        view.displayFitMode = displaySettings.fitMode
                     }
                 )
             }
 
-            if (diagnosticsEnabled) {
+            if (displaySettings.diagnosticsOverlayEnabled || forceDiagnosticsOverlay) {
                 val streamStatus = if (isVideoStreaming) {
                     "${videoFps.toInt()} FPS"
                 } else {
@@ -890,7 +314,7 @@ fun MainScreen(
                 Text(
                     text = "$ipAddress:${dsuServer?.port ?: 26760}  $streamStatus  c$clientCount  tx$packetsSent  rx$packetsReceived",
                     modifier = Modifier
-                        .align(Alignment.TopStart)
+                        .align(Alignment.TopEnd)
                         .padding(8.dp),
                     color = Color(0xFFEAF2FF),
                     fontFamily = FontFamily.Monospace,
@@ -922,84 +346,57 @@ fun MainScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .verticalScroll(rememberScrollState())
                                 .padding(18.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Text(
-                                text = "CemuPad",
+                                text = "Wii U GamePad",
                                 color = Color.White,
-                                fontSize = 26.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "Not connected yet.",
-                                color = Color(0xFF00E5FF),
-                                fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth()
+                                fontSize = 18.sp
                             )
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(
-                                    text = "1. On your PC, open Cemu.",
-                                    color = Color(0xFFEAF2FF),
-                                    fontSize = 14.sp,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                Text(
-                                    text = "2. Go to Options → Input Settings.",
-                                    color = Color(0xFFEAF2FF),
-                                    fontSize = 14.sp,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                Text(
-                                    text = "3. Click Auto-Discover CemuPad, pick this phone, then Pair & Connect.",
-                                    color = Color(0xFFEAF2FF),
-                                    fontSize = 14.sp,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                Text(
-                                    text = "4. The game stream starts here by itself.",
-                                    color = Color(0xFFEAF2FF),
-                                    fontSize = 14.sp,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
                             Text(
-                                text = "Tip: swipe from the left edge or press Back for Configuration.",
-                                color = Color(0xFF7ED4FF),
+                                text = "Waiting for Cemu to connect...",
+                                color = Color(0xFF8FA3BF),
+                                fontSize = 13.sp
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Enter this device's IP in Cemu under\nOptions → GamePad motion source → DSU Client",
+                                color = Color(0xFFC5D2E5),
                                 fontSize = 12.sp,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth()
+                                textAlign = TextAlign.Center
+                            )
+                            Text(
+                                text = ipAddress,
+                                color = Color(0xFF00E5FF),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp
+                            )
+                            Text(
+                                text = "Port: ${dsuServer?.port ?: 26760}",
+                                color = Color(0xFF8FA3BF),
+                                fontSize = 12.sp
                             )
 
                             if (discoveredServer != null) {
+                                Spacer(modifier = Modifier.height(4.dp))
                                 Card(
-                                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF16253B)),
-                                    shape = RoundedCornerShape(12.dp)
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1B2333)),
+                                    shape = RoundedCornerShape(10.dp)
                                 ) {
                                     Column(
-                                        modifier = Modifier.padding(12.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(10.dp),
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         verticalArrangement = Arrangement.spacedBy(6.dp)
                                     ) {
                                         Text(
-                                            text = "🟢 Cemu Found on Network!",
-                                            color = Color(0xFF00E5FF),
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 14.sp
-                                        )
-                                        Text(
-                                            text = discoveredServer.hostname,
+                                            text = "Found ${discoveredServer.hostname} (${discoveredServer.ip})",
                                             color = Color.White,
                                             fontWeight = FontWeight.SemiBold,
                                             fontSize = 14.sp
@@ -1018,32 +415,16 @@ fun MainScreen(
                 }
             }
 
-            // New-controller mapping prompt (non-blocking banner)
-            if (mappingPrompt != null) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 12.dp)
-                ) {
-                    MappingPromptBanner(
-                        deviceName = mappingPrompt.deviceName,
-                        matchLabel = mappingPrompt.matchLabel,
-                        onSetup = { onMappingSetup?.invoke() },
-                        onDismiss = { onMappingDismiss?.invoke() }
-                    )
-                }
-            }
-
             // Virtual GamePad Overlay
-            if (showVirtualControls && gamepadHandler != null) {
+            if (displaySettings.showVirtualControls && gamepadHandler != null) {
                 VirtualGamePadOverlay(
                     gamepadHandler = gamepadHandler,
                     onMicBlowChanged = { blowing -> onMicBlowChanged?.invoke(blowing) },
-                    micEnabled = micEnabled,
-                    opacity = virtualControlsOpacity,
+                    micEnabled = displaySettings.micEnabled,
+                    opacity = displaySettings.virtualControlsOpacity,
                     modifier = Modifier.fillMaxSize()
                 )
-            } else if (isVideoStreaming && micEnabled) {
+            } else if (isVideoStreaming && displaySettings.micEnabled) {
                 // Floating red dot indicator/button when mic is enabled
                 Box(
                     modifier = Modifier
@@ -1056,108 +437,26 @@ fun MainScreen(
                 }
             }
         }
-    }
-
-    // Wizard renders LAST so it sits above the open drawer. (It previously
-    // rendered underneath, making "Map" look dead while the drawer stayed open.)
-    wizardScreen?.let { MappingWizard(screen = it, actions = wizardActions) }
-}
-
-/**
- * Deliberate edge swipe to open the drawer: the gesture must start inside a
- * narrow left-edge zone and travel a long horizontal distance with little
- * vertical drift. Far less trigger-happy than the framework drawer swipe,
- * so gameplay touches don't pop the drawer open by accident.
- *
- * Implemented with pointerInteropFilter (View-level MotionEvent API) rather
- * than low-level pointer-input await APIs or `composed`, whose signatures
- * churn across Compose versions. Mutable state is hoisted to the caller.
- */
-private class EdgeSwipeState {
-    var tracking: Boolean = false
-    var accX: Float = 0f
-    var accY: Float = 0f
-    var lastX: Float = 0f
-    var lastY: Float = 0f
-}
-
-private fun Modifier.edgeSwipeToOpen(
-    enabled: Boolean,
-    state: EdgeSwipeState,
-    edgePx: Float,
-    needPx: Float,
-    maxDriftPx: Float,
-    onOpen: () -> Unit
-): Modifier = pointerInteropFilter {
-    if (!enabled) return@pointerInteropFilter false
-    when (it.action) {
-        AndroidMotionEvent.ACTION_DOWN -> {
-            if (it.x <= edgePx) {
-                state.tracking = true
-                state.accX = 0f
-                state.accY = 0f
-                state.lastX = it.x
-                state.lastY = it.y
-            } else {
-                state.tracking = false
-            }
-            false
         }
-        AndroidMotionEvent.ACTION_MOVE -> {
-            if (!state.tracking) return@pointerInteropFilter false
-            state.accX += it.x - state.lastX
-            state.accY += it.y - state.lastY
-            state.lastX = it.x
-            state.lastY = it.y
-            if (kotlin.math.abs(state.accY) > maxDriftPx) {
-                state.tracking = false
-                return@pointerInteropFilter false
-            }
-            if (state.accX >= needPx) {
-                state.tracking = false
-                onOpen()
-                return@pointerInteropFilter true
-            }
-            false
-        }
-        else -> {
-            state.tracking = false
-            false
-        }
-    }
-}
 
-/**
- * Accordion section header for the drawer: tapping expands the section and
- * collapses all others (single-expanded state lives in MainScreen).
- */
-@Composable
-private fun SectionHeader(
-    title: String,
-    expanded: Boolean,
-    onToggle: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onToggle() }
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = title,
-            color = Color(0xFF00E5FF),
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.2.sp
-        )
-        Text(
-            text = if (expanded) "▾" else "▸",
-            color = Color(0xFF00E5FF),
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold
-        )
+        // New-controller prompt renders over drawer (outside ModalNavigationDrawer so scrim doesn't hide it)
+        if (mappingPrompt != null) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 12.dp)
+            ) {
+                MappingPromptBanner(
+                    deviceName = mappingPrompt.deviceName,
+                    matchLabel = mappingPrompt.matchLabel,
+                    onSetup = { onMappingSetup?.invoke() },
+                    onDismiss = { onMappingDismiss?.invoke() }
+                )
+            }
+        }
+
+        // Wizard renders LAST so it sits above the open drawer and prompt.
+        wizardScreen?.let { MappingWizard(screen = it, actions = wizardActions) }
     }
 }
 

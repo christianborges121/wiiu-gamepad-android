@@ -33,10 +33,20 @@ object ControllerDetector {
         keyY = android.view.KeyEvent.KEYCODE_BUTTON_X
     )
 
+    /** Backbone One layout: horizontal right stick is RZ, vertical is Z. */
+    val BACKBONE_PROFILE = ControllerProfile.DEFAULT.copy(
+        name = "Backbone One",
+        axisRX = MotionEvent.AXIS_RZ,
+        axisRY = MotionEvent.AXIS_Z
+    )
+
     private data class PidEntry(val vendorId: Int, val productId: Int, val label: String)
 
     // Well-known USB/Bluetooth product IDs (heuristic set — name fallback covers the rest).
     private val exactPidProfiles: Map<PidEntry, ControllerProfile> = mapOf(
+        // Backbone One (USB-C: horizontal is RZ, vertical is Z)
+        PidEntry(0x358A, 0x0301, "Backbone One") to BACKBONE_PROFILE,
+        PidEntry(0x358A, 0x0302, "Backbone One") to BACKBONE_PROFILE,
         // Xbox (standard layout)
         PidEntry(0x045E, 0x028E, "Xbox 360") to ControllerProfile.DEFAULT,
         PidEntry(0x045E, 0x02DD, "Xbox One") to ControllerProfile.DEFAULT,
@@ -56,7 +66,7 @@ object ControllerDetector {
 
     // (name substring, profile, label) — checked in order.
     private val nameProfiles: List<Triple<String, ControllerProfile, String>> = listOf(
-        Triple("backbone", ControllerProfile.DEFAULT, "Backbone"),
+        Triple("backbone", BACKBONE_PROFILE, "Backbone One"),
         Triple("kishi", ControllerProfile.DEFAULT, "Razer Kishi"),
         Triple("gamesir", ControllerProfile.DEFAULT, "Gamesir"),
         Triple("8bitdo", ControllerProfile.DEFAULT, "8BitDo"),

@@ -18,12 +18,13 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * Hardware-accelerated H.264 (AVC) decoder utilizing Android MediaCodec.
+ * Hardware-accelerated H.264 (AVC) and H.265 (HEVC) decoder utilizing Android MediaCodec.
  * Outputs decoded frames directly to a provided Surface for zero-copy GPU presentation.
  */
 class VideoDecoder(
     private val surface: Surface,
-    private val onRequestIDR: () -> Unit
+    private val onRequestIDR: () -> Unit,
+    val mimeType: String = MediaFormat.MIMETYPE_VIDEO_AVC
 ) {
     companion object {
         const val TAG = "VideoDecoder"
@@ -76,9 +77,14 @@ class VideoDecoder(
         }
     }
 
+    private val isHevc = mimeType.equals(MediaFormat.MIMETYPE_VIDEO_HEVC, ignoreCase = true)
+
     @Volatile private var codec: MediaCodec? = null
     private val isRunning = AtomicBoolean(false)
     @Volatile private var isConfigured = false
+
+    @Volatile var framePacingMode: com.cemupad.config.FramePacingMode = com.cemupad.config.FramePacingMode.IMMEDIATE
+    @Volatile var choreographerPacer: ChoreographerPacer? = null
 
     private data class QueuedFrame(val nalData: ByteArray, val ptsUs: Long)
     private val inputQueue = java.util.concurrent.ArrayBlockingQueue<QueuedFrame>(4)
@@ -110,13 +116,13 @@ class VideoDecoder(
         }
     }
 
-    private fun selectAvcDecoder(): MediaCodecInfo? {
+    private fun selectDecoder(targetMime: String): MediaCodecInfo? {
         val candidates = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.filter { info ->
-            !info.isEncoder && info.supportedTypes.any { it.equals(MediaFormat.MIMETYPE_VIDEO_AVC, ignoreCase = true) }
+            !info.isEncoder && info.supportedTypes.any { it.equals(targetMime, ignoreCase = true) }
         }
         if (candidates.isEmpty()) return null
 
-        // 1. Prioritize explicit low_latency named decoders (e.g. c2.qti.avc.decoder.low_latency)
+        // 1. Prioritize explicit low_latency named decoders (e.g. c2.qti.avc.decoder.low_latency or c2.qti.hevc.decoder.low_latency)
         val explicitLowLatency = candidates.firstOrNull { info ->
             val name = info.name.lowercase()
             name.contains("low_latency") || name.contains("lowlatency")
@@ -127,7 +133,7 @@ class VideoDecoder(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val featureLowLatency = candidates.firstOrNull { info ->
                 try {
-                    info.getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_AVC)
+                    info.getCapabilitiesForType(targetMime)
                         .isFeatureSupported(MediaCodecInfo.CodecCapabilities.FEATURE_LowLatency)
                 } catch (_: Exception) {
                     false
@@ -155,6 +161,7 @@ class VideoDecoder(
     val totalCodecErrors = AtomicLong(0)
     val totalIdrRequests = AtomicLong(0)
     val totalFramesRateLimited = AtomicLong(0)
+
     @Volatile var maxFps: Int = 30
     private var lastDecodedPtsUs: Long = FrameRateLimiter.NO_PREVIOUS_PTS
     @Volatile var currentFps = 0f
@@ -162,8 +169,9 @@ class VideoDecoder(
     private var lastFpsCalcTime = System.currentTimeMillis()
     private var framesSinceLastFps = 0
 
-    // Mid-stream joins only become decodable once SPS/PPS arrive. Until then,
-    // request a keyframe at a bounded rate instead of feeding blind data.
+    // Mid-stream joins only become decodable once parameter sets arrive (SPS/PPS for AVC; VPS/SPS/PPS for HEVC).
+    // Until then, request a keyframe at a bounded rate instead of feeding blind data.
+    @Volatile private var vpsSeen = false
     @Volatile private var spsSeen = false
     @Volatile private var ppsSeen = false
     @Volatile private var framesSinceParameterSets = 0
@@ -175,17 +183,17 @@ class VideoDecoder(
 
     private fun doInit(width: Int, height: Int): Boolean {
         return try {
-            val decoderInfo = selectAvcDecoder()
-                ?: throw IllegalStateException("No AVC decoder is available")
+            val decoderInfo = selectDecoder(mimeType)
+                ?: throw IllegalStateException("No $mimeType decoder is available")
             val supportsLowLatency = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
                 try {
-                    decoderInfo.getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_AVC)
+                    decoderInfo.getCapabilitiesForType(mimeType)
                         .isFeatureSupported(MediaCodecInfo.CodecCapabilities.FEATURE_LowLatency)
                 } catch (_: Exception) {
                     false
                 }
 
-            val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
+            val format = MediaFormat.createVideoFormat(mimeType, width, height).apply {
                 if (supportsLowLatency) {
                     setInteger(MediaFormat.KEY_LOW_LATENCY, 1)
                 }
@@ -223,13 +231,14 @@ class VideoDecoder(
             codec = decoder
             isRunning.set(true)
             isConfigured = true
+            vpsSeen = false
             spsSeen = false
             ppsSeen = false
             framesSinceParameterSets = 0
-            Logger.i(TAG, "MediaCodec AVC hardware decoder initialized: ${decoderInfo.name} ($width x $height)")
+            Logger.i(TAG, "MediaCodec $mimeType hardware decoder initialized: ${decoderInfo.name} ($width x $height)")
             true
         } catch (e: Exception) {
-            Logger.e(TAG, "Failed to initialize MediaCodec AVC decoder", e)
+            Logger.e(TAG, "Failed to initialize MediaCodec $mimeType decoder", e)
             false
         }
     }
@@ -260,11 +269,12 @@ class VideoDecoder(
         try {
             val normalizedNal = normalizeAvcBitstream(nalData)
 
-            // Lightweight SPS/PPS detection: scan only the first few NAL start codes
+            // Lightweight parameter-set detection: scan only the first few NAL start codes
             // instead of fully parsing the Annex-B stream (avoids list allocations on
-            // every frame). We only need to know if SPS (type 7) and PPS (type 8) are
-            // present for the parameter-set watchdog.
-            if (!spsSeen || !ppsSeen) {
+            // every frame). We only need to know if SPS (type 7) and PPS (type 8) for AVC,
+            // or VPS (type 32), SPS (type 33), and PPS (type 34) for HEVC are present for the watchdog.
+            val missingParamSets = if (isHevc) (!vpsSeen || !spsSeen || !ppsSeen) else (!spsSeen || !ppsSeen)
+            if (missingParamSets) {
                 var i = 0
                 while (i + 4 < normalizedNal.size && i < 128) {
                     if (normalizedNal[i] == 0.toByte() && normalizedNal[i + 1] == 0.toByte()) {
@@ -274,9 +284,18 @@ class VideoDecoder(
                             else -> -1
                         }
                         if (off in 0 until normalizedNal.size) {
-                            when (normalizedNal[off].toInt() and 0x1F) {
-                                7 -> spsSeen = true
-                                8 -> ppsSeen = true
+                            if (isHevc) {
+                                val nalType = (normalizedNal[off].toInt() shr 1) and 0x3F
+                                when (nalType) {
+                                    32 -> vpsSeen = true
+                                    33 -> spsSeen = true
+                                    34 -> ppsSeen = true
+                                }
+                            } else {
+                                when (normalizedNal[off].toInt() and 0x1F) {
+                                    7 -> spsSeen = true
+                                    8 -> ppsSeen = true
+                                }
                             }
                             i = off + 1
                             continue
@@ -287,18 +306,19 @@ class VideoDecoder(
             }
 
             // NOTE: no PTS rate limiting here. Dropping P-frames ahead of a
-            // stateful H.264 decoder corrupts its reference chain (ghosting
+            // stateful decoder corrupts its reference chain (ghosting
             // until the next IDR). Rate caps belong at the encoder; see the
             // Cemu-side encode-cap item. lastDecodedPtsUs is still tracked
             // for future render-side pacing use.
             lastDecodedPtsUs = ptsUs
 
-            if (spsSeen && ppsSeen) {
+            val hasAllParamSets = if (isHevc) (vpsSeen && spsSeen && ppsSeen) else (spsSeen && ppsSeen)
+            if (hasAllParamSets) {
                 framesSinceParameterSets = 0
             } else {
                 framesSinceParameterSets++
                 if (framesSinceParameterSets >= IDR_RECOVERY_INTERVAL_FRAMES) {
-                    Logger.w(TAG, "No SPS/PPS after $framesSinceParameterSets frames, requesting IDR")
+                    Logger.w(TAG, "No parameter sets after $framesSinceParameterSets frames, requesting IDR")
                     framesSinceParameterSets = 0
                     totalIdrRequests.incrementAndGet()
                     onRequestIDR()
@@ -373,7 +393,13 @@ class VideoDecoder(
 
         // Render only the latest fresh frame directly to Surface
         try {
-            decoder.releaseOutputBuffer(latestIndex, true)
+            val pacer = choreographerPacer
+            if (framePacingMode == com.cemupad.config.FramePacingMode.VSYNC && pacer != null) {
+                val targetVsyncNanos = pacer.getTargetVsyncNanos()
+                decoder.releaseOutputBuffer(latestIndex, targetVsyncNanos)
+            } else {
+                decoder.releaseOutputBuffer(latestIndex, true)
+            }
             totalFramesDecoded.incrementAndGet()
             updateFpsTelemetry()
         } catch (e: Exception) {
@@ -409,6 +435,7 @@ class VideoDecoder(
         }
         codec = null
         isConfigured = false
+        vpsSeen = false
         spsSeen = false
         ppsSeen = false
         framesSinceParameterSets = 0
