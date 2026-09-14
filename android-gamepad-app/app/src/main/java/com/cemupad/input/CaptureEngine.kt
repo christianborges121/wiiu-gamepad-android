@@ -33,8 +33,14 @@ enum class MappableControl(val label: String, val kind: CaptureKind) {
     HOME("Home", CaptureKind.BUTTON),
     STICK_L_PRESS("Left Stick Press", CaptureKind.BUTTON),
     STICK_R_PRESS("Right Stick Press", CaptureKind.BUTTON),
-    STICK_L_MOVE("Left Stick Move", CaptureKind.STICK),
-    STICK_R_MOVE("Right Stick Move", CaptureKind.STICK);
+    STICK_L_UP("Stick L Up", CaptureKind.STICK),
+    STICK_L_DOWN("Stick L Down", CaptureKind.STICK),
+    STICK_L_LEFT("Stick L Left", CaptureKind.STICK),
+    STICK_L_RIGHT("Stick L Right", CaptureKind.STICK),
+    STICK_R_UP("Stick R Up", CaptureKind.STICK),
+    STICK_R_DOWN("Stick R Down", CaptureKind.STICK),
+    STICK_R_LEFT("Stick R Left", CaptureKind.STICK),
+    STICK_R_RIGHT("Stick R Right", CaptureKind.STICK);
 
     companion object {
         val ORDER: List<MappableControl> = values().toList()
@@ -203,12 +209,36 @@ class CaptureEngine(
         val target = current ?: return RecordResult.NotArmed
         when (target.kind) {
             CaptureKind.STICK -> {
-                for ((axis, value) in axes) {
-                    if (axis == MotionEvent.AXIS_HAT_X || axis == MotionEvent.AXIS_HAT_Y) continue
-                    val peak = stickPeaks[axis] ?: 0f
-                    if (abs(value) > peak) stickPeaks[axis] = abs(value)
+                val active = when (target) {
+                    MappableControl.STICK_L_UP -> (axes[MotionEvent.AXIS_Y] ?: 0f) < -STICK_DEFLECTION
+                    MappableControl.STICK_L_DOWN -> (axes[MotionEvent.AXIS_Y] ?: 0f) > STICK_DEFLECTION
+                    MappableControl.STICK_L_LEFT -> (axes[MotionEvent.AXIS_X] ?: 0f) < -STICK_DEFLECTION
+                    MappableControl.STICK_L_RIGHT -> (axes[MotionEvent.AXIS_X] ?: 0f) > STICK_DEFLECTION
+                    MappableControl.STICK_R_UP -> {
+                        val ry = axes[MotionEvent.AXIS_RZ] ?: axes[MotionEvent.AXIS_RY] ?: 0f
+                        ry < -STICK_DEFLECTION
+                    }
+                    MappableControl.STICK_R_DOWN -> {
+                        val ry = axes[MotionEvent.AXIS_RZ] ?: axes[MotionEvent.AXIS_RY] ?: 0f
+                        ry > STICK_DEFLECTION
+                    }
+                    MappableControl.STICK_R_LEFT -> {
+                        val rx = axes[MotionEvent.AXIS_Z] ?: axes[MotionEvent.AXIS_RX] ?: 0f
+                        rx < -STICK_DEFLECTION
+                    }
+                    MappableControl.STICK_R_RIGHT -> {
+                        val rx = axes[MotionEvent.AXIS_Z] ?: axes[MotionEvent.AXIS_RX] ?: 0f
+                        rx > STICK_DEFLECTION
+                    }
+                    else -> false
                 }
-                return RecordResult.Assigned
+                if (active) {
+                    // Record that this direction was successfully pushed; no axis pair needed.
+                    skipped.remove(target)
+                    advance()
+                    return RecordResult.Assigned
+                }
+                return RecordResult.Ignored
             }
             CaptureKind.TRIGGER -> {
                 for ((axis, value) in axes) {
@@ -313,13 +343,8 @@ class CaptureEngine(
         }
         // Hat-driven directions keep working only when the hat path is on.
         if (hatDirections.isNotEmpty()) profile = profile.copy(hatAsDpad = true)
-        for ((target, axes) in assignedStickAxes) {
-            profile = when (target) {
-                MappableControl.STICK_L_MOVE -> profile.copy(axisLX = axes.first, axisLY = axes.second)
-                MappableControl.STICK_R_MOVE -> profile.copy(axisRX = axes.first, axisRY = axes.second)
-                else -> profile
-            }
-        }
+        // Stick directions are per-direction verification (Left Up/Down etc.) —
+        // no axis remapping needed; base axes stay as-is.
         for ((target, axis) in assignedTriggerAxis) {
             profile = when (target) {
                 MappableControl.ZL -> profile.copy(axisLTrigger = axis)

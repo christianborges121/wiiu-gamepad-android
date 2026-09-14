@@ -140,29 +140,30 @@ class CaptureEngineTest {
     }
 
     @Test
-    fun testStickAxisPairCapture() {
+    fun testStickDirectionCapturePerDirection() {
         val engine = CaptureEngine(clock = { 0L })
-        engine.start(listOf(MappableControl.STICK_L_MOVE))
+        engine.start(listOf(MappableControl.STICK_L_UP, MappableControl.STICK_R_RIGHT))
 
-        // Wiggle: X full right, Y full up
-        engine.recordAxes(mapOf(MotionEvent.AXIS_X to 1.0f, MotionEvent.AXIS_Y to -1.0f))
-        // Hat must not leak into stick peaks
-        engine.recordAxes(mapOf(MotionEvent.AXIS_HAT_X to 1.0f))
-        assertEquals(CaptureEngine.RecordResult.Assigned, engine.confirmStick())
-
-        val profile = engine.buildProfile(ControllerProfile.DEFAULT)!!
-        val axes = setOf(profile.axisLX, profile.axisLY)
-        assertEquals(setOf(MotionEvent.AXIS_X, MotionEvent.AXIS_Y), axes)
+        // Left stick up: Y negative
+        assertEquals(CaptureEngine.RecordResult.Assigned, engine.recordAxes(mapOf(MotionEvent.AXIS_Y to -1.0f)))
+        assertEquals(MappableControl.STICK_R_RIGHT, engine.current)
+        // Right stick right: Z positive (or RX)
+        assertEquals(CaptureEngine.RecordResult.Assigned, engine.recordAxes(mapOf(MotionEvent.AXIS_Z to 1.0f)))
+        assertTrue(engine.isFinished)
     }
 
     @Test
-    fun testStickNeedsTwoAxes() {
+    fun testStickDirectionNeedsThreshold() {
         val engine = CaptureEngine(clock = { 0L })
-        engine.start(listOf(MappableControl.STICK_L_MOVE))
+        engine.start(listOf(MappableControl.STICK_L_UP))
 
-        engine.recordAxes(mapOf(MotionEvent.AXIS_X to 1.0f))
-        assertEquals(CaptureEngine.RecordResult.Ignored, engine.confirmStick())
-        assertEquals(MappableControl.STICK_L_MOVE, engine.current)
+        // Small deflection ignored, wrong axis ignored
+        assertEquals(CaptureEngine.RecordResult.Ignored, engine.recordAxes(mapOf(MotionEvent.AXIS_Y to -0.3f)))
+        assertEquals(CaptureEngine.RecordResult.Ignored, engine.recordAxes(mapOf(MotionEvent.AXIS_X to 1.0f)))
+        assertEquals(MappableControl.STICK_L_UP, engine.current)
+        // Correct threshold passes
+        assertEquals(CaptureEngine.RecordResult.Assigned, engine.recordAxes(mapOf(MotionEvent.AXIS_Y to -0.8f)))
+        assertTrue(engine.isFinished)
     }
 
     @Test

@@ -36,20 +36,24 @@ class InputMappingPushTest {
     }
 
     @Test
-    fun `profile to vpad entries default has 16 mappings`() {
+    fun `profile to vpad entries default has 24 mappings`() {
         val entries = InputMappingCodec.toVpadEntries(ControllerProfile.DEFAULT)
-        assertEquals(16, entries.size)
+        assertEquals(24, entries.size)
         // A->Cross(14), B->Circle(13)
         assertTrue(entries.contains(1 to 14))
         assertTrue(entries.contains(2 to 13))
+        // Stick dirs
+        assertTrue(entries.contains(17 to 59))
+        assertTrue(entries.contains(24 to 68))
     }
 
     @Test
-    fun `nintendo layout swaps A B`() {
+    fun `nintendo layout is same logical mapping as default`() {
         val nintendo = ControllerProfile.DEFAULT.copy(keyA = KeyEvent.KEYCODE_BUTTON_B, keyB = KeyEvent.KEYCODE_BUTTON_A)
         val entries = InputMappingCodec.toVpadEntries(nintendo)
-        assertTrue(entries.contains(1 to 13))
-        assertTrue(entries.contains(2 to 14))
+        // Logical Wii U -> DSU mapping is profile-agnostic; physical key swap does not change it.
+        assertTrue(entries.contains(1 to 14))
+        assertTrue(entries.contains(2 to 13))
     }
 
     @Test
