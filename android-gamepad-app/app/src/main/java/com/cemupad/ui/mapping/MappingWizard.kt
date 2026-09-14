@@ -44,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cemupad.input.DetectionConfidence
@@ -263,14 +264,7 @@ fun MappingWizard(
                             }
                         }
                         is MappingWizardScreen.Testing -> {
-                            TextButton(onClick = actions.onRemap) { Text("Remap", color = Muted) }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Button(
-                                onClick = actions.onSaveTest,
-                                colors = ButtonDefaults.buttonColors(containerColor = Accent)
-                            ) {
-                                Text("Looks right", color = Color(0xFF0B111B))
-                            }
+                            // Bottom actions removed — top bar (Remap / Looks right / Close) is sole affordance
                         }
                         is MappingWizardScreen.Capturing -> {
                             TextButton(onClick = actions.onCaptureBack) { Text("Back", color = Muted) }
@@ -297,7 +291,7 @@ fun MappingWizard(
                             }
                         }
                     }
-                    if (screen !is MappingWizardScreen.Capturing) {
+                    if (screen is MappingWizardScreen.Detected || screen is MappingWizardScreen.Done) {
                         Spacer(modifier = Modifier.width(8.dp))
                         TextButton(onClick = actions.onWizardClose) { Text("Close", color = Muted) }
                     }
@@ -555,7 +549,12 @@ private fun ControllerLineDiagram(
                         color = textColor,
                         fontSize = fontSize,
                         fontWeight = if (isTarget) FontWeight.ExtraBold else FontWeight.Bold,
-                        maxLines = 1
+                        maxLines = 1,
+                        textAlign = TextAlign.Center,
+                        style = androidx.compose.ui.text.TextStyle(
+                            platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false),
+                            lineHeight = fontSize
+                        )
                     )
                 }
             }
@@ -571,30 +570,30 @@ private fun ControllerLineDiagram(
             Badge("HOME", "⌂", 0.50f, 0.40f, 20.dp, 20.dp, CircleShape, 12.sp)
             Badge("PLUS", "+", 0.57f, 0.28f, 20.dp, 17.dp, RoundedCornerShape(7.dp), 11.sp)
 
-            // 3. Left Stick — directly under L (22,33) — smaller + tighter
+            // 3. Left Stick — directly under L (22,33) — tighter left/right
             Badge("STICK_L_PRESS", "L3", 0.22f, 0.33f, 16.dp, 16.dp, CircleShape, 9.sp)
-            Badge("STICK_L_UP", "▲", 0.22f, 0.24f, 12.dp, 10.dp, RoundedCornerShape(3.dp), 8.sp)
-            Badge("STICK_L_DOWN", "▼", 0.22f, 0.42f, 12.dp, 10.dp, RoundedCornerShape(3.dp), 8.sp)
-            Badge("STICK_L_LEFT", "◀", 0.15f, 0.33f, 10.dp, 12.dp, RoundedCornerShape(3.dp), 8.sp)
-            Badge("STICK_L_RIGHT", "▶", 0.29f, 0.33f, 10.dp, 12.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("STICK_L_UP", "▲", 0.22f, 0.24f, 12.dp, 10.dp, RoundedCornerShape(3.dp), 7.sp)
+            Badge("STICK_L_DOWN", "▼", 0.22f, 0.42f, 12.dp, 10.dp, RoundedCornerShape(3.dp), 7.sp)
+            Badge("STICK_L_LEFT", "◀", 0.17f, 0.33f, 10.dp, 12.dp, RoundedCornerShape(3.dp), 7.sp)
+            Badge("STICK_L_RIGHT", "▶", 0.27f, 0.33f, 10.dp, 12.dp, RoundedCornerShape(3.dp), 7.sp)
 
-            // 4. D-Pad — moved slightly up (33,60) — tighter arrows
-            Badge("DPAD_UP", "▲", 0.33f, 0.51f, 12.dp, 10.dp, RoundedCornerShape(3.dp), 8.sp)
-            Badge("DPAD_DOWN", "▼", 0.33f, 0.69f, 12.dp, 10.dp, RoundedCornerShape(3.dp), 8.sp)
-            Badge("DPAD_LEFT", "◀", 0.26f, 0.60f, 10.dp, 12.dp, RoundedCornerShape(3.dp), 8.sp)
-            Badge("DPAD_RIGHT", "▶", 0.40f, 0.60f, 10.dp, 12.dp, RoundedCornerShape(3.dp), 8.sp)
+            // 4. D-Pad — tightened left/right gap (was 56dp → 40dp)
+            Badge("DPAD_UP", "▲", 0.33f, 0.51f, 12.dp, 10.dp, RoundedCornerShape(3.dp), 7.sp)
+            Badge("DPAD_DOWN", "▼", 0.33f, 0.69f, 12.dp, 10.dp, RoundedCornerShape(3.dp), 7.sp)
+            Badge("DPAD_LEFT", "◀", 0.28f, 0.60f, 10.dp, 12.dp, RoundedCornerShape(3.dp), 7.sp)
+            Badge("DPAD_RIGHT", "▶", 0.38f, 0.60f, 10.dp, 12.dp, RoundedCornerShape(3.dp), 7.sp)
 
-            // 5. Right Stick — directly under R (78,33) — smaller + tighter
+            // 5. Right Stick — directly under R (78,33) — tighter left/right
             Badge("STICK_R_PRESS", "R3", 0.78f, 0.33f, 16.dp, 16.dp, CircleShape, 9.sp)
-            Badge("STICK_R_UP", "▲", 0.78f, 0.24f, 12.dp, 10.dp, RoundedCornerShape(3.dp), 8.sp)
-            Badge("STICK_R_DOWN", "▼", 0.78f, 0.42f, 12.dp, 10.dp, RoundedCornerShape(3.dp), 8.sp)
-            Badge("STICK_R_LEFT", "◀", 0.71f, 0.33f, 10.dp, 12.dp, RoundedCornerShape(3.dp), 8.sp)
-            Badge("STICK_R_RIGHT", "▶", 0.85f, 0.33f, 10.dp, 12.dp, RoundedCornerShape(3.dp), 8.sp)
+            Badge("STICK_R_UP", "▲", 0.78f, 0.24f, 12.dp, 10.dp, RoundedCornerShape(3.dp), 7.sp)
+            Badge("STICK_R_DOWN", "▼", 0.78f, 0.42f, 12.dp, 10.dp, RoundedCornerShape(3.dp), 7.sp)
+            Badge("STICK_R_LEFT", "◀", 0.73f, 0.33f, 10.dp, 12.dp, RoundedCornerShape(3.dp), 7.sp)
+            Badge("STICK_R_RIGHT", "▶", 0.83f, 0.33f, 10.dp, 12.dp, RoundedCornerShape(3.dp), 7.sp)
 
-            // 6. Face Buttons ABXY — moved slightly up (67,60)
+            // 6. Face Buttons ABXY — Y/A brought closer (was 72dp → 40dp)
             Badge("X", "X", 0.67f, 0.47f, 20.dp, 20.dp, CircleShape, 11.sp)
-            Badge("Y", "Y", 0.58f, 0.60f, 20.dp, 20.dp, CircleShape, 11.sp)
-            Badge("A", "A", 0.76f, 0.60f, 20.dp, 20.dp, CircleShape, 11.sp)
+            Badge("Y", "Y", 0.62f, 0.60f, 18.dp, 18.dp, CircleShape, 10.sp)
+            Badge("A", "A", 0.72f, 0.60f, 18.dp, 18.dp, CircleShape, 10.sp)
             Badge("B", "B", 0.67f, 0.73f, 20.dp, 20.dp, CircleShape, 11.sp)
         }
     }
