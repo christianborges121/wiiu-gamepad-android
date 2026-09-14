@@ -10,15 +10,7 @@ Each document is fully self-contained and formatted specifically so that any AI 
 
 | Plan Document | Target Feature | Primary Tech Stack | Status |
 |:---|:---|:---|:---:|
-| [**PHASE_4_0_MODULAR_SUBSYSTEM_REFACTOR.md**](file:///c:/Projects/wiiu-gamepad-android/plans/PHASE_4_0_MODULAR_SUBSYSTEM_REFACTOR.md) | **Subsystem Modularization & 1-Click Cemu UI Pairing** | C++ Module Architecture / wxWidgets / Cemu InputManager | **Ready for Execution** |
-| [**MODULAR_CEMUPAD_SUBSYSTEM_PLAN.md**](file:///c:/Projects/wiiu-gamepad-android/plans/MODULAR_CEMUPAD_SUBSYSTEM_PLAN.md) | Architectural Design Document: Subsystem Isolation & DSU Bridge | Architecture / Class Diagrams / Specifications | Reference Design |
-| [**PHASE_4_1_AUTO_DISCOVERY.md**](file:///c:/Projects/wiiu-gamepad-android/plans/PHASE_4_1_AUTO_DISCOVERY.md) | Zero-Config Auto-Discovery & Cemu UI Pairing Dialog | C++ Winsock / wxWidgets / Kotlin UDP Datagram | Ready for Execution |
-| [**PHASE_4_2_DYNAMIC_VIDEO_ENCODING.md**](file:///c:/Projects/wiiu-gamepad-android/plans/PHASE_4_2_DYNAMIC_VIDEO_ENCODING.md) | Dynamic Bitrate & Resolution Encoder Controls | C++ Windows Media Foundation / Jetpack Compose | Ready for Execution |
-| [**PHASE_4_3_VOICE_PCM_STREAMING.md**](file:///c:/Projects/wiiu-gamepad-android/plans/PHASE_4_3_VOICE_PCM_STREAMING.md) | Direct 32 kHz Voice PCM Microphone Streaming | C++ Cafe OS `mic.cpp` / Android `AudioRecord` | Ready for Execution |
-| [**PHASE_4_4_SESSION_SECURITY_AND_PIN.md**](file:///c:/Projects/wiiu-gamepad-android/plans/PHASE_4_4_SESSION_SECURITY_AND_PIN.md) | Session Security, Host Selection & PIN Pairing | TCP Control Protocol / Crypto / Jetpack Compose | Ready for Execution |
-| [**PHASE_5_RELEASE_AND_PACKAGING.md**](file:///c:/Projects/wiiu-gamepad-android/plans/PHASE_5_RELEASE_AND_PACKAGING.md) | Release Hardening, ProGuard/R8 & CI/CD Pipeline | Gradle / ProGuard / GitHub Actions CI | Ready for Execution |
-| [**PHASE_6_INPUT_MAPPING_WIZARD.md**](file:///c:/Projects/wiiu-gamepad-android/plans/PHASE_6_INPUT_MAPPING_WIZARD.md) | First-Connect Input Mapping Wizard (deduce → verify → manual capture, in-app) | Kotlin / Compose / Android InputDevice | 🟡 In Progress (live controller testing) |
-
+| [**PHASE_7_APOLLO_MOONLIGHT_STREAMING_ENHANCEMENTS.md**](file:///c:/Projects/wiiu-gamepad-android/plans/PHASE_7_APOLLO_MOONLIGHT_STREAMING_ENHANCEMENTS.md) | **Apollo & Moonlight Streaming Enhancements (Vendor Keys, FEC, VSync, HEVC)** | C++ nanors / MediaCodec / Choreographer / HEVC | **Ready for Execution** |
 | [**AI_HARNESS_TESTING_GUIDE.md**](file:///c:/Projects/wiiu-gamepad-android/plans/AI_HARNESS_TESTING_GUIDE.md) | **Autonomous Testing, Debugging & Log Inspection Harness** | PowerShell / ADB Screencap / Cemu CLI / Logcat | **Operational Manual** |
 
 ---
