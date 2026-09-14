@@ -534,7 +534,7 @@ class ConfigMenuState {
                 onSelectA(items, settings, onSettingsChanged, onAction)
                 true
             }
-            keyB, KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
+            keyB, KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_ESCAPE -> {
                 onBackB()
                 true
             }

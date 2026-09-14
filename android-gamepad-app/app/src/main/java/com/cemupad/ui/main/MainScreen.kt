@@ -3,7 +3,6 @@ package com.cemupad.ui.main
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
-import android.view.MotionEvent as AndroidMotionEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -64,7 +63,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.draw.clipToBounds
@@ -137,7 +135,9 @@ fun MainScreen(
         confirmStateChange = { targetValue ->
             val willBeOpen = (targetValue == DrawerValue.Open)
             menuState.isOpen = willBeOpen
-            if (!willBeOpen) {
+            if (willBeOpen) {
+                menuState.focusedIndex = 0
+            } else {
                 menuState.currentScreen = ConfigScreen.ROOT
             }
             true
@@ -145,9 +145,6 @@ fun MainScreen(
     )
     val scope = rememberCoroutineScope()
     var isCalibrated by remember { mutableStateOf(false) }
-
-    val edgeSwipeState = remember { EdgeSwipeState() }
-    val swipeDensity = LocalDensity.current
 
     DisposableEffect(menuState, scope) {
         menuState.requestOpen = {
@@ -174,13 +171,17 @@ fun MainScreen(
         }
     }
 
-    BackHandler(enabled = menuState.isOpen) {
-        menuState.onBackB()
+    BackHandler {
+        if (menuState.isOpen || drawerState.isOpen) {
+            menuState.onBackB()
+        } else {
+            menuState.open()
+        }
     }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
-        gesturesEnabled = drawerState.isOpen,
+        gesturesEnabled = true,
         drawerContent = {
             ConfigMenuView(
                 state = menuState,
@@ -215,16 +216,7 @@ fun MainScreen(
             modifier = modifier
                 .fillMaxSize()
                 .background(Color.Black)
-                .clipToBounds()
-                .edgeSwipeToOpen(
-                    enabled = !menuState.isOpen,
-                    state = edgeSwipeState,
-                    edgePx = with(swipeDensity) { 48.dp.toPx() },
-                    needPx = with(swipeDensity) { 96.dp.toPx() },
-                    maxDriftPx = with(swipeDensity) { 64.dp.toPx() }
-                ) {
-                    menuState.open()
-                },
+                .clipToBounds(),
             contentAlignment = Alignment.Center
         ) {
             val density = LocalDensity.current
@@ -467,66 +459,3 @@ fun MainScreen(
     wizardScreen?.let { MappingWizard(screen = it, actions = wizardActions) }
 }
 
-/**
- * Deliberate edge swipe to open the drawer: the gesture must start inside a
- * narrow left-edge zone and travel a long horizontal distance with little
- * vertical drift. Far less trigger-happy than the framework drawer swipe,
- * so gameplay touches don't pop the drawer open by accident.
- *
- * Implemented with pointerInteropFilter (View-level MotionEvent API) rather
- * than low-level pointer-input await APIs or `composed`, whose signatures
- * churn across Compose versions. Mutable state is hoisted to the caller.
- */
-private class EdgeSwipeState {
-    var tracking: Boolean = false
-    var accX: Float = 0f
-    var accY: Float = 0f
-    var lastX: Float = 0f
-    var lastY: Float = 0f
-}
-
-private fun Modifier.edgeSwipeToOpen(
-    enabled: Boolean,
-    state: EdgeSwipeState,
-    edgePx: Float,
-    needPx: Float,
-    maxDriftPx: Float,
-    onOpen: () -> Unit
-): Modifier = pointerInteropFilter {
-    if (!enabled) return@pointerInteropFilter false
-    when (it.action) {
-        AndroidMotionEvent.ACTION_DOWN -> {
-            if (it.x <= edgePx) {
-                state.tracking = true
-                state.accX = 0f
-                state.accY = 0f
-                state.lastX = it.x
-                state.lastY = it.y
-            } else {
-                state.tracking = false
-            }
-            false
-        }
-        AndroidMotionEvent.ACTION_MOVE -> {
-            if (!state.tracking) return@pointerInteropFilter false
-            state.accX += it.x - state.lastX
-            state.accY += it.y - state.lastY
-            state.lastX = it.x
-            state.lastY = it.y
-            if (kotlin.math.abs(state.accY) > maxDriftPx) {
-                state.tracking = false
-                return@pointerInteropFilter false
-            }
-            if (state.accX >= needPx) {
-                state.tracking = false
-                onOpen()
-                return@pointerInteropFilter true
-            }
-            false
-        }
-        else -> {
-            state.tracking = false
-            false
-        }
-    }
-}

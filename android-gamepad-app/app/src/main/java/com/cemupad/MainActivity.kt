@@ -1156,6 +1156,11 @@ class MainActivity : ComponentActivity() {
             return true
         }
 
+        // System back key delegates to super so OnBackPressedDispatcher / BackHandler handles navigation
+        if (event.keyCode == KeyEvent.KEYCODE_BACK) {
+            return super.dispatchKeyEvent(event)
+        }
+
         // Intercept controller input while Configuration menu is open
         if (configMenuState.isOpen && !isSystemPassthroughKey(event)) {
             Logger.i(
