@@ -179,46 +179,47 @@ fun MainScreen(
         }
     }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        gesturesEnabled = true,
-        drawerContent = {
-            ConfigMenuView(
-                state = menuState,
-                settings = displaySettings,
-                onSettingsChanged = onDisplaySettingsChanged,
-                activeControllerName = activeControllerName,
-                phoneIp = ipAddress,
-                dsuPort = dsuServer?.port ?: 26760,
-                isCalibrated = isCalibrated,
-                onAction = { action ->
-                    when (action) {
-                        ConfigAction.CALIBRATE_GYRO -> {
-                            onCalibrateGyro?.invoke()
-                            isCalibrated = true
-                            scope.launch {
-                                kotlinx.coroutines.delay(1800)
-                                isCalibrated = false
+    Box(modifier = Modifier.fillMaxSize()) {
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            gesturesEnabled = true,
+            drawerContent = {
+                ConfigMenuView(
+                    state = menuState,
+                    settings = displaySettings,
+                    onSettingsChanged = onDisplaySettingsChanged,
+                    activeControllerName = activeControllerName,
+                    phoneIp = ipAddress,
+                    dsuPort = dsuServer?.port ?: 26760,
+                    isCalibrated = isCalibrated,
+                    onAction = { action ->
+                        when (action) {
+                            ConfigAction.CALIBRATE_GYRO -> {
+                                onCalibrateGyro?.invoke()
+                                isCalibrated = true
+                                scope.launch {
+                                    kotlinx.coroutines.delay(1800)
+                                    isCalibrated = false
+                                }
                             }
+                            ConfigAction.MAP_CONTROLLER -> {
+                                scope.launch { drawerState.close() }
+                                onOpenInputMapping?.invoke()
+                            }
+                            ConfigAction.EXPORT_DEBUG_BUNDLE -> onExportDebug?.invoke()
+                            ConfigAction.RESET_SETTINGS -> onDisplaySettingsChanged(DisplaySettings())
                         }
-                        ConfigAction.MAP_CONTROLLER -> {
-                            scope.launch { drawerState.close() }
-                            onOpenInputMapping?.invoke()
-                        }
-                        ConfigAction.EXPORT_DEBUG_BUNDLE -> onExportDebug?.invoke()
-                        ConfigAction.RESET_SETTINGS -> onDisplaySettingsChanged(DisplaySettings())
                     }
-                }
-            )
-        }
-    ) {
-        BoxWithConstraints(
-            modifier = modifier
-                .fillMaxSize()
-                .background(Color.Black)
-                .clipToBounds(),
-            contentAlignment = Alignment.Center
+                )
+            }
         ) {
+            BoxWithConstraints(
+                modifier = modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+                    .clipToBounds(),
+                contentAlignment = Alignment.Center
+            ) {
             val density = LocalDensity.current
             val containerPx = with(density) {
                 DisplayBufferSize(maxWidth.roundToPx(), maxHeight.roundToPx())
@@ -414,22 +415,6 @@ fun MainScreen(
                 }
             }
 
-            // New-controller mapping prompt (non-blocking banner)
-            if (mappingPrompt != null) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 12.dp)
-                ) {
-                    MappingPromptBanner(
-                        deviceName = mappingPrompt.deviceName,
-                        matchLabel = mappingPrompt.matchLabel,
-                        onSetup = { onMappingSetup?.invoke() },
-                        onDismiss = { onMappingDismiss?.invoke() }
-                    )
-                }
-            }
-
             // Virtual GamePad Overlay
             if (displaySettings.showVirtualControls && gamepadHandler != null) {
                 VirtualGamePadOverlay(
@@ -452,10 +437,26 @@ fun MainScreen(
                 }
             }
         }
-    }
+        }
 
-    // Wizard renders LAST so it sits above the open drawer. (It previously
-    // rendered underneath, making "Map" look dead while the drawer stayed open.)
-    wizardScreen?.let { MappingWizard(screen = it, actions = wizardActions) }
+        // New-controller prompt renders over drawer (outside ModalNavigationDrawer so scrim doesn't hide it)
+        if (mappingPrompt != null) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 12.dp)
+            ) {
+                MappingPromptBanner(
+                    deviceName = mappingPrompt.deviceName,
+                    matchLabel = mappingPrompt.matchLabel,
+                    onSetup = { onMappingSetup?.invoke() },
+                    onDismiss = { onMappingDismiss?.invoke() }
+                )
+            }
+        }
+
+        // Wizard renders LAST so it sits above the open drawer and prompt.
+        wizardScreen?.let { MappingWizard(screen = it, actions = wizardActions) }
+    }
 }
 

@@ -163,17 +163,20 @@ class ConfigMenuStateTest {
     @Test
     fun testActionExecution() {
         state.open(ConfigScreen.INPUT_HAPTICS)
-        val items = state.getItems(state.currentScreen, currentSettings)
+        var items = state.getItems(state.currentScreen, currentSettings)
 
         // Focus on "Physical Controller" now at index 0 per new order
-        state.focusedIndex = 0
-        assertEquals("input_remap", items[0].id)
+        state.focusedIndex = items.indexOfFirst { it.id == "input_remap" }
+        assertTrue(state.focusedIndex >= 0)
+        assertEquals("input_remap", items[state.focusedIndex].id)
         state.onSelectA(items, currentSettings, { currentSettings = it }, { lastAction = it })
         assertEquals(ConfigAction.MAP_CONTROLLER, lastAction)
 
-        // Focus on "Motion & Gyroscope" (now index 6)
-        state.focusedIndex = 6
-        assertEquals("input_gyro_calibrate", items[6].id)
+        // Focus on "Motion & Gyroscope" — index shifts when vibration/virtual hidden
+        items = state.getItems(state.currentScreen, currentSettings)
+        state.focusedIndex = items.indexOfFirst { it.id == "input_gyro_calibrate" }
+        assertTrue(state.focusedIndex >= 0)
+        assertEquals("input_gyro_calibrate", items[state.focusedIndex].id)
         state.onSelectA(items, currentSettings, { currentSettings = it }, { lastAction = it })
         assertEquals(ConfigAction.CALIBRATE_GYRO, lastAction)
     }

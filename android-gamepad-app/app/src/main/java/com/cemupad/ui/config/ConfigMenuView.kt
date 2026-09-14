@@ -440,16 +440,18 @@ private fun ConfigItemCard(
                 }
 
                 ConfigItemType.ACTION -> {
-                    OutlinedButton(
-                        onClick = onClick,
-                        shape = RoundedCornerShape(6.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = if (isFocused) Color(0xFF00E5FF) else Color(0xFFEAF2FF)
-                        ),
-                        border = BorderStroke(1.dp, if (isFocused) Color(0xFF00E5FF) else Color(0xFF2A364A)),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Text(item.valueText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    if (item.valueText.isNotBlank()) {
+                        OutlinedButton(
+                            onClick = onClick,
+                            shape = RoundedCornerShape(6.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = if (isFocused) Color(0xFF00E5FF) else Color(0xFFEAF2FF)
+                            ),
+                            border = BorderStroke(1.dp, if (isFocused) Color(0xFF00E5FF) else Color(0xFF2A364A)),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Text(item.valueText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
 

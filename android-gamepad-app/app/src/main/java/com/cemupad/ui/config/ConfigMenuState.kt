@@ -172,88 +172,111 @@ class ConfigMenuState {
                 )
             )
 
-            ConfigScreen.AUDIO -> listOf(
-                ConfigMenuItem(
-                    id = "audio_enabled",
-                    title = "GamePad Audio",
-                    subtitle = "Stream Wii U GamePad audio to phone speakers",
-                    type = ConfigItemType.SWITCH,
-                    valueText = if (settings.audioEnabled) "On" else "Off"
-                ),
-                ConfigMenuItem(
-                    id = "audio_volume",
-                    title = "Audio Volume",
-                    subtitle = "Output volume level",
-                    type = ConfigItemType.SLIDER,
-                    valueText = "${(settings.audioVolume * 100).toInt()}%",
-                    sliderProgress = settings.audioVolume,
-                    isEnabled = settings.audioEnabled
-                ),
-                ConfigMenuItem(
-                    id = "audio_mic",
-                    title = "Microphone",
-                    subtitle = "Blow detection and voice chat input",
-                    type = ConfigItemType.SWITCH,
-                    valueText = if (settings.micEnabled) "On" else "Off"
+            ConfigScreen.AUDIO -> buildList {
+                add(
+                    ConfigMenuItem(
+                        id = "audio_enabled",
+                        title = "GamePad Audio",
+                        subtitle = "Stream Wii U GamePad audio to phone speakers",
+                        type = ConfigItemType.SWITCH,
+                        valueText = if (settings.audioEnabled) "On" else "Off"
+                    )
                 )
-            )
+                if (settings.audioEnabled) {
+                    add(
+                        ConfigMenuItem(
+                            id = "audio_volume",
+                            title = "Audio Volume",
+                            subtitle = "Output volume level",
+                            type = ConfigItemType.SLIDER,
+                            valueText = "${(settings.audioVolume * 100).toInt()}%",
+                            sliderProgress = settings.audioVolume
+                        )
+                    )
+                }
+                add(
+                    ConfigMenuItem(
+                        id = "audio_mic",
+                        title = "Microphone",
+                        subtitle = "Blow detection and voice chat input",
+                        type = ConfigItemType.SWITCH,
+                        valueText = if (settings.micEnabled) "On" else "Off"
+                    )
+                )
+            }
 
-            ConfigScreen.INPUT_HAPTICS -> listOf(
-                ConfigMenuItem(
-                    id = "input_remap",
-                    title = "Physical Controller",
-                    subtitle = activeControllerName ?: "Configure button & stick mapping",
-                    type = ConfigItemType.ACTION,
-                    valueText = "Map Controls"
-                ),
-                ConfigMenuItem(
-                    id = "input_vibration",
-                    title = "Vibration & Rumble",
-                    subtitle = "Haptic feedback from GamePad rumble events",
-                    type = ConfigItemType.SWITCH,
-                    valueText = if (settings.vibrationEnabled) "On" else "Off"
-                ),
-                ConfigMenuItem(
-                    id = "input_vibration_intensity",
-                    title = "Vibration Intensity",
-                    subtitle = "Haptic motor strength — Not configurable on all devices",
-                    type = ConfigItemType.SLIDER,
-                    valueText = if (settings.vibrationIntensity <= 0f) "Off" else "${(settings.vibrationIntensity * 100).toInt()}%",
-                    sliderProgress = settings.vibrationIntensity,
-                    isEnabled = settings.vibrationEnabled
-                ),
-                ConfigMenuItem(
-                    id = "input_virtual_controls",
-                    title = "Virtual Touch Controls",
-                    subtitle = "On-screen touch buttons for portable play",
-                    type = ConfigItemType.SWITCH,
-                    valueText = if (settings.showVirtualControls) "On" else "Off"
-                ),
-                ConfigMenuItem(
-                    id = "input_virtual_opacity",
-                    title = "Controls Opacity",
-                    subtitle = "Touch overlay transparency",
-                    type = ConfigItemType.SLIDER,
-                    valueText = "${(settings.virtualControlsOpacity * 100).toInt()}%",
-                    sliderProgress = (settings.virtualControlsOpacity - 0.15f) / (1.0f - 0.15f),
-                    isEnabled = settings.showVirtualControls
-                ),
-                ConfigMenuItem(
-                    id = "input_deadzone",
-                    title = "Stick Deadzone",
-                    subtitle = "Inner deadzone radius for analog sticks",
-                    type = ConfigItemType.SLIDER,
-                    valueText = "${(settings.stickDeadzone * 100).toInt()}%",
-                    sliderProgress = (settings.stickDeadzone - 0.02f) / (0.25f - 0.02f)
-                ),
-                ConfigMenuItem(
-                    id = "input_gyro_calibrate",
-                    title = "Motion & Gyroscope",
-                    subtitle = if (isCalibrated) "Calibrated ✓" else "Recalibrate device level position",
-                    type = ConfigItemType.ACTION,
-                    valueText = if (isCalibrated) "Calibrated ✓" else "Calibrate"
+            ConfigScreen.INPUT_HAPTICS -> buildList {
+                add(
+                    ConfigMenuItem(
+                        id = "input_remap",
+                        title = "Physical Controller",
+                        subtitle = activeControllerName ?: "Configure button & stick mapping",
+                        type = ConfigItemType.ACTION,
+                        valueText = "Map Controls"
+                    )
                 )
-            )
+                add(
+                    ConfigMenuItem(
+                        id = "input_vibration",
+                        title = "Vibration & Rumble",
+                        subtitle = "Haptic feedback from GamePad rumble events",
+                        type = ConfigItemType.SWITCH,
+                        valueText = if (settings.vibrationEnabled) "On" else "Off"
+                    )
+                )
+                if (settings.vibrationEnabled) {
+                    add(
+                        ConfigMenuItem(
+                            id = "input_vibration_intensity",
+                            title = "Vibration Intensity",
+                            subtitle = "Haptic motor strength — Not configurable on all devices",
+                            type = ConfigItemType.SLIDER,
+                            valueText = if (settings.vibrationIntensity <= 0f) "Off" else "${(settings.vibrationIntensity * 100).toInt()}%",
+                            sliderProgress = settings.vibrationIntensity
+                        )
+                    )
+                }
+                add(
+                    ConfigMenuItem(
+                        id = "input_virtual_controls",
+                        title = "Virtual Touch Controls",
+                        subtitle = "On-screen touch buttons for portable play",
+                        type = ConfigItemType.SWITCH,
+                        valueText = if (settings.showVirtualControls) "On" else "Off"
+                    )
+                )
+                if (settings.showVirtualControls) {
+                    add(
+                        ConfigMenuItem(
+                            id = "input_virtual_opacity",
+                            title = "Controls Opacity",
+                            subtitle = "Touch overlay transparency",
+                            type = ConfigItemType.SLIDER,
+                            valueText = "${(settings.virtualControlsOpacity * 100).toInt()}%",
+                            sliderProgress = (settings.virtualControlsOpacity - 0.15f) / (1.0f - 0.15f)
+                        )
+                    )
+                }
+                add(
+                    ConfigMenuItem(
+                        id = "input_deadzone",
+                        title = "Stick Deadzone",
+                        subtitle = "Inner deadzone radius for analog sticks",
+                        type = ConfigItemType.SLIDER,
+                        valueText = "${(settings.stickDeadzone * 100).toInt()}%",
+                        sliderProgress = (settings.stickDeadzone - 0.02f) / (0.25f - 0.02f)
+                    )
+                )
+                add(
+                    ConfigMenuItem(
+                        id = "input_gyro_calibrate",
+                        title = "Motion & Gyroscope",
+                        subtitle = if (isCalibrated) "Calibrated ✓" else "Recalibrate device level position",
+                        type = ConfigItemType.ACTION,
+                        valueText = if (isCalibrated) "Calibrated ✓" else "Calibrate"
+                    )
+                )
+            }
 
             ConfigScreen.NETWORK -> listOf(
                 ConfigMenuItem(
@@ -457,10 +480,26 @@ class ConfigMenuState {
             }
             ConfigItemType.SWITCH -> {
                 when (item.id) {
-                    "audio_enabled" -> onSettingsChanged(settings.copy(audioEnabled = !settings.audioEnabled))
+                    "audio_enabled" -> {
+                        val newSettings = settings.copy(audioEnabled = !settings.audioEnabled)
+                        onSettingsChanged(newSettings)
+                        // Clamp focus if Audio Volume row was removed/added.
+                        val newSize = getItems(currentScreen, newSettings).size
+                        if (focusedIndex >= newSize) focusedIndex = (newSize - 1).coerceAtLeast(0)
+                    }
                     "audio_mic" -> onSettingsChanged(settings.copy(micEnabled = !settings.micEnabled))
-                    "input_vibration" -> onSettingsChanged(settings.copy(vibrationEnabled = !settings.vibrationEnabled))
-                    "input_virtual_controls" -> onSettingsChanged(settings.copy(showVirtualControls = !settings.showVirtualControls))
+                    "input_vibration" -> {
+                        val newSettings = settings.copy(vibrationEnabled = !settings.vibrationEnabled)
+                        onSettingsChanged(newSettings)
+                        val newSize = getItems(currentScreen, newSettings).size
+                        if (focusedIndex >= newSize) focusedIndex = (newSize - 1).coerceAtLeast(0)
+                    }
+                    "input_virtual_controls" -> {
+                        val newSettings = settings.copy(showVirtualControls = !settings.showVirtualControls)
+                        onSettingsChanged(newSettings)
+                        val newSize = getItems(currentScreen, newSettings).size
+                        if (focusedIndex >= newSize) focusedIndex = (newSize - 1).coerceAtLeast(0)
+                    }
                     "debug_overlay" -> onSettingsChanged(settings.copy(diagnosticsOverlayEnabled = !settings.diagnosticsOverlayEnabled))
                 }
             }
