@@ -1238,7 +1238,7 @@ class MainActivity : ComponentActivity() {
             } else if (dir == null) {
                 lastShownHatDir = null
             }
-            // Stick directions (threshold 0.5)
+            // Stick directions (threshold 0.5) — same Testing screen
             if (::gamepadHandler.isInitialized) {
                 val p = gamepadHandler.profile
                 val lx = event.getAxisValue(p.axisLX); val ly = event.getAxisValue(p.axisLY)
@@ -1265,6 +1265,8 @@ class MainActivity : ComponentActivity() {
                     lastShownStickDir = null
                 }
             }
+            // Consume all motion while Testing — prevents sticks/D-pad from driving the game behind the wizard.
+            return true
         }
         if (wizardScreen.value is MappingWizardScreen.Capturing) {
             val before = captureEngine.current

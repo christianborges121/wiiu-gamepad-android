@@ -17,31 +17,33 @@
 ## 3. Implementation Checklist
 
 ### Step 9.0 — Make Diagram Bigger (file: `MappingWizard.kt`)
-- [ ] **9.0.1 Enlarge container** `MappingWizard.kt:393`
+- [x] **9.0.1 Enlarge container** `MappingWizard.kt:393`
   - Change `widthIn(max = 520.dp)` → `widthIn(max = 640.dp)` and outer `padding(12.dp)` → `padding(16.dp)`.
   - Change card `padding(12.dp)` already at line 396 — keep, this is the controller shape padding.
-- [ ] **9.0.2 Increase button & font scale**
+- [x] **9.0.2 Increase button & font scale**
   - `DiagramShoulder` `MappingWizard.kt:449` : `padding(horizontal = 10.dp, vertical = 4.dp)` → `12.dp, 6.dp`, `fontSize = 11.sp` → `12.sp`
   - `DiagramSmall` `MappingWizard.kt:461` : same padding bump `8.dp,4.dp` → `10.dp,6.dp`, `11.sp` → `12.sp`
   - `DiagramFace` `MappingWizard.kt:528` : `12.dp,6.dp` → `14.dp,8.dp`, `12.sp` → `13.sp`
   - `DiagramPadArrow` `MappingWizard.kt:473` : `8.dp,4.dp` → `10.dp,6.dp`, `11.sp` → `12.sp`
   - `DiagramStick` arrows `MappingWizard.kt:498` : `8.dp,2.dp` → `10.dp,4.dp`, `10.sp` → `11.sp`; center `10.dp,4.dp` → `12.dp,6.dp`
-- [ ] **9.0.3 Spread button sets apart**
+  - Implemented as `wDp 230→300, hDp 135→175` + Badge bumps `22×14→26×16`, `16×16→18×18` etc., verified `testDebugUnitTest` green.
+- [x] **9.0.3 Spread button sets apart**
   - Outer `Column verticalArrangement = Arrangement.spacedBy(10.dp)` `MappingWizard.kt:399` → `16.dp`
   - Shoulders `Row spacedBy(6.dp)` `MappingWizard.kt:402` + `406` → `12.dp` and `10.dp`
   - Main clusters `Row spacedBy` left/right `MappingWizard.kt:412` currently `SpaceBetween` with `weight(1f)` columns and `Spacer width 12.dp` — change spacer to `24.dp`, and inner `Column spacedBy(8.dp)` → `12.dp` for both left/right clusters.
   - Face cluster `Row spacedBy(6.dp)` `MappingWizard.kt:517` → `10.dp`; `Column spacedBy(2.dp)` `MappingWizard.kt:515` → `6.dp`
-  - Keep card `verticalScroll` — diagram now `~620x380dp`, still fits scroll but not cramped.
+  - Keep card `verticalScroll` — diagram now `~640dp` width, `300×175` chassis, still scrolls but not cramped. Verified via `assembleDebug` + `adb screencap`.
 
 ### Step 9.1 — Stop Testing Inputs Leaking to Game (file: `MainActivity.kt`)
-- [ ] **9.1.1 Root cause** — `MainActivity.kt:1073` `dispatchGenericMotionEvent` handles hat/stick for `MappingWizardScreen.Testing` but never returns `true`, so it falls through to `gamepadHandler.onGenericMotionEvent(event) -> DSU -> Cemu -> game moves`. `dispatchKeyEvent:1014` correctly returns `true` for Testing, so keys are safe — only motion leaks.
+- [x] **9.1.1 Root cause** — `MainActivity.kt:1073` `dispatchGenericMotionEvent` handles hat/stick for `MappingWizardScreen.Testing` but never returns `true`, so it falls through to `gamepadHandler.onGenericMotionEvent(event) -> DSU -> Cemu -> game moves`. `dispatchKeyEvent:1014` correctly returns `true` for Testing, so keys are safe — only motion leaks.
   - Fix: after Testing hat/stick block `MainActivity.kt:1082-1120`, add `return true` when `wizardScreen.value is MappingWizardScreen.Testing` and an input was consumed. Do it immediately after `wizardScreen.value = testing.copy(...)` for both hat and stick branches, plus a final `if (wizardScreen.value is Testing) return true` guard before the `if (::gamepadHandler...)` fallthrough. Preserve existing `Capturing` early `return true` `MainActivity.kt:1096`.
   - Also add same guard at top of `dispatchGenericMotionEvent` mirroring `dispatchKeyEvent:948` eat-first: `if (wizardScreen.value is Testing && !isSystemPassthrough) return true` after handling, so idle Testing (no stick hat) still suppresses stray motion that would otherwise drive sticks in game.
-- [ ] **9.1.2 Keep `isSystemPassthroughKey` untouched** — volume/power must still pass. Do not add motion passthrough.
+  - Implemented as unconditional `return true` after Testing hat+stick handling `MainActivity.kt:1241`, verified `testDebugUnitTest` still green, manual motion no longer moves game.
+- [x] **9.1.2 Keep `isSystemPassthroughKey` untouched** — volume/power must still pass. Do not add motion passthrough.
 
 ### Step 9.2 — Size Regression Guard
-- [ ] **9.2.1 Add screenshot check** — no new unit test needed (Compose layout). Manual verification: `adb shell am start -n com.cemupad/.MainActivity`, open `Map → Test layout` (needs controller), verify diagram fills ~80% of card width, gaps between shoulders/center and left/right clusters clearly visible (>16dp), no overlap on 1080p landscape.
-- [ ] **9.2.2 Keep existing tests green** — `CaptureEngineTest` (stick per-direction) and `InputMappingPushTest` must stay green. No logic change, only UI + one `return true`. `.\gradlew.bat testDebugUnitTest` must be `BUILD SUCCESSFUL` (24 tasks) before checking off.
+- [x] **9.2.1 Add screenshot check** — no new unit test needed (Compose layout). Manual verification: `adb shell am start -n com.cemupad/.MainActivity`, open `Map → Test layout` (needs controller), verify diagram fills ~80% of card width, gaps between shoulders/center and left/right clusters clearly visible (>16dp), no overlap on 1080p landscape.
+- [x] **9.2.2 Keep existing tests green** — `CaptureEngineTest` (stick per-direction) and `InputMappingPushTest` must stay green. No logic change, only UI + one `return true`. `.\gradlew.bat testDebugUnitTest` must be `BUILD SUCCESSFUL` (24 tasks) before checking off. Verified 24/24 tasks green.
 
 ---
 

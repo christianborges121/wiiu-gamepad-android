@@ -150,6 +150,19 @@ adb shell input swipe 10 500 600 500 250
   ```powershell
   adb shell input keyevent 3
   ```
+- **Controller Buttons** (for Mapping Wizard testing):
+  ```powershell
+  adb shell input keyevent 96  # BUTTON_A
+  adb shell input keyevent 97  # BUTTON_B
+  adb shell input keyevent 99  # BUTTON_X
+  adb shell input keyevent 100 # BUTTON_Y
+  # D-Pad via keyevents or hat axis via sendevent
+  ```
+- **Controller Sticks / Triggers** (for stick mapping):
+  ```powershell
+  # Use sendevent or input motionevent via physical controller; for harness, prefer real controller
+  # or inject via: adb shell am broadcast -a com.cemupad.INJECT_INPUT --es button A --ez down true
+  ```
 
 ### D. App Lifecycle Control
 - **Launch CemuPad**:

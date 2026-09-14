@@ -188,9 +188,9 @@ fun MappingWizard(
         ) {
             Column(
                 modifier = Modifier
-                    .widthIn(max = 520.dp)
+                    .widthIn(max = 740.dp)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = if (screen is MappingWizardScreen.Capturing) 10.dp else 16.dp),
+                    .padding(horizontal = 6.dp, vertical = if (screen is MappingWizardScreen.Capturing) 6.dp else 8.dp),
                 verticalArrangement = Arrangement.spacedBy(if (screen is MappingWizardScreen.Capturing) 6.dp else 10.dp)
             ) {
                 if (screen is MappingWizardScreen.Testing) {
@@ -442,8 +442,8 @@ private fun ControllerLineDiagram(
         contentAlignment = Alignment.Center
     ) {
         val density = LocalDensity.current
-        val wDp = 230.dp
-        val hDp = 135.dp
+        val wDp = 400.dp
+        val hDp = 225.dp
         val wPx = with(density) { wDp.toPx() }
         val hPx = with(density) { hDp.toPx() }
 
@@ -560,42 +560,42 @@ private fun ControllerLineDiagram(
                 }
             }
 
-            // 1. Shoulders & Triggers (at top edge of chassis)
-            Badge("ZL", "ZL", 0.14f, 0.08f, 22.dp, 14.dp, RoundedCornerShape(4.dp), 8.sp)
-            Badge("L", "L", 0.25f, 0.08f, 20.dp, 14.dp, RoundedCornerShape(4.dp), 9.sp)
-            Badge("R", "R", 0.75f, 0.08f, 20.dp, 14.dp, RoundedCornerShape(4.dp), 9.sp)
-            Badge("ZR", "ZR", 0.86f, 0.08f, 22.dp, 14.dp, RoundedCornerShape(4.dp), 8.sp)
+            // 1. Shoulders & Triggers — ZL above L, ZR above R (stacked, 0.09H gap, x-offset)
+            Badge("ZL", "ZL", 0.20f, 0.02f, 28.dp, 18.dp, RoundedCornerShape(5.dp), 10.sp)
+            Badge("L", "L", 0.20f, 0.13f, 26.dp, 18.dp, RoundedCornerShape(5.dp), 11.sp)
+            Badge("ZR", "ZR", 0.80f, 0.02f, 28.dp, 18.dp, RoundedCornerShape(5.dp), 10.sp)
+            Badge("R", "R", 0.80f, 0.13f, 26.dp, 18.dp, RoundedCornerShape(5.dp), 11.sp)
 
-            // 2. Center Buttons (Minus, Home, Plus)
-            Badge("MINUS", "−", 0.43f, 0.28f, 16.dp, 13.dp, RoundedCornerShape(6.dp), 9.sp)
-            Badge("HOME", "⌂", 0.50f, 0.40f, 16.dp, 16.dp, CircleShape, 10.sp)
-            Badge("PLUS", "+", 0.57f, 0.28f, 16.dp, 13.dp, RoundedCornerShape(6.dp), 9.sp)
+            // 2. Center Buttons (Minus, Home, Plus) — enlarged
+            Badge("MINUS", "−", 0.43f, 0.28f, 20.dp, 17.dp, RoundedCornerShape(7.dp), 11.sp)
+            Badge("HOME", "⌂", 0.50f, 0.40f, 20.dp, 20.dp, CircleShape, 12.sp)
+            Badge("PLUS", "+", 0.57f, 0.28f, 20.dp, 17.dp, RoundedCornerShape(7.dp), 11.sp)
 
-            // 3. Left Stick (rx = 0.28, ry = 0.40)
-            Badge("STICK_L_PRESS", "L3", 0.28f, 0.40f, 16.dp, 16.dp, CircleShape, 8.sp)
-            Badge("STICK_L_UP", "▲", 0.28f, 0.27f, 13.dp, 10.dp, RoundedCornerShape(3.dp), 8.sp)
-            Badge("STICK_L_DOWN", "▼", 0.28f, 0.53f, 13.dp, 10.dp, RoundedCornerShape(3.dp), 8.sp)
-            Badge("STICK_L_LEFT", "◀", 0.20f, 0.40f, 10.dp, 13.dp, RoundedCornerShape(3.dp), 8.sp)
-            Badge("STICK_L_RIGHT", "▶", 0.36f, 0.40f, 10.dp, 13.dp, RoundedCornerShape(3.dp), 8.sp)
+            // 3. Left Stick (rx = 0.28, ry = 0.40) — spaced
+            Badge("STICK_L_PRESS", "L3", 0.28f, 0.40f, 20.dp, 20.dp, CircleShape, 10.sp)
+            Badge("STICK_L_UP", "▲", 0.28f, 0.27f, 17.dp, 14.dp, RoundedCornerShape(4.dp), 10.sp)
+            Badge("STICK_L_DOWN", "▼", 0.28f, 0.53f, 17.dp, 14.dp, RoundedCornerShape(4.dp), 10.sp)
+            Badge("STICK_L_LEFT", "◀", 0.19f, 0.40f, 14.dp, 17.dp, RoundedCornerShape(4.dp), 10.sp)
+            Badge("STICK_L_RIGHT", "▶", 0.37f, 0.40f, 14.dp, 17.dp, RoundedCornerShape(4.dp), 10.sp)
 
-            // 4. D-Pad (rx = 0.38, ry = 0.65)
-            Badge("DPAD_UP", "▲", 0.38f, 0.53f, 13.dp, 11.dp, RoundedCornerShape(3.dp), 8.sp)
-            Badge("DPAD_DOWN", "▼", 0.38f, 0.77f, 13.dp, 11.dp, RoundedCornerShape(3.dp), 8.sp)
-            Badge("DPAD_LEFT", "◀", 0.31f, 0.65f, 11.dp, 13.dp, RoundedCornerShape(3.dp), 8.sp)
-            Badge("DPAD_RIGHT", "▶", 0.45f, 0.65f, 11.dp, 13.dp, RoundedCornerShape(3.dp), 8.sp)
+            // 4. D-Pad (rx = 0.38, ry = 0.65) — separated
+            Badge("DPAD_UP", "▲", 0.38f, 0.52f, 17.dp, 15.dp, RoundedCornerShape(4.dp), 10.sp)
+            Badge("DPAD_DOWN", "▼", 0.38f, 0.78f, 17.dp, 15.dp, RoundedCornerShape(4.dp), 10.sp)
+            Badge("DPAD_LEFT", "◀", 0.30f, 0.65f, 15.dp, 17.dp, RoundedCornerShape(4.dp), 10.sp)
+            Badge("DPAD_RIGHT", "▶", 0.46f, 0.65f, 15.dp, 17.dp, RoundedCornerShape(4.dp), 10.sp)
 
-            // 5. Face Buttons ABXY (rx = 0.62, ry = 0.40)
-            Badge("X", "X", 0.62f, 0.27f, 16.dp, 16.dp, CircleShape, 9.sp)
-            Badge("Y", "Y", 0.54f, 0.40f, 16.dp, 16.dp, CircleShape, 9.sp)
-            Badge("A", "A", 0.70f, 0.40f, 16.dp, 16.dp, CircleShape, 9.sp)
-            Badge("B", "B", 0.62f, 0.53f, 16.dp, 16.dp, CircleShape, 9.sp)
+            // 5. Right Stick — top right per GamePad
+            Badge("STICK_R_PRESS", "R3", 0.72f, 0.40f, 20.dp, 20.dp, CircleShape, 10.sp)
+            Badge("STICK_R_UP", "▲", 0.72f, 0.27f, 17.dp, 14.dp, RoundedCornerShape(4.dp), 10.sp)
+            Badge("STICK_R_DOWN", "▼", 0.72f, 0.53f, 17.dp, 14.dp, RoundedCornerShape(4.dp), 10.sp)
+            Badge("STICK_R_LEFT", "◀", 0.63f, 0.40f, 14.dp, 17.dp, RoundedCornerShape(4.dp), 10.sp)
+            Badge("STICK_R_RIGHT", "▶", 0.81f, 0.40f, 14.dp, 17.dp, RoundedCornerShape(4.dp), 10.sp)
 
-            // 6. Right Stick (rx = 0.72, ry = 0.65)
-            Badge("STICK_R_PRESS", "R3", 0.72f, 0.65f, 16.dp, 16.dp, CircleShape, 8.sp)
-            Badge("STICK_R_UP", "▲", 0.72f, 0.53f, 13.dp, 10.dp, RoundedCornerShape(3.dp), 8.sp)
-            Badge("STICK_R_DOWN", "▼", 0.72f, 0.77f, 13.dp, 10.dp, RoundedCornerShape(3.dp), 8.sp)
-            Badge("STICK_R_LEFT", "◀", 0.64f, 0.65f, 10.dp, 13.dp, RoundedCornerShape(3.dp), 8.sp)
-            Badge("STICK_R_RIGHT", "▶", 0.80f, 0.65f, 10.dp, 13.dp, RoundedCornerShape(3.dp), 8.sp)
+            // 6. Face Buttons ABXY — bottom right per GamePad
+            Badge("X", "X", 0.62f, 0.52f, 20.dp, 20.dp, CircleShape, 11.sp)
+            Badge("Y", "Y", 0.53f, 0.65f, 20.dp, 20.dp, CircleShape, 11.sp)
+            Badge("A", "A", 0.71f, 0.65f, 20.dp, 20.dp, CircleShape, 11.sp)
+            Badge("B", "B", 0.62f, 0.78f, 20.dp, 20.dp, CircleShape, 11.sp)
         }
     }
 }
