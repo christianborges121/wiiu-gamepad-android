@@ -23,6 +23,9 @@ local.properties
 *.keystore
 *.pem
 *.key
+keys.txt
+CemuPad-*.zip
+dist/
 
 # Session screenshots and diagnostic logs (AI-generated, kept on disk only;
 # anchored so source assets like vanilla launcher icons stay tracked)
