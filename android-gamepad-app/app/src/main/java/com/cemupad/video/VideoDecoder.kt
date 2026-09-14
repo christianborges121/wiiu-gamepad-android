@@ -80,12 +80,23 @@ class VideoDecoder(
     private val isRunning = AtomicBoolean(false)
     @Volatile private var isConfigured = false
 
-    // Every MediaCodec call runs on this thread, no matter which thread
-    // invoked the public API (main thread for init/release, video worker
-    // for decodeFrame). Dispatch is synchronous so backpressure behavior
-    // is unchanged: callers block exactly as if they called inline.
+    private data class QueuedFrame(val nalData: ByteArray, val ptsUs: Long)
+    private val inputQueue = java.util.concurrent.ArrayBlockingQueue<QueuedFrame>(4)
+
     private val decoderThread = HandlerThread("CemuPad-Decoder").apply { start() }
     private val decoderHandler = Handler(decoderThread.looper)
+
+    private val decodeTask = Runnable {
+        val frame = inputQueue.poll() ?: return@Runnable
+        doDecodeFrame(frame.nalData, frame.ptsUs)
+    }
+
+    private fun safeSetInteger(format: MediaFormat, key: String, value: Int) {
+        try {
+            format.setInteger(key, value)
+        } catch (_: Throwable) {
+        }
+    }
 
     private fun <T> runOnDecoderThreadSync(timeoutMs: Long, block: () -> T): T? {
         if (!decoderThread.isAlive) return null
@@ -100,9 +111,41 @@ class VideoDecoder(
     }
 
     private fun selectAvcDecoder(): MediaCodecInfo? {
-        return MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.firstOrNull { info ->
+        val candidates = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.filter { info ->
             !info.isEncoder && info.supportedTypes.any { it.equals(MediaFormat.MIMETYPE_VIDEO_AVC, ignoreCase = true) }
         }
+        if (candidates.isEmpty()) return null
+
+        // 1. Prioritize explicit low_latency named decoders (e.g. c2.qti.avc.decoder.low_latency)
+        val explicitLowLatency = candidates.firstOrNull { info ->
+            val name = info.name.lowercase()
+            name.contains("low_latency") || name.contains("lowlatency")
+        }
+        if (explicitLowLatency != null) return explicitLowLatency
+
+        // 2. Prioritize hardware decoders advertising FEATURE_LowLatency
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val featureLowLatency = candidates.firstOrNull { info ->
+                try {
+                    info.getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_AVC)
+                        .isFeatureSupported(MediaCodecInfo.CodecCapabilities.FEATURE_LowLatency)
+                } catch (_: Exception) {
+                    false
+                }
+            }
+            if (featureLowLatency != null) return featureLowLatency
+        }
+
+        // 3. Prioritize hardware-accelerated decoders over software fallback
+        val hardwareDecoder = candidates.firstOrNull { info ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                info.isHardwareAccelerated
+            } else {
+                val name = info.name.lowercase()
+                !name.startsWith("omx.google.") && !name.startsWith("c2.android.") && !name.contains("sw")
+            }
+        }
+        return hardwareDecoder ?: candidates.first()
     }
 
     // Telemetry
@@ -149,6 +192,27 @@ class VideoDecoder(
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     setInteger(MediaFormat.KEY_PRIORITY, 0)
                 }
+                safeSetInteger(this, MediaFormat.KEY_OPERATING_RATE, Short.MAX_VALUE.toInt())
+
+                // Vendor-specific low-latency tuning (inspired by Moonlight / Apollo)
+                val name = decoderInfo.name.lowercase()
+                when {
+                    name.contains("qcom") || name.contains("qti") -> {
+                        safeSetInteger(this, "vendor.qti-ext-dec-low-latency.enable", 1)
+                        safeSetInteger(this, "vendor.qti-ext-dec-picture-order.enable", 0)
+                        safeSetInteger(this, "vendor.qti-ext-dec-frame-drop.enable", 1)
+                        safeSetInteger(this, "vendor.qti-ext-dec-dpb-output-delay.enable", 0)
+                    }
+                    name.contains("mtk") -> {
+                        safeSetInteger(this, "vendor.mtk.vdec.low-latency.mode", 1)
+                        safeSetInteger(this, "vendor.mtk.vdec.disable-idle", 1)
+                        safeSetInteger(this, "vendor.mtk.vdec.preload.frame.count", 1)
+                    }
+                    name.contains("exynos") || name.contains("samsung") -> {
+                        safeSetInteger(this, "vendor.rtc-ext-dec-low-latency.enable", 1)
+                    }
+                }
+                safeSetInteger(this, "vendor.low-latency.enable", 1)
             }
 
             val decoder = MediaCodec.createByCodecName(decoderInfo.name)
@@ -162,7 +226,7 @@ class VideoDecoder(
             spsSeen = false
             ppsSeen = false
             framesSinceParameterSets = 0
-            Logger.i(TAG, "MediaCodec AVC hardware decoder initialized ($width x $height)")
+            Logger.i(TAG, "MediaCodec AVC hardware decoder initialized: ${decoderInfo.name} ($width x $height)")
             true
         } catch (e: Exception) {
             Logger.e(TAG, "Failed to initialize MediaCodec AVC decoder", e)
@@ -172,13 +236,21 @@ class VideoDecoder(
 
     /**
      * Feeds Annex B NAL unit payload into the decoder with a presentation timestamp.
+     * Uses asynchronous lock-free enqueueing so the network receiver thread is never blocked.
      */
     fun decodeFrame(nalData: ByteArray, ptsUs: Long) {
         if (!isRunning.get()) return
         totalFramesReceived.incrementAndGet()
-        if (runOnDecoderThreadSync(2000L) { doDecodeFrame(nalData, ptsUs) } == null) {
+
+        while (inputQueue.size >= 3) {
+            inputQueue.poll()
             totalFramesDropped.incrementAndGet()
-            Logger.w(TAG, "Decoder thread dispatch failed, frame dropped")
+        }
+        if (inputQueue.offer(QueuedFrame(nalData, ptsUs))) {
+            decoderHandler.post(decodeTask)
+        } else {
+            totalFramesDropped.incrementAndGet()
+            Logger.w(TAG, "Decoder queue full, frame dropped")
         }
     }
 
@@ -272,19 +344,40 @@ class VideoDecoder(
     private fun drainOutput(decoder: MediaCodec) {
         val bufferInfo = MediaCodec.BufferInfo()
         var outputIndex = decoder.dequeueOutputBuffer(bufferInfo, 0)
-
-        while (outputIndex >= 0) {
-            // Render directly to SurfaceView Surface
-            decoder.releaseOutputBuffer(outputIndex, true)
-            totalFramesDecoded.incrementAndGet()
-            updateFpsTelemetry()
-
-            outputIndex = decoder.dequeueOutputBuffer(bufferInfo, 0)
+        if (outputIndex < 0) {
+            if (outputIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                Logger.i(TAG, "Decoder output format changed: ${decoder.outputFormat}")
+            }
+            return
         }
 
-        if (outputIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-            val newFormat = decoder.outputFormat
-            Logger.i(TAG, "Decoder output format changed: $newFormat")
+        var latestIndex = outputIndex
+
+        // Drain any subsequent ready buffers (fast-path: drop older frames to eliminate lag queues)
+        while (true) {
+            val nextIndex = decoder.dequeueOutputBuffer(bufferInfo, 0)
+            if (nextIndex >= 0) {
+                try {
+                    decoder.releaseOutputBuffer(latestIndex, false)
+                    totalFramesDropped.incrementAndGet()
+                } catch (_: Exception) {
+                }
+                latestIndex = nextIndex
+            } else {
+                if (nextIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                    Logger.i(TAG, "Decoder output format changed: ${decoder.outputFormat}")
+                }
+                break
+            }
+        }
+
+        // Render only the latest fresh frame directly to Surface
+        try {
+            decoder.releaseOutputBuffer(latestIndex, true)
+            totalFramesDecoded.incrementAndGet()
+            updateFpsTelemetry()
+        } catch (e: Exception) {
+            Logger.w(TAG, "Failed to release output buffer $latestIndex: ${e.message}")
         }
     }
 
@@ -301,6 +394,8 @@ class VideoDecoder(
 
     fun release() {
         isRunning.set(false)
+        decoderHandler.removeCallbacksAndMessages(null)
+        inputQueue.clear()
         runOnDecoderThreadSync(5000L) { doRelease() }
         decoderThread.quitSafely()
     }

@@ -326,5 +326,6 @@ This document is the **single source of truth** for tracking implementation prog
 | *2026-09-13* | 4.4 | Session PIN (code, UI disabled) | PIN API + server auth gating + client handshake + pairing checkbox, all build-verified; UI removed per user decision (complicates flow), open-session default; re-enable is UI-only | 🟡 Disabled |
 | *2026-09-13* | 4.1-fix | Discovery re-pair fix | Dual-destination responder replies, dialog re-probe + 30s expiry; live-verified re-pair | ✅ Done |
 | *2026-09-13* | 5 | Release Minification & CI/CD | ProGuard/R8 keep rules, minification (1.2MB APK), GitHub Actions workflow for APK & Cemu Windows binary | ✅ Done |
-| *2026-09-13* | 4.5 | Cross-Platform Cemu Host (POSIX) | Added POSIX socket headers, portable `SOCKET`/`CloseSocket`/`SetSocketNonBlocking`/`SetSocketRecvTimeout`, detached threads, `kSendFlags`; verified MSVC & multi-platform CI | 🟡 CI in progress |
+| *2026-09-13* | 4.5 | Cross-Platform Cemu Host (POSIX) | Added POSIX socket headers, portable `SOCKET`/`CloseSocket`/`SetSocketNonBlocking`/`SetSocketRecvTimeout`, detached threads, `kSendFlags`; verified 100% green across all 7 CI jobs on GitHub | ✅ Done |
+| *2026-09-13* | 7.0 | Zero-Latency Decoder & Vendor Keys | Prioritized low_latency codec selection, Qualcomm/MediaTek/Exynos vendor keys, latest-only output fast-path, and async lock-free queue | ✅ Done |
 

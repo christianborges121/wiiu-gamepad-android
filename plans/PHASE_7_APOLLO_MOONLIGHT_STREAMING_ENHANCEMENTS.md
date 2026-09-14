@@ -8,17 +8,17 @@ Adopt the battle-tested streaming techniques from **Apollo (Sunshine)** and **Mo
 ## 2. Implementation Checklist
 
 ### Phase 7.0: Zero-Latency Decoder Pipeline & Vendor Directives (Tier 1)
-- [ ] **Step 7.0.1: Vendor-Specific Low-Latency Keys in `VideoDecoder.kt`**
-  - [ ] Add Qualcomm Snapdragon keys (`vendor.qti-ext-dec-low-latency.enable=1`, `vendor.qti-ext-dec-picture-order.enable=0`, `vendor.qti-ext-dec-dpb-output-delay.enable=0`, `vendor.qti-ext-dec-frame-drop.enable=1`).
-  - [ ] Add MediaTek keys (`vendor.mtk.vdec.low-latency.mode=1`, `vendor.mtk.vdec.disable-idle=1`).
-  - [ ] Add Samsung Exynos keys (`vendor.rtc-ext-dec-low-latency.enable=1`).
-  - [ ] Set `KEY_OPERATING_RATE = Short.MAX_VALUE` and `KEY_PRIORITY = 0`.
-- [ ] **Step 7.0.2: Low-Latency Codec Selection Priority**
-  - [ ] Prioritize codecs ending in `.low_latency` (e.g. `c2.qti.avc.decoder.low_latency`) and check `CodecCapabilities.FEATURE_LowLatency`.
-- [ ] **Step 7.0.3: Latest-Only Output Draining & Queue Pruning**
-  - [ ] In `VideoDecoder.drainOutput()`, discard older frames with `releaseOutputBuffer(old, false)` and render only the newest frame with `releaseOutputBuffer(latest, true)`.
-- [ ] **Step 7.0.4: Asynchronous Lock-Free Decoder Queue**
-  - [ ] Decouple `UdpVideoReceiver` from `VideoDecoder` using an asynchronous lock-free concurrent queue, eliminating `runOnDecoderThreadSync()` blocking.
+- [x] **Step 7.0.1: Vendor-Specific Low-Latency Keys in `VideoDecoder.kt`**
+  - [x] Add Qualcomm Snapdragon keys (`vendor.qti-ext-dec-low-latency.enable=1`, `vendor.qti-ext-dec-picture-order.enable=0`, `vendor.qti-ext-dec-dpb-output-delay.enable=0`, `vendor.qti-ext-dec-frame-drop.enable=1`).
+  - [x] Add MediaTek keys (`vendor.mtk.vdec.low-latency.mode=1`, `vendor.mtk.vdec.disable-idle=1`, `vendor.mtk.vdec.preload.frame.count=1`).
+  - [x] Add Samsung Exynos keys (`vendor.rtc-ext-dec-low-latency.enable=1`).
+  - [x] Set `KEY_OPERATING_RATE = Short.MAX_VALUE` and `KEY_PRIORITY = 0`.
+- [x] **Step 7.0.2: Low-Latency Codec Selection Priority**
+  - [x] Prioritize codecs ending in `.low_latency` (e.g. `c2.qti.avc.decoder.low_latency`) and check `CodecCapabilities.FEATURE_LowLatency`.
+- [x] **Step 7.0.3: Latest-Only Output Draining & Queue Pruning**
+  - [x] In `VideoDecoder.drainOutput()`, discard older frames with `releaseOutputBuffer(old, false)` and render only the newest frame with `releaseOutputBuffer(latest, true)`.
+- [x] **Step 7.0.4: Asynchronous Lock-Free Decoder Queue**
+  - [x] Decoupled `UdpVideoReceiver` from `VideoDecoder` using an asynchronous lock-free concurrent queue (`ArrayBlockingQueue`), eliminating `runOnDecoderThreadSync()` blocking.
 
 ---
 
