@@ -95,6 +95,7 @@ fun ConfigMenuView(
             // --- Header ---
             ConfigMenuHeader(
                 currentScreen = state.currentScreen,
+                isDoneFocused = state.isHeaderDoneFocused && state.currentScreen == ConfigScreen.ROOT,
                 onBack = { state.onBackB() },
                 onClose = { state.close() }
             )
@@ -141,16 +142,19 @@ fun ConfigMenuView(
                     itemsIndexed(currentScreenItems) { index, item ->
                         ConfigItemCard(
                             item = item,
-                            isFocused = index == state.focusedIndex,
+                            isFocused = index == state.focusedIndex && !state.isHeaderDoneFocused,
                             onClick = {
+                                state.isHeaderDoneFocused = false
                                 state.focusedIndex = index
                                 state.onSelectA(currentScreenItems, settings, onSettingsChanged, onAction)
                             },
                             onLeft = {
+                                state.isHeaderDoneFocused = false
                                 state.focusedIndex = index
                                 state.onLeft(currentScreenItems, settings, onSettingsChanged)
                             },
                             onRight = {
+                                state.isHeaderDoneFocused = false
                                 state.focusedIndex = index
                                 state.onRight(currentScreenItems, settings, onSettingsChanged)
                             }
@@ -175,6 +179,7 @@ fun ConfigMenuView(
 @Composable
 private fun ConfigMenuHeader(
     currentScreen: ConfigScreen,
+    isDoneFocused: Boolean = false,
     onBack: () -> Unit,
     onClose: () -> Unit
 ) {
@@ -202,12 +207,14 @@ private fun ConfigMenuHeader(
             }
             Button(
                 onClick = onClose,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF182232)),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isDoneFocused) Color(0xFF1C273B) else Color(0xFF182232)
+                ),
                 shape = RoundedCornerShape(8.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                border = BorderStroke(1.dp, Color(0xFF26354D))
+                border = BorderStroke(if (isDoneFocused) 2.dp else 1.dp, if (isDoneFocused) Color(0xFF00E5FF) else Color(0xFF26354D))
             ) {
-                Text("Done", color = Color(0xFF00E5FF), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text("Done", color = if (isDoneFocused) Color.White else Color(0xFF00E5FF), fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
         } else {
             Row(

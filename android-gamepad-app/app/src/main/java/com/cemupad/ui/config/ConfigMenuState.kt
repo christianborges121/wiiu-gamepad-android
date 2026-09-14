@@ -53,6 +53,7 @@ class ConfigMenuState {
     var isOpen by mutableStateOf(false)
     var currentScreen by mutableStateOf(ConfigScreen.ROOT)
     var focusedIndex by mutableIntStateOf(0)
+    var isHeaderDoneFocused by mutableStateOf(false)
 
     var requestOpen: (() -> Unit)? = null
     var requestClose: (() -> Unit)? = null
@@ -69,6 +70,7 @@ class ConfigMenuState {
     fun open(screen: ConfigScreen = ConfigScreen.ROOT) {
         currentScreen = screen
         focusedIndex = 0
+        isHeaderDoneFocused = false
         isOpen = true
         requestOpen?.invoke()
     }
@@ -77,6 +79,7 @@ class ConfigMenuState {
         isOpen = false
         currentScreen = ConfigScreen.ROOT
         focusedIndex = 0
+        isHeaderDoneFocused = false
         requestClose?.invoke()
     }
 
@@ -124,13 +127,6 @@ class ConfigMenuState {
                     subtitle = "Diagnostics ${if (settings.diagnosticsOverlayEnabled) "On" else "Off"} · Export logs",
                     type = ConfigItemType.SUBMENU_LINK,
                     iconName = "bug"
-                ),
-                ConfigMenuItem(
-                    id = "menu_close",
-                    title = "Back to Game",
-                    subtitle = "Close configuration and resume gameplay",
-                    type = ConfigItemType.ACTION,
-                    iconName = "close"
                 )
             )
 
@@ -337,11 +333,33 @@ class ConfigMenuState {
 
     fun onUp(items: List<ConfigMenuItem>) {
         if (items.isEmpty()) return
+        if (currentScreen == ConfigScreen.ROOT) {
+            if (isHeaderDoneFocused) {
+                isHeaderDoneFocused = false
+                focusedIndex = items.size - 1
+            } else if (focusedIndex <= 0) {
+                isHeaderDoneFocused = true
+            } else {
+                focusedIndex -= 1
+            }
+            return
+        }
         focusedIndex = if (focusedIndex <= 0) items.size - 1 else focusedIndex - 1
     }
 
     fun onDown(items: List<ConfigMenuItem>) {
         if (items.isEmpty()) return
+        if (currentScreen == ConfigScreen.ROOT) {
+            if (isHeaderDoneFocused) {
+                isHeaderDoneFocused = false
+                focusedIndex = 0
+            } else if (focusedIndex >= items.size - 1) {
+                isHeaderDoneFocused = true
+            } else {
+                focusedIndex += 1
+            }
+            return
+        }
         focusedIndex = if (focusedIndex >= items.size - 1) 0 else focusedIndex + 1
     }
 
@@ -465,6 +483,10 @@ class ConfigMenuState {
         onSettingsChanged: (DisplaySettings) -> Unit,
         onAction: (ConfigAction) -> Unit
     ) {
+        if (currentScreen == ConfigScreen.ROOT && isHeaderDoneFocused) {
+            close()
+            return
+        }
         if (items.isEmpty() || focusedIndex !in items.indices) return
         val item = items[focusedIndex]
 

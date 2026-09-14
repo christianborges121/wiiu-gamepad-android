@@ -47,13 +47,15 @@ class ConfigMenuStateTest {
         val count = items.size
 
         assertEquals(0, state.focusedIndex)
+        assertFalse(state.isHeaderDoneFocused)
 
-        // Up wraps to last item
+        // Up from first wraps to header Done
         state.onUp(items)
-        assertEquals(count - 1, state.focusedIndex)
+        assertTrue(state.isHeaderDoneFocused)
 
-        // Down wraps to first item
+        // Down from header wraps to first
         state.onDown(items)
+        assertFalse(state.isHeaderDoneFocused)
         assertEquals(0, state.focusedIndex)
 
         // Down moves to index 1
@@ -63,6 +65,17 @@ class ConfigMenuStateTest {
         // Up moves back to index 0
         state.onUp(items)
         assertEquals(0, state.focusedIndex)
+
+        // Down from last wraps to header
+        state.focusedIndex = count - 1
+        state.isHeaderDoneFocused = false
+        state.onDown(items)
+        assertTrue(state.isHeaderDoneFocused)
+
+        // Up from header goes to last
+        state.onUp(items)
+        assertFalse(state.isHeaderDoneFocused)
+        assertEquals(count - 1, state.focusedIndex)
     }
 
     @Test
