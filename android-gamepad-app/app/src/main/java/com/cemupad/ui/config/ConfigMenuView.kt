@@ -511,7 +511,7 @@ private fun ConfigControllerFooter(isRoot: Boolean) {
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            BadgeHint(if (isRoot) "B" else "<")
+            BadgeHint("<")
             Spacer(modifier = Modifier.width(4.dp))
             Text(if (isRoot) "Close" else "Back", color = Color(0xFF7A8B9E), fontSize = 11.sp)
         }
