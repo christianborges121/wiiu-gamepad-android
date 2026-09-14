@@ -30,7 +30,6 @@ enum class MappableControl(val label: String, val kind: CaptureKind) {
     ZR("ZR", CaptureKind.TRIGGER),
     PLUS("Plus (+)", CaptureKind.BUTTON),
     MINUS("Minus (-)", CaptureKind.BUTTON),
-    HOME("Home", CaptureKind.BUTTON),
     STICK_L_PRESS("Left Stick Press", CaptureKind.BUTTON),
     STICK_R_PRESS("Right Stick Press", CaptureKind.BUTTON),
     STICK_L_UP("Stick L Up", CaptureKind.STICK),
@@ -40,7 +39,8 @@ enum class MappableControl(val label: String, val kind: CaptureKind) {
     STICK_R_UP("Stick R Up", CaptureKind.STICK),
     STICK_R_DOWN("Stick R Down", CaptureKind.STICK),
     STICK_R_LEFT("Stick R Left", CaptureKind.STICK),
-    STICK_R_RIGHT("Stick R Right", CaptureKind.STICK);
+    STICK_R_RIGHT("Stick R Right", CaptureKind.STICK),
+    HOME("Home", CaptureKind.BUTTON);
 
     companion object {
         val ORDER: List<MappableControl> = values().toList()

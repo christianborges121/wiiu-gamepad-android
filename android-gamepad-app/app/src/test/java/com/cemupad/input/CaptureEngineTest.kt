@@ -293,4 +293,9 @@ class CaptureEngineTest {
         assertEquals(MotionEvent.AXIS_RZ, profile.axisRX)
         assertEquals(MotionEvent.AXIS_Z, profile.axisRY)
     }
+
+    @Test
+    fun testHomeButtonIsLastInOrder() {
+        assertEquals(MappableControl.HOME, MappableControl.ORDER.last())
+    }
 }
