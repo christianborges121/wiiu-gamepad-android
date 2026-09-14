@@ -53,8 +53,11 @@ import com.cemupad.network.DiscoveryClient
 import com.cemupad.network.DiscoveryResponder
 import com.cemupad.network.DiscoveredServer
 import com.cemupad.theme.CemuPadTheme
+import com.cemupad.ui.config.ConfigAction
+import com.cemupad.ui.config.ConfigMenuState
 import com.cemupad.ui.main.MainScreen
 import com.cemupad.util.Logger
+import com.cemupad.util.NetworkUtils
 import com.cemupad.video.UdpVideoReceiver
 import com.cemupad.video.VideoDecoder
 import com.cemupad.video.VideoStreamClient
@@ -98,6 +101,8 @@ class MainActivity : ComponentActivity() {
     private val wizardScreen = mutableStateOf<MappingWizardScreen?>(null)
     private val captureTick = mutableStateOf(0)
     private val captureFlash = mutableStateOf<String?>(null)
+    private val configMenuState = ConfigMenuState()
+    private var menuClosingKeyCode: Int? = null
     private var lastShownHatDir: String? = null
     private var lastShownStickDir: String? = null
     private val testHistoryKeys = mutableSetOf<Int>()
@@ -232,7 +237,33 @@ class MainActivity : ComponentActivity() {
             intent ?: return
             val action = intent.action ?: return
             if (action == "com.cemupad.INJECT_INPUT") {
+                if (intent.hasExtra("config_menu")) {
+                    val cmd = intent.getStringExtra("config_menu")
+                    if (cmd.equals("open", ignoreCase = true)) {
+                        configMenuState.open()
+                    } else if (cmd.equals("close", ignoreCase = true)) {
+                        configMenuState.close()
+                    }
+                }
                 val button = intent.getStringExtra("button")
+                if (configMenuState.isOpen && button != null) {
+                    val items = configMenuState.getItems(
+                        screen = configMenuState.currentScreen,
+                        settings = displaySettings.value,
+                        activeControllerName = activeGamepadName.value,
+                        phoneIp = NetworkUtils.getLocalIpAddress(),
+                        dsuPort = if (::dsuServer.isInitialized) dsuServer.port else 26760
+                    )
+                    when (button.uppercase()) {
+                        "A" -> configMenuState.onSelectA(items, displaySettings.value, { applyAndPersistSettings(it) }, { handleConfigAction(it) })
+                        "B" -> configMenuState.onBackB()
+                        "UP" -> configMenuState.onUp(items)
+                        "DOWN" -> configMenuState.onDown(items)
+                        "LEFT" -> configMenuState.onLeft(items, displaySettings.value, { applyAndPersistSettings(it) })
+                        "RIGHT" -> configMenuState.onRight(items, displaySettings.value, { applyAndPersistSettings(it) })
+                    }
+                    return
+                }
                 val isDown = if (intent.hasExtra("down")) intent.getBooleanExtra("down", false) else null
                 val durationMs = intent.getLongExtra("duration", 150L)
 
@@ -482,68 +513,7 @@ class MainActivity : ComponentActivity() {
                         videoFps = videoFps.floatValue,
                         displaySettings = displaySettings.value,
                         onDisplaySettingsChanged = { newSettings ->
-                            val oldSettings = displaySettings.value
-                            displaySettings.value = newSettings
-                            videoDecoder?.maxFps = if (newSettings.limitTo30Fps) 30 else 60
-                            videoDecoder?.framePacingMode = newSettings.framePacing
-                            audioReceiver?.isMuted = !newSettings.audioEnabled
-                            audioReceiver?.volume = newSettings.audioVolume
-                            rumbleHandler.isEnabled = newSettings.vibrationEnabled
-                            rumbleHandler.intensityScale = newSettings.vibrationIntensity
-                            gamepadHandler.deadzone = newSettings.stickDeadzone
-                            if (newSettings.micEnabled) {
-                                if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                                    micBlowDetector.start()
-                                    // (Re)start voice PCM when the toggle flips on mid-session.
-                                    if (videoClient?.isConnected == true) {
-                                        val host = lastKnownClientIp
-                                        if (!host.isNullOrEmpty()) startVoiceStream(host)
-                                    }
-                                } else {
-                                    requestAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                                }
-                            } else {
-                                micBlowDetector.stop()
-                                videoClient?.sendMicBlow(false)
-                                stopVoiceStream()
-                            }
-                            // Forward dynamic encoder changes to Cemu (no-op when unchanged).
-                            if (newSettings.videoBitrateMbps != oldSettings.videoBitrateMbps) {
-                                videoClient?.sendBitrate(newSettings.videoBitrateMbps * 1_000_000)
-                            }
-                            val newPreset = newSettings.resolutionPreset
-                            val resolvedNew = newPreset.resolveForDevice(
-                                resources.displayMetrics.widthPixels,
-                                resources.displayMetrics.heightPixels,
-                                newSettings.videoBitrateMbps
-                            )
-                            val resolvedOld = oldSettings.resolutionPreset.resolveForDevice(
-                                resources.displayMetrics.widthPixels,
-                                resources.displayMetrics.heightPixels,
-                                oldSettings.videoBitrateMbps
-                            )
-                            if (resolvedNew != resolvedOld && resolvedNew.width > 0 && resolvedNew.height > 0) {
-                                videoClient?.sendResolution(resolvedNew.width, resolvedNew.height)
-                            }
-                            if (newSettings.videoCodec != oldSettings.videoCodec) {
-                                val targetMime = resolveVideoMimeType(newSettings.videoCodec)
-                                val useHevc = targetMime == MediaFormat.MIMETYPE_VIDEO_HEVC
-                                videoClient?.sendCodec(useHevc)
-                                activeSurface?.let { surface ->
-                                    if (videoDecoder?.mimeType != targetMime) {
-                                        videoDecoder?.release()
-                                        val decoder = VideoDecoder(surface, onRequestIDR = { videoClient?.requestIDR() }, mimeType = targetMime)
-                                        decoder.maxFps = if (newSettings.limitTo30Fps) 30 else 60
-                                        decoder.framePacingMode = newSettings.framePacing
-                                        decoder.choreographerPacer = choreographerPacer
-                                        if (decoder.init()) {
-                                            videoDecoder = decoder
-                                            videoClient?.requestIDR()
-                                        }
-                                    }
-                                }
-                            }
-                            persistDisplaySettings(newSettings)
+                            applyAndPersistSettings(newSettings)
                         },
                         onPreviewVibration = { scale ->
                             rumbleHandler.preview(scale)
@@ -600,6 +570,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         },
+                        configMenuState = configMenuState,
                         wizardScreen = wizardScreen.value,
                         wizardActions = wizardActions(),
                         forceDiagnosticsOverlay = debugBundleForcedDiagnostics.value,
@@ -683,6 +654,121 @@ class MainActivity : ComponentActivity() {
         motionHandler.stop()
         dsuServer.stop()
         releaseWifiLock()
+    }
+
+    private fun applyAndPersistSettings(newSettings: DisplaySettings) {
+        val oldSettings = displaySettings.value
+        displaySettings.value = newSettings
+        videoDecoder?.maxFps = if (newSettings.limitTo30Fps) 30 else 60
+        videoDecoder?.framePacingMode = newSettings.framePacing
+        audioReceiver?.isMuted = !newSettings.audioEnabled
+        audioReceiver?.volume = newSettings.audioVolume
+        rumbleHandler.isEnabled = newSettings.vibrationEnabled
+        rumbleHandler.intensityScale = newSettings.vibrationIntensity
+        gamepadHandler.deadzone = newSettings.stickDeadzone
+        if (newSettings.micEnabled) {
+            if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                micBlowDetector.start()
+                // (Re)start voice PCM when the toggle flips on mid-session.
+                if (videoClient?.isConnected == true) {
+                    val host = lastKnownClientIp
+                    if (!host.isNullOrEmpty()) startVoiceStream(host)
+                }
+            } else {
+                requestAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            }
+        } else {
+            micBlowDetector.stop()
+            videoClient?.sendMicBlow(false)
+            stopVoiceStream()
+        }
+        // Forward dynamic encoder changes to Cemu (no-op when unchanged).
+        if (newSettings.videoBitrateMbps != oldSettings.videoBitrateMbps) {
+            videoClient?.sendBitrate(newSettings.videoBitrateMbps * 1_000_000)
+        }
+        val newPreset = newSettings.resolutionPreset
+        val resolvedNew = newPreset.resolveForDevice(
+            resources.displayMetrics.widthPixels,
+            resources.displayMetrics.heightPixels,
+            newSettings.videoBitrateMbps
+        )
+        val resolvedOld = oldSettings.resolutionPreset.resolveForDevice(
+            resources.displayMetrics.widthPixels,
+            resources.displayMetrics.heightPixels,
+            oldSettings.videoBitrateMbps
+        )
+        if (resolvedNew != resolvedOld && resolvedNew.width > 0 && resolvedNew.height > 0) {
+            videoClient?.sendResolution(resolvedNew.width, resolvedNew.height)
+        }
+        if (newSettings.videoCodec != oldSettings.videoCodec) {
+            val targetMime = resolveVideoMimeType(newSettings.videoCodec)
+            val useHevc = targetMime == MediaFormat.MIMETYPE_VIDEO_HEVC
+            videoClient?.sendCodec(useHevc)
+            activeSurface?.let { surface ->
+                if (videoDecoder?.mimeType != targetMime) {
+                    videoDecoder?.release()
+                    val decoder = VideoDecoder(surface, onRequestIDR = { videoClient?.requestIDR() }, mimeType = targetMime)
+                    decoder.maxFps = if (newSettings.limitTo30Fps) 30 else 60
+                    decoder.framePacingMode = newSettings.framePacing
+                    decoder.choreographerPacer = choreographerPacer
+                    if (decoder.init()) {
+                        videoDecoder = decoder
+                        videoClient?.requestIDR()
+                    }
+                }
+            }
+        }
+        persistDisplaySettings(newSettings)
+    }
+
+    private fun handleConfigAction(action: ConfigAction) {
+        when (action) {
+            ConfigAction.CALIBRATE_GYRO -> {
+                if (::motionHandler.isInitialized) {
+                    motionHandler.calibrateGyro()
+                }
+            }
+            ConfigAction.MAP_CONTROLLER -> {
+                configMenuState.close()
+                val known = activeGamepadDescriptor.value
+                if (known != null) {
+                    openWizardForDescriptor(known)
+                } else {
+                    val found = try {
+                        ControllerDetector.firstGamepad()
+                    } catch (_: Exception) {
+                        null
+                    }
+                    if (found != null) {
+                        val desc = found.first.descriptor ?: ""
+                        if (desc.isEmpty()) {
+                            Toast.makeText(
+                                this@MainActivity,
+                                "Controller has no descriptor",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        } else {
+                            activeGamepadDescriptor.value = desc
+                            activeGamepadName.value = found.first.name ?: "Controller"
+                            lastDetectedProfile = found.second
+                            gamepadHandler.profile = deviceProfileStore.activeFor(
+                                desc, found.second?.profile
+                            )
+                            lastProfileDescriptor = desc
+                            openWizardForDescriptor(desc)
+                        }
+                    } else {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "No gamepad detected — press any controller button first",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            }
+            ConfigAction.EXPORT_DEBUG_BUNDLE -> exportDebugBundle()
+            ConfigAction.RESET_SETTINGS -> applyAndPersistSettings(DisplaySettings())
+        }
     }
 
     private fun persistDisplaySettings(settings: DisplaySettings) {
@@ -1063,6 +1149,55 @@ class MainActivity : ComponentActivity() {
             }
             return true
         }
+
+        // Swallowed trailing key release after closing menu
+        if (menuClosingKeyCode != null && event.action == KeyEvent.ACTION_UP && event.keyCode == menuClosingKeyCode) {
+            menuClosingKeyCode = null
+            return true
+        }
+
+        // Intercept controller input while Configuration menu is open
+        if (configMenuState.isOpen && !isSystemPassthroughKey(event)) {
+            Logger.i(
+                "ConfigKeys",
+                "key action=${event.action} code=${event.keyCode} " +
+                    "name=${KeyEvent.keyCodeToString(event.keyCode)} source=${event.source} " +
+                    "screen=${configMenuState.currentScreen.name} focused=${configMenuState.focusedIndex}"
+            )
+            if (::gamepadHandler.isInitialized && (event.action == KeyEvent.ACTION_DOWN || event.action == KeyEvent.ACTION_UP)) {
+                resolveGamepadProfile(event.deviceId)
+            }
+            val profile = if (::gamepadHandler.isInitialized) gamepadHandler.profile else null
+            val items = configMenuState.getItems(
+                screen = configMenuState.currentScreen,
+                settings = displaySettings.value,
+                activeControllerName = activeGamepadName.value,
+                phoneIp = NetworkUtils.getLocalIpAddress(),
+                dsuPort = if (::dsuServer.isInitialized) dsuServer.port else 26760
+            )
+            val wasOpen = configMenuState.isOpen
+            val handled = configMenuState.handleKeyEvent(
+                event = event,
+                profile = profile,
+                settings = displaySettings.value,
+                items = items,
+                onSettingsChanged = { applyAndPersistSettings(it) },
+                onAction = { handleConfigAction(it) }
+            )
+            if (wasOpen && !configMenuState.isOpen && event.action == KeyEvent.ACTION_DOWN) {
+                menuClosingKeyCode = event.keyCode
+            }
+            return handled
+        }
+
+        // Gamepad shortcut to open configuration menu (e.g. Menu / Guide / Select when not captured)
+        if (wizardScreen.value == null && !configMenuState.isOpen && event.action == KeyEvent.ACTION_DOWN) {
+            if (event.keyCode == KeyEvent.KEYCODE_MENU || event.keyCode == KeyEvent.KEYCODE_BUTTON_MODE) {
+                configMenuState.open()
+                return true
+            }
+        }
+
         if (::gamepadHandler.isInitialized) {
             if (event.action == KeyEvent.ACTION_DOWN || event.action == KeyEvent.ACTION_UP) {
                 resolveGamepadProfile(event.deviceId)
@@ -1142,6 +1277,26 @@ class MainActivity : ComponentActivity() {
             captureTick.value++
             refreshCaptureScreen()
             return true
+        }
+        if (configMenuState.isOpen) {
+            if (::gamepadHandler.isInitialized) {
+                resolveGamepadProfile(event.deviceId)
+            }
+            val profile = if (::gamepadHandler.isInitialized) gamepadHandler.profile else null
+            val items = configMenuState.getItems(
+                screen = configMenuState.currentScreen,
+                settings = displaySettings.value,
+                activeControllerName = activeGamepadName.value,
+                phoneIp = NetworkUtils.getLocalIpAddress(),
+                dsuPort = if (::dsuServer.isInitialized) dsuServer.port else 26760
+            )
+            return configMenuState.handleMotionEvent(
+                event = event,
+                profile = profile,
+                settings = displaySettings.value,
+                items = items,
+                onSettingsChanged = { applyAndPersistSettings(it) }
+            )
         }
         if (::gamepadHandler.isInitialized) {
             resolveGamepadProfile(event.deviceId)
