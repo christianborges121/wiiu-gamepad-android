@@ -1,6 +1,12 @@
 # Cemu fork is tracked in its own repo (see Cemu/FORK.md)
 Cemu/
 
+# Pristine upstream worktree for hook testing (cemu-project/Cemu, no fork commits)
+Cemu-upstream/
+
+# CemuPadServer is tracked in its own repo (github.com/christianborges121/CemuPadServer)
+CemuPadServer/
+
 # CMake build output (disposable, regenerable)
 build/
 
