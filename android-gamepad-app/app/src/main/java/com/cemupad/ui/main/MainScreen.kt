@@ -21,9 +21,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -122,6 +129,12 @@ fun MainScreen(
     wizardScreen: MappingWizardScreen? = null,
     wizardActions: MappingWizardActions = MappingWizardActions(),
     configMenuState: ConfigMenuState? = null,
+    pinPromptVisible: Boolean = false,
+    pinPromptErrorMessage: String? = null,
+    onPinSubmit: ((String) -> Unit)? = null,
+    onPinDismiss: (() -> Unit)? = null,
+    isControlConnected: Boolean = false,
+    connectedHost: String? = null,
     modifier: Modifier = Modifier
 ) {
     var ipAddress by remember { mutableStateOf("127.0.0.1") }
@@ -332,6 +345,7 @@ fun MainScreen(
             }
 
             if (!isVideoStreaming) {
+                val isConnected = isControlConnected || clientCount > 0
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -351,61 +365,125 @@ fun MainScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text(
-                                text = "Wii U GamePad",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp
-                            )
-                            Text(
-                                text = "Waiting for Cemu to connect...",
-                                color = Color(0xFF8FA3BF),
-                                fontSize = 13.sp
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Enter this device's IP in Cemu under\nOptions → GamePad motion source → DSU Client",
-                                color = Color(0xFFC5D2E5),
-                                fontSize = 12.sp,
-                                textAlign = TextAlign.Center
-                            )
-                            Text(
-                                text = ipAddress,
-                                color = Color(0xFF00E5FF),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp
-                            )
-                            Text(
-                                text = "Port: ${dsuServer?.port ?: 26760}",
-                                color = Color(0xFF8FA3BF),
-                                fontSize = 12.sp
-                            )
-
-                            if (discoveredServer != null) {
-                                Spacer(modifier = Modifier.height(4.dp))
+                            if (isConnected) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(10.dp)
+                                            .background(Color(0xFF00E676), CircleShape)
+                                    )
+                                    Text(
+                                        text = "Connected to Cemu",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 18.sp
+                                    )
+                                }
+                                Text(
+                                    text = "Ready for GamePad streaming",
+                                    color = Color(0xFF00E676),
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 13.sp
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Launch a Wii U game in Cemu to display the GamePad screen here.",
+                                    color = Color(0xFFC5D2E5),
+                                    fontSize = 13.sp,
+                                    textAlign = TextAlign.Center
+                                )
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1B2333)),
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF161B26)),
                                     shape = RoundedCornerShape(10.dp)
                                 ) {
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(10.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                                            .padding(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
+                                        if (!connectedHost.isNullOrEmpty()) {
+                                            Text(
+                                                text = "Host: $connectedHost",
+                                                color = Color(0xFFEAF2FF),
+                                                fontSize = 12.sp,
+                                                fontFamily = FontFamily.Monospace
+                                            )
+                                        }
                                         Text(
-                                            text = "Found ${discoveredServer.hostname} (${discoveredServer.ip})",
-                                            color = Color.White,
-                                            fontWeight = FontWeight.SemiBold,
-                                            fontSize = 14.sp
+                                            text = "Controller: Wii U GamePad Active",
+                                            color = Color(0xFF00E5FF),
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold
                                         )
-                                        Button(
-                                            onClick = { onConnectToServer?.invoke(discoveredServer.ip) },
-                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF))
+                                        Text(
+                                            text = "Touch, Motion & Audio stream ready",
+                                            color = Color(0xFF8FA3BF),
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
+                            } else {
+                                Text(
+                                    text = "Wii U GamePad",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp
+                                )
+                                Text(
+                                    text = "Waiting for your PC…",
+                                    color = Color(0xFF8FA3BF),
+                                    fontSize = 13.sp
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "1. Run CemuPadServer on your PC (it hooks Cemu itself)\n2. In Cemu, open View → Separate GamePad view\n3. Tap Connect below when your PC appears",
+                                    color = Color(0xFFC5D2E5),
+                                    fontSize = 12.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                                Text(
+                                    text = ipAddress,
+                                    color = Color(0xFF00E5FF),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp
+                                )
+                                Text(
+                                    text = "Port: ${dsuServer?.port ?: 26760}",
+                                    color = Color(0xFF8FA3BF),
+                                    fontSize = 12.sp
+                                )
+
+                                if (discoveredServer != null) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1B2333)),
+                                        shape = RoundedCornerShape(10.dp)
+                                    ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(10.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
-                                            Text("Connect to Cemu", color = Color.Black, fontWeight = FontWeight.Bold)
+                                            Text(
+                                                text = "Found ${discoveredServer.hostname} (${discoveredServer.ip})",
+                                                color = Color.White,
+                                                fontWeight = FontWeight.SemiBold,
+                                                fontSize = 14.sp
+                                            )
+                                            Button(
+                                                onClick = { onConnectToServer?.invoke(discoveredServer.ip) },
+                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF))
+                                            ) {
+                                                Text("Connect to Cemu", color = Color.Black, fontWeight = FontWeight.Bold)
+                                            }
                                         }
                                     }
                                 }
@@ -457,6 +535,77 @@ fun MainScreen(
 
         // Wizard renders LAST so it sits above the open drawer and prompt.
         wizardScreen?.let { MappingWizard(screen = it, actions = wizardActions) }
+
+        if (pinPromptVisible) {
+            PinInputDialog(
+                errorMessage = pinPromptErrorMessage,
+                onSubmit = { pin -> onPinSubmit?.invoke(pin) },
+                onDismiss = { onPinDismiss?.invoke() }
+            )
+        }
     }
+}
+
+@Composable
+fun PinInputDialog(
+    errorMessage: String? = null,
+    onSubmit: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var pinText by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Pairing PIN Required",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Enter the 6-digit PIN shown by CemuPadServer on your PC:",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = pinText,
+                    onValueChange = { input ->
+                        if (input.length <= 6 && input.all { it.isDigit() }) {
+                            pinText = input
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.NumberPassword
+                    ),
+                    singleLine = true,
+                    placeholder = { Text("6-digit PIN") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (!errorMessage.isNullOrEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = errorMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = pinText.length == 6,
+                onClick = { onSubmit(pinText) }
+            ) {
+                Text("Pair & Connect")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
