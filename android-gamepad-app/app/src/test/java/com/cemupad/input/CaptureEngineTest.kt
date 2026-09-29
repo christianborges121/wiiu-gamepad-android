@@ -115,8 +115,39 @@ class CaptureEngineTest {
     }
 
     @Test
-    fun testDebounceResetOnSkipAndBack() {
-        // Explicit navigation stays snappy: skip/back clear the window.
+    fun testHeldRepeatPastWindowConflictsWithoutAdvancing() {
+        // A held button's repeats past the debounce window surface as
+        // "already assigned" (informative, never advancing), not silence.
+        var now = 0L
+        val engine = CaptureEngine(clock = { now })
+        engine.start(listOf(MappableControl.A, MappableControl.B))
+
+        assertEquals(CaptureEngine.RecordResult.Assigned, engine.recordKey(KeyEvent.KEYCODE_BUTTON_A))
+        assertEquals(MappableControl.B, engine.current)
+        now += 5000
+        assertEquals(CaptureEngine.RecordResult.Conflict, engine.recordKey(KeyEvent.KEYCODE_BUTTON_A))
+        assertEquals(MappableControl.B, engine.current)
+        // ...while a fresh code assigns immediately (window long past).
+        assertEquals(CaptureEngine.RecordResult.Assigned, engine.recordKey(KeyEvent.KEYCODE_BUTTON_B))
+        assertTrue(engine.isFinished)
+    }
+
+    @Test
+    fun testFastSequentialMappingStaysSnappy() {
+        // Distinct presses ~250 ms apart (normal mapping pace) must assign
+        // without waiting out a long window.
+        var now = 0L
+        val engine = CaptureEngine(clock = { now })
+        engine.start(listOf(MappableControl.A, MappableControl.B))
+
+        assertEquals(CaptureEngine.RecordResult.Assigned, engine.recordKey(KeyEvent.KEYCODE_BUTTON_A))
+        now += 250
+        assertEquals(CaptureEngine.RecordResult.Assigned, engine.recordKey(KeyEvent.KEYCODE_BUTTON_B))
+        assertTrue(engine.isFinished)
+    }
+
+    @Test
+    fun testDebounceResetOnSkipAndBack() {        // Explicit navigation stays snappy: skip/back clear the window.
         var now = 0L
         val engine = CaptureEngine(clock = { now })
         engine.start(listOf(MappableControl.A, MappableControl.B, MappableControl.X))

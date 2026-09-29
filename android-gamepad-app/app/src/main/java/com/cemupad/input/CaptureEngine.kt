@@ -59,10 +59,12 @@ class CaptureEngine(
          * Post-capture quiet window. One physical press routinely produces
          * several input events (key repeat while held, analog axis + digital
          * key for triggers, hat + key for D-pads); without this the tail of
-         * the press captures the NEXT target too. Resets on explicit
-         * navigation (start/skip/back) so those stay snappy.
+         * the press captures the NEXT target too. Kept short (200 ms covers
+         * same-press echoes, which arrive within a frame or two) and paired
+         * with release-gating below so fast sequential mapping stays snappy.
+         * Resets on explicit navigation (start/skip/back) so those stay snappy.
          */
-        const val DEBOUNCE_MS = 600L
+        const val DEBOUNCE_MS = 200L
         /** Axis id meaning "no analog axis assigned". `getAxisValue(-1)` is 0. */
         const val AXIS_UNUSED = -1
 
@@ -152,6 +154,7 @@ class CaptureEngine(
         capturedAxisRX = null
         capturedAxisRY = null
         clearDebounce()
+
         targetStartedAt = clock()
     }
 
@@ -162,6 +165,7 @@ class CaptureEngine(
     fun skip() {
         current?.let { skipped.add(it) }
         clearDebounce()
+
         advance()
     }
 
@@ -184,6 +188,7 @@ class CaptureEngine(
         stickPeaks.clear()
         targetStartedAt = clock()
         clearDebounce()
+
         return true
     }
 
