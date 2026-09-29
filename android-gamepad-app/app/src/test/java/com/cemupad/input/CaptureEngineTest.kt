@@ -12,11 +12,13 @@ class CaptureEngineTest {
 
     @Test
     fun testButtonCaptureInOrder() {
-        val engine = CaptureEngine(clock = { 0L })
+        var now = 0L
+        val engine = CaptureEngine(clock = { now })
         engine.start(listOf(MappableControl.A, MappableControl.B))
 
         assertEquals(MappableControl.A, engine.current)
         assertEquals(CaptureEngine.RecordResult.Assigned, engine.recordKey(KeyEvent.KEYCODE_BUTTON_A))
+        now += 1000
         assertEquals(MappableControl.B, engine.current)
         assertEquals(CaptureEngine.RecordResult.Assigned, engine.recordKey(KeyEvent.KEYCODE_BUTTON_B))
         assertTrue(engine.isFinished)
@@ -28,18 +30,102 @@ class CaptureEngineTest {
 
     @Test
     fun testDuplicateKeyConflicts() {
-        val engine = CaptureEngine(clock = { 0L })
+        var now = 0L
+        val engine = CaptureEngine(clock = { now })
         engine.start(listOf(MappableControl.A, MappableControl.B))
 
         engine.recordKey(KeyEvent.KEYCODE_BUTTON_A)
+        now += 1000
         assertEquals(CaptureEngine.RecordResult.Conflict, engine.recordKey(KeyEvent.KEYCODE_BUTTON_A))
         // Still on B after conflict
         assertEquals(MappableControl.B, engine.current)
+        now += 1000
         assertEquals(CaptureEngine.RecordResult.Assigned, engine.recordKey(KeyEvent.KEYCODE_BUTTON_B))
 
         val profile = engine.buildProfile(ControllerProfile.DEFAULT)!!
         assertEquals(KeyEvent.KEYCODE_BUTTON_A, profile.keyA)
         assertEquals(KeyEvent.KEYCODE_BUTTON_B, profile.keyB)
+    }
+
+    @Test
+    fun testDebounceSwallowsImmediateSecondCapture() {
+        // One press must not capture two targets: the tail of the press
+        // (repeat, release wobble, fast double-tap) is ignored for 600 ms.
+        var now = 0L
+        val engine = CaptureEngine(clock = { now })
+        engine.start(listOf(MappableControl.A, MappableControl.B))
+
+        assertEquals(CaptureEngine.RecordResult.Assigned, engine.recordKey(KeyEvent.KEYCODE_BUTTON_A))
+        assertEquals(MappableControl.B, engine.current)
+        // Immediate second press (same moment): swallowed, stays on B.
+        now += 100
+        assertEquals(CaptureEngine.RecordResult.Ignored, engine.recordKey(KeyEvent.KEYCODE_BUTTON_B))
+        assertEquals(MappableControl.B, engine.current)
+        // After the window it assigns normally.
+        now += 1000
+        assertEquals(CaptureEngine.RecordResult.Assigned, engine.recordKey(KeyEvent.KEYCODE_BUTTON_B))
+        assertTrue(engine.isFinished)
+    }
+
+    @Test
+    fun testTriggerAxisKeyDualFire() {
+        // Left trigger reports BOTH an analog axis and a digital key for one
+        // press. The axis half assigns ZL; the key half arriving right after
+        // must not also capture ZR.
+        var now = 0L
+        val engine = CaptureEngine(clock = { now })
+        engine.start(listOf(MappableControl.ZL, MappableControl.ZR))
+
+        assertEquals(
+            CaptureEngine.RecordResult.Assigned,
+            engine.recordAxes(mapOf(MotionEvent.AXIS_LTRIGGER to 0.9f))
+        )
+        assertEquals(MappableControl.ZR, engine.current)
+        now += 50
+        assertEquals(
+            CaptureEngine.RecordResult.Ignored,
+            engine.recordKey(KeyEvent.KEYCODE_BUTTON_L2)
+        )
+        assertEquals(MappableControl.ZR, engine.current)
+        now += 1000
+        assertEquals(
+            CaptureEngine.RecordResult.Assigned,
+            engine.recordKey(KeyEvent.KEYCODE_BUTTON_R2)
+        )
+        assertTrue(engine.isFinished)
+    }
+
+    @Test
+    fun testSharedTriggerAxisConflicts() {
+        // Pads reporting both triggers on one axis can't serve ZL and ZR.
+        var now = 0L
+        val engine = CaptureEngine(clock = { now })
+        engine.start(listOf(MappableControl.ZL, MappableControl.ZR))
+
+        assertEquals(
+            CaptureEngine.RecordResult.Assigned,
+            engine.recordAxes(mapOf(MotionEvent.AXIS_Z to 0.9f))
+        )
+        now += 1000
+        assertEquals(
+            CaptureEngine.RecordResult.Conflict,
+            engine.recordAxes(mapOf(MotionEvent.AXIS_Z to 0.9f))
+        )
+        assertEquals(MappableControl.ZR, engine.current)
+    }
+
+    @Test
+    fun testDebounceResetOnSkipAndBack() {
+        // Explicit navigation stays snappy: skip/back clear the window.
+        var now = 0L
+        val engine = CaptureEngine(clock = { now })
+        engine.start(listOf(MappableControl.A, MappableControl.B, MappableControl.X))
+
+        assertEquals(CaptureEngine.RecordResult.Assigned, engine.recordKey(KeyEvent.KEYCODE_BUTTON_A))
+        engine.skip() // skip B -> on X, debounce cleared
+        assertEquals(MappableControl.X, engine.current)
+        assertEquals(CaptureEngine.RecordResult.Assigned, engine.recordKey(KeyEvent.KEYCODE_BUTTON_X))
+        assertTrue(engine.isFinished)
     }
 
     @Test
@@ -55,7 +141,8 @@ class CaptureEngineTest {
     fun testCrossPassDuplicateConflicts() {
         // Simulates the saved-profile scramble: base has L and ZL on one key.
         val scrambled = ControllerProfile.DEFAULT.copy(keyL = KeyEvent.KEYCODE_BUTTON_L2)
-        val engine = CaptureEngine(clock = { 0L })
+        var now = 0L
+        val engine = CaptureEngine(clock = { now })
         engine.start(listOf(MappableControl.L, MappableControl.ZL), base = scrambled)
 
         // Re-confirming L with its own key is fine.
@@ -63,6 +150,7 @@ class CaptureEngineTest {
             CaptureEngine.RecordResult.Assigned,
             engine.recordKey(KeyEvent.KEYCODE_BUTTON_L2)
         )
+        now += 1000
         // ZL pressing the same key must conflict, not stack silently.
         assertEquals(
             CaptureEngine.RecordResult.Conflict,
@@ -81,7 +169,8 @@ class CaptureEngineTest {
 
     @Test
     fun testReassignFreesOldCode() {
-        val engine = CaptureEngine(clock = { 0L })
+        var now = 0L
+        val engine = CaptureEngine(clock = { now })
         engine.start(listOf(MappableControl.A, MappableControl.B), base = ControllerProfile.DEFAULT)
 
         // Move A onto an unbound key...
@@ -89,6 +178,7 @@ class CaptureEngineTest {
             CaptureEngine.RecordResult.Assigned,
             engine.recordKey(KeyEvent.KEYCODE_BUTTON_1)
         )
+        now += 1000
         // ...then the freed standard key is claimable by B.
         assertEquals(
             CaptureEngine.RecordResult.Assigned,
@@ -116,7 +206,8 @@ class CaptureEngineTest {
 
     @Test
     fun testHatDpadCapture() {
-        val engine = CaptureEngine(clock = { 0L })
+        var now = 0L
+        val engine = CaptureEngine(clock = { now })
         engine.start(listOf(MappableControl.DPAD_LEFT, MappableControl.DPAD_UP))
 
         assertEquals(
@@ -124,6 +215,7 @@ class CaptureEngineTest {
             engine.recordHat(MotionEvent.AXIS_HAT_X, -0.9f)
         )
         assertEquals(MappableControl.DPAD_UP, engine.current)
+        now += 1000
         // Wrong direction ignored
         assertEquals(
             CaptureEngine.RecordResult.Ignored,
@@ -141,12 +233,14 @@ class CaptureEngineTest {
 
     @Test
     fun testStickDirectionCapturePerDirection() {
-        val engine = CaptureEngine(clock = { 0L })
+        var now = 0L
+        val engine = CaptureEngine(clock = { now })
         engine.start(listOf(MappableControl.STICK_L_UP, MappableControl.STICK_R_RIGHT))
 
         // Left stick up: Y negative
         assertEquals(CaptureEngine.RecordResult.Assigned, engine.recordAxes(mapOf(MotionEvent.AXIS_Y to -1.0f)))
         assertEquals(MappableControl.STICK_R_RIGHT, engine.current)
+        now += 1000
         // Right stick right: Z positive (or RX)
         assertEquals(CaptureEngine.RecordResult.Assigned, engine.recordAxes(mapOf(MotionEvent.AXIS_Z to 1.0f)))
         assertTrue(engine.isFinished)
@@ -168,7 +262,8 @@ class CaptureEngineTest {
 
     @Test
     fun testTriggerAnalogPreferredDigitalFallback() {
-        val engine = CaptureEngine(clock = { 0L })
+        var now = 0L
+        val engine = CaptureEngine(clock = { now })
         engine.start(listOf(MappableControl.ZL, MappableControl.ZR))
 
         // Analog travel on BRAKE wins for ZL
@@ -176,6 +271,7 @@ class CaptureEngineTest {
             CaptureEngine.RecordResult.Assigned,
             engine.recordAxes(mapOf(MotionEvent.AXIS_BRAKE to 0.8f))
         )
+        now += 1000
         // Digital key for ZR
         assertEquals(
             CaptureEngine.RecordResult.Assigned,
@@ -203,6 +299,7 @@ class CaptureEngineTest {
         assertEquals(MappableControl.B, engine.current)
         assertFalse(engine.skippedTargets().contains(MappableControl.B))
         engine.recordKey(KeyEvent.KEYCODE_BUTTON_B)
+        now += 1000
         engine.recordKey(KeyEvent.KEYCODE_BUTTON_X)
         assertTrue(engine.isFinished)
 
@@ -235,7 +332,8 @@ class CaptureEngineTest {
     @Test
     fun testRemapSwapDoesNotFalseConflict() {
         // User wants to swap A and B: A gets physical B, B gets physical A.
-        val engine = CaptureEngine(clock = { 0L })
+        var now = 0L
+        val engine = CaptureEngine(clock = { now })
         engine.start(listOf(MappableControl.A, MappableControl.B), base = ControllerProfile.DEFAULT)
 
         // Mapping A to physical B must succeed cleanly, not say "Already assigned"
@@ -243,6 +341,7 @@ class CaptureEngineTest {
             CaptureEngine.RecordResult.Assigned,
             engine.recordKey(KeyEvent.KEYCODE_BUTTON_B)
         )
+        now += 1000
         // Mapping B to physical A must succeed cleanly
         assertEquals(
             CaptureEngine.RecordResult.Assigned,
@@ -256,7 +355,8 @@ class CaptureEngineTest {
 
     @Test
     fun testStickAxisCaptureUpdatesProfile() {
-        val engine = CaptureEngine(clock = { 0L })
+        var now = 0L
+        val engine = CaptureEngine(clock = { now })
         engine.start(
             listOf(
                 MappableControl.STICK_R_UP,
@@ -273,16 +373,19 @@ class CaptureEngineTest {
             CaptureEngine.RecordResult.Assigned,
             engine.recordAxes(mapOf(MotionEvent.AXIS_Z to -0.8f))
         )
+        now += 1000
         // Moving right stick Down deflects AXIS_Z positive
         assertEquals(
             CaptureEngine.RecordResult.Assigned,
             engine.recordAxes(mapOf(MotionEvent.AXIS_Z to 0.8f))
         )
+        now += 1000
         // Moving right stick Left deflects AXIS_RZ negative
         assertEquals(
             CaptureEngine.RecordResult.Assigned,
             engine.recordAxes(mapOf(MotionEvent.AXIS_RZ to -0.8f))
         )
+        now += 1000
         // Moving right stick Right deflects AXIS_RZ positive
         assertEquals(
             CaptureEngine.RecordResult.Assigned,

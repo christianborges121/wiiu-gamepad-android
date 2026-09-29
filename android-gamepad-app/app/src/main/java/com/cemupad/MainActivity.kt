@@ -132,6 +132,10 @@ class MainActivity : ComponentActivity() {
     private var lastKnownClientIp: String? = null
 
     private val isVideoStreaming = mutableStateOf(false)
+    private val isControlConnected = mutableStateOf(false)
+    private val connectedHost = mutableStateOf<String?>(null)
+    private val pinPromptVisible = mutableStateOf(false)
+    private val pinPromptErrorMessage = mutableStateOf<String?>(null)
     private val videoFps = mutableFloatStateOf(0f)
     private val displaySettings = mutableStateOf(DisplaySettings())
     private val debugBundleForcedDiagnostics = mutableStateOf(false)
@@ -220,6 +224,13 @@ class MainActivity : ComponentActivity() {
                     if (peerIp != null && videoClient == null) {
                         Logger.i("MainActivity", "Watchdog: DSU subscribed but no video client; starting video to $peerIp")
                         startVideoStream(peerIp)
+                    }
+                }
+                if (videoClient?.isConnected == true && pinPromptVisible.value) {
+                    Logger.i("MainActivity", "Watchdog: video client is connected; dismissing PIN prompt")
+                    runOnUiThread {
+                        pinPromptVisible.value = false
+                        pinPromptErrorMessage.value = null
                     }
                 }
                 videoClient?.restartIfStalled()
@@ -471,8 +482,14 @@ class MainActivity : ComponentActivity() {
         discoveryClient = DiscoveryClient { server ->
             discoveredServer.value = server
             lastDiscoveryTimeMs = System.currentTimeMillis()
-            if (lastKnownClientIp.isNullOrEmpty() && !isVideoStreaming.value) {
-                Logger.i("MainActivity", "Auto-connecting to discovered Cemu at ${server.ip}")
+            if (videoClient?.isConnected == true && pinPromptVisible.value) {
+                runOnUiThread {
+                    pinPromptVisible.value = false
+                    pinPromptErrorMessage.value = null
+                }
+            }
+            if (!isVideoStreaming.value && videoClient == null) {
+                Logger.i("MainActivity", "Discovered Cemu at ${server.ip}; initiating connection")
                 lastKnownClientIp = server.ip
                 getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
                     .edit()
@@ -499,10 +516,20 @@ class MainActivity : ComponentActivity() {
             val clientIp = clientAddr.address.hostAddress ?: ""
             if (clientIp.isNotEmpty() && clientIp != "127.0.0.1") {
                 lastKnownClientIp = clientIp
+                runOnUiThread {
+                    connectedHost.value = clientIp
+                    isControlConnected.value = true
+                }
                 getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
                     .edit()
                     .putString(PREF_LAST_CEMU_IP, clientIp)
                     .apply()
+                if (videoClient?.isConnected == true && pinPromptVisible.value) {
+                    runOnUiThread {
+                        pinPromptVisible.value = false
+                        pinPromptErrorMessage.value = null
+                    }
+                }
                 startVideoStream(clientIp)
             }
         }
@@ -510,6 +537,9 @@ class MainActivity : ComponentActivity() {
         dsuServer.onClientDisconnected = {
             // lastKnownClientIp is intentionally preserved across disconnects
             // so a resumed app can reconnect without waiting for a new DSU packet.
+            runOnUiThread {
+                isControlConnected.value = false
+            }
             stopVideoStream()
         }
 
@@ -538,6 +568,8 @@ class MainActivity : ComponentActivity() {
                             micBlowDetector.setManualBlow(isBlowing)
                         },
                         isVideoStreaming = isVideoStreaming.value,
+                        isControlConnected = isControlConnected.value || (if (::dsuServer.isInitialized) dsuServer.activeClientCount > 0 else false),
+                        connectedHost = connectedHost.value ?: lastKnownClientIp,
                         videoFps = videoFps.floatValue,
                         displaySettings = displaySettings.value,
                         onDisplaySettingsChanged = { newSettings ->
@@ -602,6 +634,16 @@ class MainActivity : ComponentActivity() {
                         wizardScreen = wizardScreen.value,
                         wizardActions = wizardActions(),
                         forceDiagnosticsOverlay = debugBundleForcedDiagnostics.value,
+                        pinPromptVisible = pinPromptVisible.value,
+                        pinPromptErrorMessage = pinPromptErrorMessage.value,
+                        onPinSubmit = { pin ->
+                            pinPromptVisible.value = false
+                            videoClient?.submitPin(pin)
+                        },
+                        onPinDismiss = {
+                            pinPromptVisible.value = false
+                            videoClient?.cancelAuth()
+                        },
                         onSurfaceAvailable = { surface -> handleSurfaceAvailable(surface) },
                         onSurfaceDestroyed = { handleSurfaceDestroyed() },
                         onExportDebug = { exportDebugBundle() }
@@ -653,6 +695,11 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         updateDisplayRotation()
+
+        if (videoClient?.isConnected == true && pinPromptVisible.value) {
+            pinPromptVisible.value = false
+            pinPromptErrorMessage.value = null
+        }
 
         val reconnectIp = dsuServer.activeClientAddress?.address?.hostAddress
             ?: lastKnownClientIp
@@ -864,7 +911,17 @@ class MainActivity : ComponentActivity() {
         // legitimate streams never repeat a PTS back-to-back.
         if (ptsUs == lastFedPtsUs.getAndSet(ptsUs)) return
         videoDecoder?.decodeFrame(nalData, ptsUs)
-        isVideoStreaming.value = true
+        if (!isVideoStreaming.value) {
+            runOnUiThread {
+                isVideoStreaming.value = true
+            }
+        }
+        if (pinPromptVisible.value) {
+            runOnUiThread {
+                pinPromptVisible.value = false
+                pinPromptErrorMessage.value = null
+            }
+        }
         videoDecoder?.let { videoFps.floatValue = it.currentFps }
     }
 
@@ -890,7 +947,6 @@ class MainActivity : ComponentActivity() {
             udpReceiver?.isExpectingUdp = false
             udpActive.set(false)
             Logger.w("MainActivity", "UDP video silent, falling back to TCP")
-            videoClient?.idleControlMode = false
             videoClient?.requestTransport(false)
         }
         udpReceiver = receiver
@@ -908,7 +964,18 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startVideoStream(host: String) {
-        if (videoClient?.isConnected == true && videoClient?.host == host) return
+        val existing = videoClient
+        // Already fully connected to this host — nothing to do.
+        if (existing?.isConnected == true && existing.host == host) {
+            return
+        }
+        // Client exists for this host and is still alive (mid-auth or
+        // reconnecting inside its retry loop). Let it continue rather
+        // than destroying the session and losing a parked PIN prompt.
+        if (existing != null && existing.host == host && existing.isWorkerAlive()) {
+            Logger.i("MainActivity", "Video client already targeting $host; skipping recreation")
+            return
+        }
         stopVideoStream()
         udpActive.set(false)
         udpReceiver?.isExpectingUdp = false
@@ -932,16 +999,41 @@ class MainActivity : ComponentActivity() {
                     .apply()
             },
             onPinRequired = {
-                // PIN UI disabled 2026-09-13: fail closed instead of prompting.
-                // (No enable path exists server-side, so this is unreachable
-                // unless a PIN-requiring build appears.)
-                Logger.w("MainActivity", "Server demanded PIN; PIN UI disabled, aborting video connection")
-                videoClient?.cancelAuth()
+                Logger.i("MainActivity", "Server demanded session PIN, displaying prompt")
+                runOnUiThread {
+                    pinPromptErrorMessage.value = null
+                    pinPromptVisible.value = true
+                }
+            },
+            onAuthFailed = { error ->
+                runOnUiThread {
+                    pinPromptErrorMessage.value = error
+                    pinPromptVisible.value = true
+                }
+            },
+            onAuthSucceeded = {
+                Logger.i("MainActivity", "Session auth succeeded; dismissing PIN prompt")
+                runOnUiThread {
+                    pinPromptVisible.value = false
+                    pinPromptErrorMessage.value = null
+                }
+            },
+            onAuthCancelled = {
+                runOnUiThread {
+                    pinPromptVisible.value = false
+                    pinPromptErrorMessage.value = null
+                }
             }
         ).apply {
             onConnected = {
                 Logger.i("MainActivity", "Video stream connected to $host:26761")
-                isVideoStreaming.value = true
+                runOnUiThread {
+                    isControlConnected.value = true
+                    connectedHost.value = host
+                    pinPromptVisible.value = false
+                    pinPromptErrorMessage.value = null
+                    Toast.makeText(this@MainActivity, "Connected to Cemu!", Toast.LENGTH_SHORT).show()
+                }
                 discoveryClient?.stop()
                 udpReceiver?.resetStream()
                 idleControlMode = true
@@ -970,7 +1062,10 @@ class MainActivity : ComponentActivity() {
             }
             onDisconnected = {
                 Logger.i("MainActivity", "Video stream disconnected")
-                isVideoStreaming.value = false
+                runOnUiThread {
+                    isControlConnected.value = false
+                    isVideoStreaming.value = false
+                }
                 idleControlMode = false
                 rumbleHandler.cancel(force = true)
                 discoveryClient?.start()
@@ -997,8 +1092,11 @@ class MainActivity : ComponentActivity() {
         videoClient?.stop()
         videoClient = null
         rumbleHandler.cancel(force = true)
-        isVideoStreaming.value = false
-        videoFps.floatValue = 0f
+        runOnUiThread {
+            isControlConnected.value = false
+            isVideoStreaming.value = false
+            videoFps.floatValue = 0f
+        }
     }
 
     /**
@@ -1148,6 +1246,9 @@ class MainActivity : ComponentActivity() {
                     return true
                 }
                 if (wizard is MappingWizardScreen.Capturing) {
+                    // Held-button key repeats must not capture the next
+                    // target (the engine debounce is the second layer).
+                    if (event.repeatCount > 0) return true
                     when (captureEngine.recordKey(event.keyCode)) {
                         CaptureEngine.RecordResult.Conflict ->
                             captureFlash.value = "Already assigned — press another button"
@@ -1328,7 +1429,11 @@ class MainActivity : ComponentActivity() {
                 captureEngine.recordHat(MotionEvent.AXIS_HAT_Y, hatY)
             }
             val axes = stickCaptureAxes.associateWith { event.getAxisValue(it) }
-            captureEngine.recordAxes(axes)
+            when (captureEngine.recordAxes(axes)) {
+                CaptureEngine.RecordResult.Conflict ->
+                    captureFlash.value = "Already assigned — move another control"
+                else -> {}
+            }
             if (captureEngine.current != before) captureFlash.value = null
             captureTick.value++
             refreshCaptureScreen()

@@ -55,6 +55,14 @@ class CaptureEngine(
         const val STICK_DEFLECTION = 0.6f
         const val HAT_THRESHOLD = 0.5f
         const val TRIGGER_TRAVEL = 0.5f
+        /**
+         * Post-capture quiet window. One physical press routinely produces
+         * several input events (key repeat while held, analog axis + digital
+         * key for triggers, hat + key for D-pads); without this the tail of
+         * the press captures the NEXT target too. Resets on explicit
+         * navigation (start/skip/back) so those stay snappy.
+         */
+        const val DEBOUNCE_MS = 600L
         /** Axis id meaning "no analog axis assigned". `getAxisValue(-1)` is 0. */
         const val AXIS_UNUSED = -1
 
@@ -99,6 +107,19 @@ class CaptureEngine(
     private var capturedAxisRX: Int? = null
     private var capturedAxisRY: Int? = null
 
+    private var lastAssignedAt: Long? = null
+
+    private fun inDebounce(): Boolean =
+        lastAssignedAt?.let { clock() - it < DEBOUNCE_MS } == true
+
+    private fun markAssigned() {
+        lastAssignedAt = clock()
+    }
+
+    private fun clearDebounce() {
+        lastAssignedAt = null
+    }
+
     val current: MappableControl?
         get() = if (cancelled || index >= targets.size) null else targets[index]
 
@@ -130,6 +151,7 @@ class CaptureEngine(
         capturedAxisLY = null
         capturedAxisRX = null
         capturedAxisRY = null
+        clearDebounce()
         targetStartedAt = clock()
     }
 
@@ -139,6 +161,7 @@ class CaptureEngine(
 
     fun skip() {
         current?.let { skipped.add(it) }
+        clearDebounce()
         advance()
     }
 
@@ -160,6 +183,7 @@ class CaptureEngine(
         }
         stickPeaks.clear()
         targetStartedAt = clock()
+        clearDebounce()
         return true
     }
 
@@ -171,6 +195,7 @@ class CaptureEngine(
 
     fun recordKey(keyCode: Int): RecordResult {
         val target = current ?: return RecordResult.NotArmed
+        if (inDebounce()) return RecordResult.Ignored
         if (keyCode in IGNORED_KEYS) return RecordResult.Ignored
         if (target.kind != CaptureKind.BUTTON &&
             target.kind != CaptureKind.DPAD &&
@@ -182,6 +207,7 @@ class CaptureEngine(
         usedKeyCodes.add(keyCode)
         assignedKeys[target] = keyCode
         skipped.remove(target)
+        markAssigned()
         advance()
         return RecordResult.Assigned
     }
@@ -193,6 +219,7 @@ class CaptureEngine(
      */
     fun recordHat(axis: Int, value: Float): RecordResult {
         val target = current ?: return RecordResult.NotArmed
+        if (inDebounce()) return RecordResult.Ignored
         if (target.kind != CaptureKind.DPAD) return RecordResult.Ignored
         val active = when (target) {
             MappableControl.DPAD_LEFT -> axis == MotionEvent.AXIS_HAT_X && value < -HAT_THRESHOLD
@@ -205,6 +232,7 @@ class CaptureEngine(
         assignedKeys[target] = KeyEvent.KEYCODE_UNKNOWN
         hatDirections.add(target)
         skipped.remove(target)
+        markAssigned()
         advance()
         return RecordResult.Assigned
     }
@@ -212,6 +240,7 @@ class CaptureEngine(
     /** Feeds live axis values while a STICK or TRIGGER target is armed. */
     fun recordAxes(axes: Map<Int, Float>): RecordResult {
         val target = current ?: return RecordResult.NotArmed
+        if (inDebounce()) return RecordResult.Ignored
         when (target.kind) {
             CaptureKind.STICK -> {
                 val nonStickAxes = setOf(
@@ -258,6 +287,7 @@ class CaptureEngine(
                         else -> {}
                     }
                     skipped.remove(target)
+                    markAssigned()
                     advance()
                     return RecordResult.Assigned
                 }
@@ -266,8 +296,14 @@ class CaptureEngine(
             CaptureKind.TRIGGER -> {
                 for ((axis, value) in axes) {
                     if (abs(value) >= TRIGGER_TRAVEL) {
+                        // One shared analog axis (some pads report both
+                        // triggers on a single axis) can't serve two targets.
+                        val holder = assignedTriggerAxis.entries
+                            .firstOrNull { it.key != target && it.value == axis }
+                        if (holder != null) return RecordResult.Conflict
                         assignedTriggerAxis[target] = axis
                         skipped.remove(target)
+                        markAssigned()
                         advance()
                         return RecordResult.Assigned
                     }
@@ -295,6 +331,7 @@ class CaptureEngine(
         assignedStickAxes[target] = Pair(top[0], top[1])
         stickPeaks.clear()
         skipped.remove(target)
+        markAssigned()
         advance()
         return RecordResult.Assigned
     }
