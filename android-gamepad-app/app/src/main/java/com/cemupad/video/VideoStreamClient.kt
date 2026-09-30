@@ -30,7 +30,10 @@ class VideoStreamClient(
     private val onFrameReceived: (nalData: ByteArray, ptsUs: Long) -> Unit,
     private val getAuthCredential: () -> Long = { 0L },
     private val onAuthToken: (token: Long) -> Unit = {},
-    private val onPinRequired: () -> Unit = {}
+    private val onPinRequired: () -> Unit = {},
+    private val onAuthFailed: ((String) -> Unit)? = null,
+    private val onAuthSucceeded: (() -> Unit)? = null,
+    private val onAuthCancelled: (() -> Unit)? = null
 ) {
     companion object {
         const val TAG = "VideoStreamClient"
@@ -164,8 +167,10 @@ class VideoStreamClient(
     var onError: ((Throwable) -> Unit)? = null
     var onRumbleReceived: ((active: Boolean, intensity: Int, durationMs: Int) -> Unit)? = null
 
+    private val isAuthenticated = AtomicBoolean(false)
+
     val isConnected: Boolean
-        get() = isRunning.get() && socket?.isConnected == true && socket?.isClosed == false
+        get() = isRunning.get() && isAuthenticated.get() && socket?.isConnected == true && socket?.isClosed == false
 
     /**
      * When video flows over UDP, this TCP connection is control-only and
@@ -192,6 +197,8 @@ class VideoStreamClient(
 
     fun stop() {
         if (!isRunning.getAndSet(false)) return
+        isAuthenticated.set(false)
+        pinQueue.offer("")
         closeSocket()
         workerThread?.interrupt()
         workerThread = null
@@ -331,7 +338,7 @@ class VideoStreamClient(
     }
 
     /**
-     * Delivers a user-typed 4-digit PIN to a worker parked on auth.
+     * Delivers a user-typed 6-digit PIN to a worker parked on auth.
      */
     fun submitPin(pin: String) {
         pinQueue.offer(pin)
@@ -365,6 +372,12 @@ class VideoStreamClient(
         }
     }
 
+    enum class AuthOutcome {
+        SUCCESS,
+        DENIED,
+        IO_ERROR
+    }
+
     /**
      * Blocking session authentication, executed on the worker thread BEFORE
      * the frame reader starts (the 9-byte auth response is unframed and must
@@ -375,45 +388,125 @@ class VideoStreamClient(
         out: DataOutputStream,
         inp: java.io.DataInputStream
     ): Boolean {
-        if (exchangeAuth(out, inp, getAuthCredential())) return true
+        val initialCred = getAuthCredential()
+        val initialOutcome = exchangeAuth(out, inp, initialCred)
+        when (initialOutcome) {
+            AuthOutcome.SUCCESS -> {
+                onAuthSucceeded?.invoke()
+                return true
+            }
+            AuthOutcome.IO_ERROR -> {
+                // Socket / network error (e.g. Cemu closed, broken pipe).
+                // Do NOT open PIN modal; return false to reconnect cleanly.
+                return false
+            }
+            AuthOutcome.DENIED -> {
+                // Cemu responded and explicitly rejected the credential.
+            }
+        }
 
         // Cached credential rejected: Cemu requires the session PIN.
         onPinRequired()
-        val pin = try {
-            pinQueue.poll(PIN_WAIT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
-        } catch (e: InterruptedException) {
-            return false
+        val deadline = System.currentTimeMillis() + PIN_WAIT_SECONDS * 1000L
+        var lastPcPollMs = 0L
+        while (System.currentTimeMillis() < deadline && isRunning.get()) {
+            val pin = try {
+                pinQueue.poll(1, java.util.concurrent.TimeUnit.SECONDS)
+            } catch (e: InterruptedException) {
+                onAuthCancelled?.invoke()
+                return false
+            }
+            if (sock.isClosed || !sock.isConnected) {
+                onAuthCancelled?.invoke()
+                return false
+            }
+            if (pin != null) {
+                if (pin.isEmpty()) {
+                    Logger.i(TAG, "PIN entry cancelled by user")
+                    onAuthCancelled?.invoke()
+                    return false
+                }
+                val pinValue = pin.filter { it.isDigit() }.toLongOrNull()
+                if (pinValue == null) {
+                    onAuthFailed?.invoke("Invalid PIN format. Enter 6 digits.")
+                    continue
+                }
+                val outcome = exchangeAuth(out, inp, pinValue)
+                when (outcome) {
+                    AuthOutcome.SUCCESS -> {
+                        onAuthSucceeded?.invoke()
+                        return true
+                    }
+                    AuthOutcome.DENIED -> {
+                        Logger.w(TAG, "PIN authentication rejected by Cemu")
+                        onAuthFailed?.invoke("Incorrect PIN. Please re-enter the PIN shown in Cemu.")
+                    }
+                    AuthOutcome.IO_ERROR -> {
+                        Logger.w(TAG, "Socket error during PIN submission; reconnecting")
+                        onAuthCancelled?.invoke()
+                        return false
+                    }
+                }
+                continue
+            }
+            // Check if cached credential changed (e.g. fresh token saved)
+            val currentCred = getAuthCredential()
+            if (currentCred != 0L && currentCred != initialCred) {
+                val outcome = exchangeAuth(out, inp, currentCred)
+                if (outcome == AuthOutcome.SUCCESS) {
+                    Logger.i(TAG, "New cached credential accepted while PIN prompt was open; auto-reconnected")
+                    onAuthSucceeded?.invoke()
+                    return true
+                } else if (outcome == AuthOutcome.IO_ERROR) {
+                    onAuthCancelled?.invoke()
+                    return false
+                }
+            }
+            // Check if Cemu authorized this device via "Allow Connection" on PC.
+            // Throttled to every 3 seconds to reduce protocol overhead and
+            // avoid flooding Cemu's TriggerPairingPrompt rate-limiter.
+            val nowMs = System.currentTimeMillis()
+            if (nowMs - lastPcPollMs >= 3000L) {
+                lastPcPollMs = nowMs
+                val pcOutcome = exchangeAuth(out, inp, 0L)
+                if (pcOutcome == AuthOutcome.SUCCESS) {
+                    Logger.i(TAG, "Cemu approved connection from PC dialog; auto-reconnected")
+                    onAuthSucceeded?.invoke()
+                    return true
+                } else if (pcOutcome == AuthOutcome.IO_ERROR) {
+                    Logger.w(TAG, "Socket disconnected while waiting for pairing; reconnecting")
+                    onAuthCancelled?.invoke()
+                    return false
+                }
+            }
         }
-        if (pin.isNullOrEmpty()) {
-            Logger.i(TAG, "PIN entry cancelled or timed out; aborting connection")
-            return false
-        }
-        val pinValue = pin.filter { it.isDigit() }.toLongOrNull() ?: return false
-        return exchangeAuth(out, inp, pinValue)
+        Logger.i(TAG, "PIN entry cancelled or timed out; aborting connection")
+        onAuthCancelled?.invoke()
+        return false
     }
 
     private fun exchangeAuth(
         out: DataOutputStream,
         inp: java.io.DataInputStream,
         credential: Long
-    ): Boolean {
+    ): AuthOutcome {
         return try {
             out.write(buildAuthRequest(credential))
             out.flush()
             val response = ByteArray(9)
             inp.readFully(response)
-            val (ok, token) = parseAuthResponse(response) ?: return false
+            val (ok, token) = parseAuthResponse(response) ?: return AuthOutcome.IO_ERROR
             if (ok) {
                 if (token != 0L) onAuthToken(token)
                 Logger.i(TAG, "Session authenticated with Cemu")
-                true
+                AuthOutcome.SUCCESS
             } else {
                 Logger.w(TAG, "Session authentication denied by Cemu")
-                false
+                AuthOutcome.DENIED
             }
         } catch (e: Exception) {
             Logger.w(TAG, "Session authentication failed: ${e.message}")
-            false
+            AuthOutcome.IO_ERROR
         }
     }
 
@@ -449,6 +542,7 @@ class VideoStreamClient(
                         Thread.sleep(1500)
                         continue
                     }
+                    isAuthenticated.set(true)
                     pinQueue.clear() // drop any late PIN submissions
                     sock.soTimeout = READ_TIMEOUT_MS
 
@@ -488,10 +582,12 @@ class VideoStreamClient(
                                 }
                             }
                         } catch (e: SocketTimeoutException) {
-                            if (idleControlMode) {
-                                continue
+                            // Cemu is idle (e.g. no title loaded yet, loading level, or video is on UDP).
+                            // A read timeout is normal and must not tear down the connection.
+                            if (!isRunning.get() || socket?.isClosed == true || socket?.isConnected == false) {
+                                throw e
                             }
-                            throw e
+                            continue
                         }
                     }
                 } catch (e: InterruptedException) {
@@ -533,6 +629,7 @@ class VideoStreamClient(
     }
 
     private fun closeSocket() {
+        isAuthenticated.set(false)
         // Snapshot under lock, close outside it: close() must never wait
         // behind a stuck sender, or the retry loop parks here forever.
         val s: Socket?

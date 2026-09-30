@@ -48,4 +48,111 @@ class SessionAuthTest {
         assertNull(VideoStreamClient.parseAuthResponse(ByteArray(0)))
         assertNull(VideoStreamClient.parseAuthResponse(ByteArray(8)))
     }
+
+    @Test
+    fun testClientIsNotConnectedBeforeAuth() {
+        val client = VideoStreamClient(
+            host = "127.0.0.1",
+            port = 65432,
+            onFrameReceived = { _, _ -> }
+        )
+        assertFalse(client.isConnected)
+    }
+
+    @Test
+    fun testAuthHandshakeSuccessTriggersCallback() {
+        val server = java.net.ServerSocket(0)
+        val port = server.localPort
+        var authSucceeded = false
+        var connected = false
+
+        val client = VideoStreamClient(
+            host = "127.0.0.1",
+            port = port,
+            onFrameReceived = { _, _ -> },
+            getAuthCredential = { 42L },
+            onAuthSucceeded = { authSucceeded = true }
+        ).apply {
+            onConnected = { connected = true }
+        }
+
+        val serverThread = Thread {
+            try {
+                val sock = server.accept()
+                val inp = java.io.DataInputStream(sock.getInputStream())
+                val out = java.io.DataOutputStream(sock.getOutputStream())
+                val req = ByteArray(9)
+                inp.readFully(req)
+                val resp = ByteBuffer.allocate(9).order(ByteOrder.LITTLE_ENDIAN).apply {
+                    put(0x00.toByte())
+                    putLong(9999L)
+                }.array()
+                out.write(resp)
+                out.flush()
+            } catch (_: Exception) {}
+        }
+        serverThread.start()
+
+        client.start()
+        val deadline = System.currentTimeMillis() + 3000L
+        while (System.currentTimeMillis() < deadline && (!authSucceeded || !client.isConnected)) {
+            Thread.sleep(50)
+        }
+
+        client.stop()
+        server.close()
+        serverThread.join(1000)
+
+        assertTrue("onAuthSucceeded should have been called", authSucceeded)
+        assertTrue("onConnected should have been called", connected)
+    }
+
+    @Test
+    fun testCancelAuthAbortsImmediately() {
+        val server = java.net.ServerSocket(0)
+        val port = server.localPort
+        var pinRequired = false
+
+        val client = VideoStreamClient(
+            host = "127.0.0.1",
+            port = port,
+            onFrameReceived = { _, _ -> },
+            getAuthCredential = { 0L },
+            onPinRequired = { pinRequired = true }
+        )
+
+        val serverThread = Thread {
+            try {
+                val sock = server.accept()
+                val inp = java.io.DataInputStream(sock.getInputStream())
+                val out = java.io.DataOutputStream(sock.getOutputStream())
+                val req = ByteArray(9)
+                inp.readFully(req)
+                val resp = ByteBuffer.allocate(9).order(ByteOrder.LITTLE_ENDIAN).apply {
+                    put(0x01.toByte())
+                    putLong(0L)
+                }.array()
+                out.write(resp)
+                out.flush()
+            } catch (_: Exception) {}
+        }
+        serverThread.start()
+
+        client.start()
+        val deadline = System.currentTimeMillis() + 3000L
+        while (System.currentTimeMillis() < deadline && !pinRequired) {
+            Thread.sleep(50)
+        }
+        assertTrue("PIN should have been requested", pinRequired)
+
+        val startCancel = System.currentTimeMillis()
+        client.cancelAuth()
+        client.stop()
+        val elapsed = System.currentTimeMillis() - startCancel
+
+        server.close()
+        serverThread.join(1000)
+
+        assertTrue("cancelAuth should terminate worker promptly (took ${elapsed}ms)", elapsed < 2000)
+    }
 }

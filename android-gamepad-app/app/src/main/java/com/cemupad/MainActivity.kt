@@ -1055,7 +1055,12 @@ class MainActivity : ComponentActivity() {
                 videoClient?.sendCodec(targetMime == MediaFormat.MIMETYPE_VIDEO_HEVC)
                 val activeProfile = if (::gamepadHandler.isInitialized) gamepadHandler.profile else com.cemupad.input.ControllerProfile.DEFAULT
                 val entries = pendingPushedEntries ?: com.cemupad.config.InputMappingCodec.toVpadEntries(activeProfile)
-                videoClient?.sendPushedMappings(entries)
+                if (entries.hashCode() != lastPushedMappingsSig) {
+                    videoClient?.sendPushedMappings(entries)
+                    lastPushedMappingsSig = entries.hashCode()
+                } else {
+                    Logger.i("MainActivity", "Mappings unchanged; skipping re-push on reconnect")
+                }
                 pendingPushedEntries = null
                 startVoiceStream(host)
                 requestIDR()
@@ -1701,12 +1706,17 @@ class MainActivity : ComponentActivity() {
     )
 
     private var pendingPushedEntries: List<Pair<Int, Int>>? = null
+    // Signature of the last mappings batch actually transmitted. Reconnects
+    // must NOT re-push unchanged mappings: in TCP-fallback mode every push
+    // used to risk a reconnect, which re-pushed, looping forever.
+    private var lastPushedMappingsSig: Int? = null
 
     private fun pushCemuMappings(profile: com.cemupad.input.ControllerProfile) {
         val entries = com.cemupad.config.InputMappingCodec.toVpadEntries(profile)
         val vc = videoClient
         if (vc != null && vc.isConnected) {
             vc.sendPushedMappings(entries)
+            lastPushedMappingsSig = entries.hashCode()
             com.cemupad.util.Logger.i("MainActivity", "Pushed ${entries.size} mappings to Cemu")
         } else {
             pendingPushedEntries = entries

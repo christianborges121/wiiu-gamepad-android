@@ -128,15 +128,14 @@ object InputMappingCodec {
         // 15..16: StickL, StickR clicks -> StickL (1), StickR (2)
         // 17..20: StickL Up, Down, Left, Right -> kAxisYP (39), kAxisYN (45), kAxisXN (44), kAxisXP (38)
         // 21..24: StickR Up, Down, Left, Right -> kRotationYP (41), kRotationYN (47), kRotationXN (46), kRotationXP (40)
-        // 25: Mic -> kButton16 (16)
+        // 25: Mic -> unmapped (handled out of band by OPCODE_MIC_BLOW)
         return listOf(
             1 to 14, 2 to 13, 3 to 15, 4 to 12,
             5 to 10, 6 to 11, 7 to 8, 8 to 9,
             9 to 3, 10 to 0, 11 to 4, 12 to 6, 13 to 7, 14 to 5,
             15 to 1, 16 to 2,
             17 to 39, 18 to 45, 19 to 44, 20 to 38,
-            21 to 41, 22 to 47, 23 to 46, 24 to 40,
-            25 to 16
+            21 to 41, 22 to 47, 23 to 46, 24 to 40
         )
     }
 }

@@ -7,7 +7,7 @@ soc=SG8175P
 sdk=36 release=16
 screen=2400x1080 @360dpi refresh=0.0Hz
 app=1.0 (1)
-settings: fit=FILL res=DEVICE_AUTO bitrate=12Mbps audio=true mic=true
+settings: fit=ASPECT_FIT res=DEVICE_AUTO bitrate=12Mbps audio=true mic=true
 avc_decoders:
   - c2.qti.avc.decoder [hw]
   - c2.qti.avc.decoder.low_latency [hw]

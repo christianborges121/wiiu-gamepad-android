@@ -132,6 +132,8 @@ class MicVoiceStreamer(
                 val read = record.read(pcmBuffer, 0, SAMPLES_PER_CHUNK)
                 if (read > 0) {
                     val packetData = buildVoicePacket(seq++, pcmBuffer.copyOf(read))
+                    // Security note: Cemu filters mic UDP by authorized TCP client IP.
+                    // The phone must have an authenticated TCP video session before mic audio is accepted.
                     socket.send(DatagramPacket(packetData, packetData.size, hostAddr, port))
                 } else if (read < 0) {
                     Logger.w(TAG, "AudioRecord read error: $read")
