@@ -119,6 +119,41 @@ class FrameReassemblerTest {
     }
 
     @Test
+    fun `stray parity after completion creates no ghost slot`() {
+        val r = reassembler()
+        // Frame 60: 2 data packets (parityCount=1). Completes on data alone.
+        val d0 = UdpVideoPacket.encode(
+            UdpVideoPacket.Header(60, 600, 0, 2, 60000L,
+                UdpVideoPacket.FLAG_START, parityCount = 1),
+            byteArrayOf(0, 0x11)
+        )
+        val d1 = UdpVideoPacket.encode(
+            UdpVideoPacket.Header(60, 601, 1, 2, 60000L,
+                UdpVideoPacket.FLAG_END, parityCount = 1),
+            byteArrayOf(1, 0x11)
+        )
+        assertTrue(completes(r.offer(d0)) == null)
+        assertTrue(completes(r.offer(d1)) != null)
+
+        // The server's trailing parity shard arrives after completion.
+        val stray = UdpVideoPacket.encode(
+            UdpVideoPacket.Header(60, 602, 2, 2, 60000L,
+                UdpVideoPacket.FLAG_FEC, parityCount = 1),
+            byteArrayOf(2, 0x11)
+        )
+        val events = r.offer(stray)
+        assertTrue(events.filterIsInstance<FrameReassembler.OfferResult.FrameComplete>().isEmpty())
+        assertEquals(0, r.pendingFrames())
+
+        // Past expiry, a new frame's arrival must not report a ghost drop.
+        nowMs += 500L
+        r.offer(packet(61, 0, 1, 610))
+        assertEquals(0L, r.stats.framesDropped)
+        assertEquals(0L, r.stats.framesDroppedExpired)
+        assertEquals(2L, r.stats.framesCompleted)
+    }
+
+    @Test
     fun `fec parity packets recover lost data packets`() {
         val r = reassembler()
         val dataCount = 4

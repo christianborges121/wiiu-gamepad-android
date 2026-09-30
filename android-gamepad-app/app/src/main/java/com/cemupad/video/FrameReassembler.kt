@@ -33,7 +33,11 @@ class FrameReassembler(
         var packetsLost: Long = 0,
         var framesCompleted: Long = 0,
         var framesDropped: Long = 0,
-        var framesFecRecovered: Long = 0
+        var framesFecRecovered: Long = 0,
+        // Drop-cause split + slot high-water mark for diagnosing loss episodes.
+        var framesDroppedExpired: Long = 0,
+        var framesDroppedEvicted: Long = 0,
+        var maxSlotsSeen: Int = 0
     )
 
     val stats = Stats()
@@ -68,6 +72,13 @@ class FrameReassembler(
 
         var slot = slots[decoded.header.frameId]
         if (slot == null) {
+            // Stray parity for a frame with no slot: its data already
+            // completed (parity is sent after data), so no data will ever
+            // arrive. Creating a slot would leave a ghost that expires and
+            // inflates the drop counter ~1:1 with completions. Ignore it.
+            // (If parity ever arrives before data under reordering, we skip
+            // FEC for that one frame; completeness is unaffected.)
+            if (decoded.header.isFec) return events
             while (slots.size >= maxSlots) {
                 evictOldest()?.let { events += it }
             }
@@ -81,6 +92,7 @@ class FrameReassembler(
                 parts = arrayOfNulls(decoded.header.totalCount)
             )
             slots[decoded.header.frameId] = slot
+            if (slots.size > stats.maxSlotsSeen) stats.maxSlotsSeen = slots.size
         }
         if (decoded.header.packetCount != slot.packetCount || decoded.header.parityCount != slot.parityCount) {
             stats.datagramsMalformed++
@@ -149,7 +161,7 @@ class FrameReassembler(
             }
 
             if (stats.framesCompleted % 300L == 0L) {
-                com.cemupad.util.Logger.i("FrameReassembler", "UDP Video: ${stats.framesCompleted} frames completed, ${stats.framesFecRecovered} FEC-recovered, ${stats.framesDropped} dropped, ${stats.packetsLost} packets lost")
+                com.cemupad.util.Logger.i("FrameReassembler", "UDP Video: ${stats.framesCompleted} frames completed, ${stats.framesFecRecovered} FEC-recovered, ${stats.framesDropped} dropped (expired=${stats.framesDroppedExpired} evicted=${stats.framesDroppedEvicted} slotsMax=${stats.maxSlotsSeen}), ${stats.packetsLost} packets lost")
             }
             events += OfferResult.FrameComplete(
                 CompletedFrame(
@@ -185,6 +197,7 @@ class FrameReassembler(
             if (now - entry.value.firstSeenMs > expiryMs) {
                 it.remove()
                 stats.framesDropped++
+                stats.framesDroppedExpired++
                 dropped += OfferResult.FrameDropped(entry.value.frameId, entry.value.isIdr)
             }
         }
@@ -197,6 +210,7 @@ class FrameReassembler(
         val entry = it.next()
         it.remove()
         stats.framesDropped++
+        stats.framesDroppedEvicted++
         return OfferResult.FrameDropped(entry.value.frameId, entry.value.isIdr)
     }
 
