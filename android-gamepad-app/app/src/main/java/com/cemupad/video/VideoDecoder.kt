@@ -28,7 +28,9 @@ class VideoDecoder(
 ) {
     companion object {
         const val TAG = "VideoDecoder"
-        const val DEFAULT_WIDTH = 854
+        // 848, not 854: non-macroblock-aligned widths fail OUT-port setup
+        // on Qualcomm decoders (see DisplayResolutionPreset).
+        const val DEFAULT_WIDTH = 848
         const val DEFAULT_HEIGHT = 480
         const val IDR_RECOVERY_INTERVAL_FRAMES = 30
         private const val DEQUEUE_TIMEOUT_US = 5000L // 5ms

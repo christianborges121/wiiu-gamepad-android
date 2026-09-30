@@ -14,7 +14,10 @@ enum class DisplayResolutionPreset(
     val width: Int,
     val height: Int
 ) {
-    NATIVE_854x480("Native 854x480", 854, 480),
+    // NOTE: streams 848 (not 854) wide: 854 is not macroblock-aligned and
+    // Qualcomm decoders fail OUT-port configuration on it (pad to 896 with
+    // errors). 848 keeps 16:9-ish aspect and the GamePad-native spirit.
+    NATIVE_854x480("Native 854x480", 848, 480),
     HD_1280x720("Wide 1280x720", 1280, 720),
     FULL_HD_1920x1080("Full HD 1920x1080", 1920, 1080),
     DEVICE_AUTO("Device auto", 0, 0);
