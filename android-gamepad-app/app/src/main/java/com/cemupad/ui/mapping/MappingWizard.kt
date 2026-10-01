@@ -708,6 +708,13 @@ private fun CapturingBody(screen: MappingWizardScreen.Capturing, actions: Mappin
                 Text(it, color = Color(0xFFFF8A80), fontSize = 11.sp)
             }
         }
+        // Capture mode eats every button (nothing reaches the game while
+        // mapping) — say so, or users think their controls broke.
+        Text(
+            "Mapping mode: buttons are captured here and paused in-game.",
+            color = Muted,
+            fontSize = 11.sp
+        )
     }
 }
 

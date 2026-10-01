@@ -36,9 +36,9 @@ class InputMappingPushTest {
     }
 
     @Test
-    fun `profile to vpad entries default has 25 mappings`() {
+    fun `profile to vpad entries default has 24 mappings`() {
         val entries = InputMappingCodec.toVpadEntries(ControllerProfile.DEFAULT)
-        assertEquals(25, entries.size)
+        assertEquals(24, entries.size)
         // A->Cross(14), B->Circle(13)
         assertTrue(entries.contains(1 to 14))
         assertTrue(entries.contains(2 to 13))
@@ -48,8 +48,9 @@ class InputMappingPushTest {
         // Stick dirs: StickL_Up -> kAxisYP (39), StickR_Right -> kRotationXP (40)
         assertTrue(entries.contains(17 to 39))
         assertTrue(entries.contains(24 to 40))
-        // Mic -> kButton16 (16)
-        assertTrue(entries.contains(25 to 16))
+        // Mic (mapping 25) is intentionally unmapped: mic blow travels
+        // out of band via OPCODE_MIC_BLOW, not the vpad table.
+        assertTrue(entries.none { (mapping, _) -> mapping == 25 })
     }
 
     @Test

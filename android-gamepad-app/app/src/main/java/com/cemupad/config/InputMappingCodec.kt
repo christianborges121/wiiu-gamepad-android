@@ -118,7 +118,7 @@ object InputMappingCodec {
      */
     @Suppress("UNUSED_PARAMETER")
     fun toVpadEntries(profile: com.cemupad.input.ControllerProfile): List<Pair<Int, Int>> {
-        // 25 entries: face + shoulders + dpad + sticks (press + 8 dirs) + mic.
+        // 24 entries: face + shoulders + dpad + sticks (press + 8 dirs).
         // Mapping IDs match VPADController::ButtonId in Cemu:
         // 1..4: A, B, X, Y -> Cross (14), Circle (13), Square (15), Triangle (12)
         // 5..6: L, R -> L (10), R (11)
