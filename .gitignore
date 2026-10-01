@@ -49,3 +49,6 @@ dist/
 # OS artifacts
 .DS_Store
 Thumbs.db
+
+# Server auth tokens (written to CWD when the server is launched here)
+cemupad_tokens.txt
