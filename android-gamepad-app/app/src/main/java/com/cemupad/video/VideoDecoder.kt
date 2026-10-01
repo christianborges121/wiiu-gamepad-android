@@ -89,7 +89,10 @@ class VideoDecoder(
     @Volatile var choreographerPacer: ChoreographerPacer? = null
 
     private data class QueuedFrame(val nalData: ByteArray, val ptsUs: Long)
-    private val inputQueue = java.util.concurrent.ArrayBlockingQueue<QueuedFrame>(4)
+    // Depth 1 (+1 in decode): a queued frame is pure added latency, and the
+    // sender always has a fresher one coming. Moonlight drains to latest-only
+    // for the same reason; the drop-oldest policy below stays unchanged.
+    private val inputQueue = java.util.concurrent.ArrayBlockingQueue<QueuedFrame>(2)
 
     private val decoderThread = HandlerThread("CemuPad-Decoder").apply { start() }
     private val decoderHandler = Handler(decoderThread.looper)
@@ -253,7 +256,7 @@ class VideoDecoder(
         if (!isRunning.get()) return
         totalFramesReceived.incrementAndGet()
 
-        while (inputQueue.size >= 3) {
+        while (inputQueue.size >= 1) {
             inputQueue.poll()
             totalFramesDropped.incrementAndGet()
         }
