@@ -271,6 +271,20 @@ fun VirtualThumbstick(
     var sizePx by remember { mutableStateOf(0f) }
     var thumbOffset by remember { mutableStateOf(Offset.Zero) }
 
+    fun applyStickOffset(pos: Offset) {
+        val radius = if (sizePx > 0f) sizePx / 2f else 100f
+        val center = Offset(radius, radius)
+        val delta = pos - center
+        val dist = sqrt(delta.x * delta.x + delta.y * delta.y)
+        val maxDist = radius * 0.7f
+        val clampedDist = dist.coerceAtMost(maxDist)
+        val angle = Math.atan2(delta.y.toDouble(), delta.x.toDouble())
+        val nx = if (maxDist > 0f) (clampedDist * cos(angle) / maxDist).toFloat() else 0f
+        val ny = if (maxDist > 0f) (clampedDist * sin(angle) / maxDist).toFloat() else 0f
+        thumbOffset = Offset(nx * maxDist, ny * maxDist)
+        onPositionChanged(nx.coerceIn(-1f, 1f), ny.coerceIn(-1f, 1f))
+    }
+
     Box(
         modifier = Modifier
             .size(sizeDp.dp)
@@ -278,45 +292,38 @@ fun VirtualThumbstick(
             .clip(CircleShape)
             .background(Color(0x551E2433))
             .pointerInput(Unit) {
-                detectDragGestures(
-                    onDragStart = { offset ->
-                        val radius = if (sizePx > 0f) sizePx / 2f else 100f
-                        val center = Offset(radius, radius)
-                        val delta = offset - center
-                        val dist = sqrt(delta.x * delta.x + delta.y * delta.y)
-                        val maxDist = radius * 0.7f
-                        val clampedDist = dist.coerceAtMost(maxDist)
-                        val angle = Math.atan2(delta.y.toDouble(), delta.x.toDouble())
-                        val nx = if (maxDist > 0f) (clampedDist * cos(angle) / maxDist).toFloat() else 0f
-                        val ny = if (maxDist > 0f) (clampedDist * sin(angle) / maxDist).toFloat() else 0f
-                        thumbOffset = Offset(nx * maxDist, ny * maxDist)
-                        onPositionChanged(nx.coerceIn(-1f, 1f), ny.coerceIn(-1f, 1f))
-                    },
-                    onDrag = { change, dragAmount ->
-                        change.consume()
-                        val radius = if (sizePx > 0f) sizePx / 2f else 100f
-                        val maxDist = radius * 0.7f
-                        val newOffset = thumbOffset + dragAmount
-                        val dist = sqrt(newOffset.x * newOffset.x + newOffset.y * newOffset.y)
-                        val clampedOffset = if (dist > maxDist && dist > 0f) {
-                            Offset(newOffset.x * maxDist / dist, newOffset.y * maxDist / dist)
+                // Press-aware like the D-pad: the initial touch-down
+                // deflects immediately instead of waiting for drag slop.
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    applyStickOffset(down.position)
+                    var done = false
+                    while (!done) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull()
+                        if (change == null || !change.pressed) {
+                            thumbOffset = Offset.Zero
+                            onPositionChanged(0f, 0f)
+                            done = true
                         } else {
-                            newOffset
+                            change.consume()
+                            val radius = if (sizePx > 0f) sizePx / 2f else 100f
+                            val maxDist = radius * 0.7f
+                            val dragAmount = change.position - change.previousPosition
+                            val newOffset = thumbOffset + dragAmount
+                            val dist = sqrt(newOffset.x * newOffset.x + newOffset.y * newOffset.y)
+                            val clampedOffset = if (dist > maxDist && dist > 0f) {
+                                Offset(newOffset.x * maxDist / dist, newOffset.y * maxDist / dist)
+                            } else {
+                                newOffset
+                            }
+                            thumbOffset = clampedOffset
+                            val nx = if (maxDist > 0f) (clampedOffset.x / maxDist).coerceIn(-1f, 1f) else 0f
+                            val ny = if (maxDist > 0f) (clampedOffset.y / maxDist).coerceIn(-1f, 1f) else 0f
+                            onPositionChanged(nx, ny)
                         }
-                        thumbOffset = clampedOffset
-                        val nx = if (maxDist > 0f) (clampedOffset.x / maxDist).coerceIn(-1f, 1f) else 0f
-                        val ny = if (maxDist > 0f) (clampedOffset.y / maxDist).coerceIn(-1f, 1f) else 0f
-                        onPositionChanged(nx, ny)
-                    },
-                    onDragEnd = {
-                        thumbOffset = Offset.Zero
-                        onPositionChanged(0f, 0f)
-                    },
-                    onDragCancel = {
-                        thumbOffset = Offset.Zero
-                        onPositionChanged(0f, 0f)
                     }
-                )
+                }
             },
         contentAlignment = Alignment.Center
     ) {
@@ -381,15 +388,26 @@ fun VirtualDPad(
             .size(sizeDp.dp)
             .onSizeChanged { sizePx = it.width.toFloat() }
             .pointerInput(Unit) {
-                detectDragGestures(
-                    onDragStart = { pos -> updateTouch(pos, false) },
-                    onDrag = { change, _ ->
-                        change.consume()
-                        updateTouch(change.position, false)
-                    },
-                    onDragEnd = { updateTouch(Offset.Zero, true) },
-                    onDragCancel = { updateTouch(Offset.Zero, true) }
-                )
+                // Press-aware (not drag-only): a stationary tap must
+                // register a direction immediately — detectDragGestures
+                // waits for touch slop and swallows taps, which read as
+                // "D-pad doesn't work".
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    updateTouch(down.position, false)
+                    var done = false
+                    while (!done) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull()
+                        if (change == null || !change.pressed) {
+                            updateTouch(Offset.Zero, true)
+                            done = true
+                        } else {
+                            change.consume()
+                            updateTouch(change.position, false)
+                        }
+                    }
+                }
             },
         contentAlignment = Alignment.Center
     ) {
