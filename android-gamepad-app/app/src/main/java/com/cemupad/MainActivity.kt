@@ -122,6 +122,10 @@ class MainActivity : ComponentActivity() {
     // Last time a CEMUPAD_HERE response arrived. The found-card is cleared
     // once responses stop (e.g. Cemu closed) so it can't strand the UI.
     private var lastDiscoveryTimeMs: Long = 0L
+    // c0 watchdog: video up but no DSU subscriber means Cemu will never
+    // read input (e.g. endpoint died while the phone was offline).
+    private var videoConnectedSinceMs: Long = 0L
+    private var lastDsuWarnMs: Long = 0L
 
     private var videoDecoder: VideoDecoder? = null
     private var videoClient: VideoStreamClient? = null
@@ -231,6 +235,26 @@ class MainActivity : ComponentActivity() {
                     runOnUiThread {
                         pinPromptVisible.value = false
                         pinPromptErrorMessage.value = null
+                    }
+                }
+                // Video is up but Cemu isn't polling DSU: no input can ever
+                // arrive. Cemu treats a dead endpoint as final, so say so
+                // instead of leaving the user on a working-looking screen.
+                // (15 s grace for Cemu to subscribe after a fresh connect,
+                // then at most one toast per minute per episode.)
+                val videoUp = videoClient?.isConnected == true
+                val dsuClients = if (::dsuServer.isInitialized) dsuServer.activeClientCount else 0
+                val nowMs = System.currentTimeMillis()
+                if (videoUp && dsuClients == 0 && videoConnectedSinceMs > 0 &&
+                    nowMs - videoConnectedSinceMs > 15000L &&
+                    nowMs - lastDsuWarnMs > 60000L
+                ) {
+                    lastDsuWarnMs = nowMs
+                    Logger.w("MainActivity", "Watchdog: video connected but Cemu is not polling DSU (c0); input is dead")
+                    runOnUiThread {
+                        Toast.makeText(this@MainActivity,
+                            "Connected, but Cemu isn't reading input — restart Cemu",
+                            Toast.LENGTH_LONG).show()
                     }
                 }
                 videoClient?.restartIfStalled()
@@ -1027,6 +1051,7 @@ class MainActivity : ComponentActivity() {
         ).apply {
             onConnected = {
                 Logger.i("MainActivity", "Video stream connected to $host:26761")
+                videoConnectedSinceMs = System.currentTimeMillis()
                 runOnUiThread {
                     isControlConnected.value = true
                     connectedHost.value = host
@@ -1067,6 +1092,8 @@ class MainActivity : ComponentActivity() {
             }
             onDisconnected = {
                 Logger.i("MainActivity", "Video stream disconnected")
+                videoConnectedSinceMs = 0L
+                lastDsuWarnMs = 0L
                 runOnUiThread {
                     isControlConnected.value = false
                     isVideoStreaming.value = false
@@ -1081,6 +1108,26 @@ class MainActivity : ComponentActivity() {
                     rumbleHandler.rumble(intensity, durationMs.toLong())
                 } else {
                     rumbleHandler.cancel(force = false)
+                }
+            }
+            onMappingStatus = { ok ->
+                // The PC confirms whether pushed mappings landed in its
+                // profile file. The live profile already applies instantly
+                // over DSU; the file copy needs a Cemu restart to load.
+                if (ok) {
+                    Logger.i("MainActivity", "PC saved pushed mappings; restart Cemu to apply the file copy")
+                    runOnUiThread {
+                        Toast.makeText(this@MainActivity,
+                            "Mappings saved on PC — restart Cemu to apply",
+                            Toast.LENGTH_LONG).show()
+                    }
+                } else {
+                    Logger.w("MainActivity", "PC rejected pushed mappings")
+                    runOnUiThread {
+                        Toast.makeText(this@MainActivity,
+                            "PC rejected the mappings — check the mapping screen",
+                            Toast.LENGTH_LONG).show()
+                    }
                 }
             }
             onError = { err ->

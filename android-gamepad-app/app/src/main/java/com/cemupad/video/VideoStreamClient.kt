@@ -41,6 +41,9 @@ class VideoStreamClient(
         const val PACKET_TYPE_VIDEO = 0x01
         const val PACKET_TYPE_CONFIG = 0x02
         const val PACKET_TYPE_RUMBLE = 0x03
+        // Server -> phone mapping-apply result: 1-byte payload (0 = saved,
+        // nonzero = rejected). Framed like video so it can't desync TCP.
+        const val PACKET_TYPE_MAPPING_STATUS = 0x04
         const val OPCODE_IDR_REQUEST = 0x10
         const val OPCODE_TRANSPORT_UDP = 0x11
         const val OPCODE_TRANSPORT_TCP = 0x12
@@ -166,6 +169,8 @@ class VideoStreamClient(
     var onDisconnected: (() -> Unit)? = null
     var onError: ((Throwable) -> Unit)? = null
     var onRumbleReceived: ((active: Boolean, intensity: Int, durationMs: Int) -> Unit)? = null
+    /** Invoked with true when the PC confirms mappings were saved to its profile. */
+    var onMappingStatus: ((ok: Boolean) -> Unit)? = null
 
     private val isAuthenticated = AtomicBoolean(false)
 
@@ -578,6 +583,11 @@ class VideoStreamClient(
                                         val intensity = payload[1].toInt() and 0xFF
                                         val durationMs = (payload[2].toInt() and 0xFF) or ((payload[3].toInt() and 0xFF) shl 8)
                                         onRumbleReceived?.invoke(active, intensity, durationMs)
+                                    }
+                                }
+                                PACKET_TYPE_MAPPING_STATUS -> {
+                                    if (payload.isNotEmpty()) {
+                                        onMappingStatus?.invoke(payload[0] == 0.toByte())
                                     }
                                 }
                             }
