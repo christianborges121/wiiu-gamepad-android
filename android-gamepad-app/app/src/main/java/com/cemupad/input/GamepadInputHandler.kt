@@ -89,7 +89,13 @@ class GamepadInputHandler(
 
     fun onKeyDown(keyCode: Int, event: KeyEvent? = null): Boolean {
         val source = event?.source ?: 0
-        if (!isGamepadEvent(source, keyCode)) return false
+        // Input diagnostics: proves physical/injected keys reach the handler
+        // (source includes adb-injected keys, which arrive with source=0).
+        com.cemupad.util.Logger.i("InputTrace", "onKeyDown code=$keyCode source=$source")
+        if (!isGamepadEvent(source, keyCode)) {
+            com.cemupad.util.Logger.i("InputTrace", "rejected by isGamepadEvent")
+            return false
+        }
 
         var handled = true
         when (keyCode) {
@@ -247,6 +253,7 @@ class GamepadInputHandler(
         syncState()
     }
 
+    private var lastTraceState = ""
     private fun syncState() {
         // Merge D-Pad states from both KeyEvents and MotionEvent HAT axes
         val up = dpadKeyUp || dpadHatUp
@@ -262,6 +269,12 @@ class GamepadInputHandler(
         if (right) s1 = s1 or DSUPacket.State1Flags.DPAD_RIGHT
         state1 = s1
 
+        // Published DSU state (change-throttled): what Cemu actually reads.
+        val sig = "s1=$state1 s2=$state2 lx=$lx ly=$ly rx=$rx ry=$ry"
+        if (sig != lastTraceState) {
+            lastTraceState = sig
+            com.cemupad.util.Logger.i("InputTrace", "syncState $sig")
+        }
         dsuServer.updateState { state ->
             state.state1 = state1
             state.state2 = state2
