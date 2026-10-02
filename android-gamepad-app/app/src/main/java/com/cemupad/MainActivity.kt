@@ -132,6 +132,7 @@ class MainActivity : ComponentActivity() {
     private var udpReceiver: UdpVideoReceiver? = null
     private val udpActive = AtomicBoolean(false)
     private val lastFedPtsUs = AtomicLong(-1L)
+    private val lastVideoFrameTimeMs = AtomicLong(0L)
     private var activeSurface: Surface? = null
     private var lastKnownClientIp: String? = null
 
@@ -245,6 +246,12 @@ class MainActivity : ComponentActivity() {
                 val videoUp = videoClient?.isConnected == true
                 val dsuClients = if (::dsuServer.isInitialized) dsuServer.activeClientCount else 0
                 val nowMs = System.currentTimeMillis()
+                val lastFrameMs = lastVideoFrameTimeMs.get()
+                if (isVideoStreaming.value && lastFrameMs > 0 && (nowMs - lastFrameMs > 2000L)) {
+                    runOnUiThread {
+                        isVideoStreaming.value = false
+                    }
+                }
                 if (videoUp && dsuClients == 0 && videoConnectedSinceMs > 0 &&
                     nowMs - videoConnectedSinceMs > 15000L &&
                     nowMs - lastDsuWarnMs > 60000L
@@ -934,6 +941,7 @@ class MainActivity : ComponentActivity() {
         // Drop exact duplicates (dual-transport overlap during switch-over);
         // legitimate streams never repeat a PTS back-to-back.
         if (ptsUs == lastFedPtsUs.getAndSet(ptsUs)) return
+        lastVideoFrameTimeMs.set(System.currentTimeMillis())
         videoDecoder?.decodeFrame(nalData, ptsUs)
         if (!isVideoStreaming.value) {
             runOnUiThread {
@@ -1094,6 +1102,7 @@ class MainActivity : ComponentActivity() {
                 Logger.i("MainActivity", "Video stream disconnected")
                 videoConnectedSinceMs = 0L
                 lastDsuWarnMs = 0L
+                lastVideoFrameTimeMs.set(0L)
                 runOnUiThread {
                     isControlConnected.value = false
                     isVideoStreaming.value = false
@@ -1143,6 +1152,7 @@ class MainActivity : ComponentActivity() {
         videoClient?.idleControlMode = false
         videoClient?.stop()
         videoClient = null
+        lastVideoFrameTimeMs.set(0L)
         rumbleHandler.cancel(force = true)
         runOnUiThread {
             isControlConnected.value = false

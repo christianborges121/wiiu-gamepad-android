@@ -5,7 +5,9 @@ import android.view.SurfaceHolder
 import android.view.SurfaceView
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -99,6 +101,7 @@ import com.cemupad.ui.mapping.MappingWizardScreen
 import com.cemupad.dsu.DSUServer
 import com.cemupad.input.TouchInputHandler
 import com.cemupad.ui.TouchSurfaceView
+import com.cemupad.ui.dashboard.GamepadDashboard
 import com.cemupad.util.NetworkUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -142,6 +145,7 @@ fun MainScreen(
     var packetsReceived by remember { mutableLongStateOf(0L) }
     var packetsSent by remember { mutableLongStateOf(0L) }
     var videoHolder by remember { mutableStateOf<SurfaceHolder?>(null) }
+    var showDashboardOverlay by remember { mutableStateOf(false) }
     val menuState = configMenuState ?: remember { ConfigMenuState() }
     val drawerState = rememberDrawerState(
         initialValue = if (menuState.isOpen) DrawerValue.Open else DrawerValue.Closed,
@@ -318,183 +322,89 @@ fun MainScreen(
                 )
             }
 
-            if (displaySettings.diagnosticsOverlayEnabled || forceDiagnosticsOverlay) {
-                val streamStatus = if (isVideoStreaming) {
-                    "${videoFps.toInt()} FPS"
-                } else {
-                    "awaiting"
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (isVideoStreaming) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xCC101622))
+                            .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.6f), RoundedCornerShape(6.dp))
+                            .clickable { showDashboardOverlay = !showDashboardOverlay }
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = if (showDashboardOverlay) "🎮 Back to Stream" else "🎮 Dashboard",
+                            color = Color(0xFF00E5FF),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
-                Text(
-                    text = "$ipAddress:${dsuServer?.port ?: 26760}  $streamStatus  c$clientCount  tx$packetsSent  rx$packetsReceived",
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp),
-                    color = Color(0xFFEAF2FF),
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = TextStyle(
-                        shadow = Shadow(
-                            color = Color.Black,
-                            blurRadius = 6f
+
+                if (displaySettings.diagnosticsOverlayEnabled || forceDiagnosticsOverlay) {
+                    val streamStatus = if (isVideoStreaming) {
+                        "${videoFps.toInt()} FPS"
+                    } else {
+                        "awaiting"
+                    }
+                    Text(
+                        text = "$ipAddress:${dsuServer?.port ?: 26760}  $streamStatus  c$clientCount  tx$packetsSent  rx$packetsReceived",
+                        color = Color(0xFFEAF2FF),
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = TextStyle(
+                            shadow = Shadow(
+                                color = Color.Black,
+                                blurRadius = 6f
+                            )
                         )
                     )
+                }
+            }
+
+            if (!isVideoStreaming || showDashboardOverlay) {
+                GamepadDashboard(
+                    dsuServer = dsuServer,
+                    gamepadHandler = gamepadHandler,
+                    discoveredServer = discoveredServer,
+                    onConnectToServer = onConnectToServer,
+                    ipAddress = ipAddress,
+                    clientCount = clientCount,
+                    packetsSent = packetsSent,
+                    packetsReceived = packetsReceived,
+                    connectedHost = connectedHost,
+                    isControlConnected = isControlConnected,
+                    isVideoStreaming = isVideoStreaming,
+                    activeControllerName = activeControllerName,
+                    onOpenInputMapping = onOpenInputMapping,
+                    onCalibrateGyro = onCalibrateGyro,
+                    onOpenSettings = {
+                        scope.launch { drawerState.open() }
+                    },
+                    virtualControlsEnabled = displaySettings.showVirtualControls,
+                    onToggleVirtualControls = {
+                        onDisplaySettingsChanged(
+                            displaySettings.copy(showVirtualControls = !displaySettings.showVirtualControls)
+                        )
+                    },
+                    onResumeStream = {
+                        showDashboardOverlay = false
+                    },
+                    modifier = Modifier.fillMaxSize()
                 )
             }
 
-            if (!isVideoStreaming) {
-                val isConnected = isControlConnected || clientCount > 0
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Card(
-                        modifier = Modifier.widthIn(max = 420.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xCC0F111A)),
-                        shape = RoundedCornerShape(18.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .verticalScroll(rememberScrollState())
-                                .padding(18.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            if (isConnected) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(10.dp)
-                                            .background(Color(0xFF00E676), CircleShape)
-                                    )
-                                    Text(
-                                        text = "Connected to Cemu",
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 18.sp
-                                    )
-                                }
-                                Text(
-                                    text = "Ready for GamePad streaming",
-                                    color = Color(0xFF00E676),
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 13.sp
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = "Launch a Wii U game in Cemu to display the GamePad screen here.",
-                                    color = Color(0xFFC5D2E5),
-                                    fontSize = 13.sp,
-                                    textAlign = TextAlign.Center
-                                )
-                                Card(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF161B26)),
-                                    shape = RoundedCornerShape(10.dp)
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(12.dp),
-                                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                                    ) {
-                                        if (!connectedHost.isNullOrEmpty()) {
-                                            Text(
-                                                text = "Host: $connectedHost",
-                                                color = Color(0xFFEAF2FF),
-                                                fontSize = 12.sp,
-                                                fontFamily = FontFamily.Monospace
-                                            )
-                                        }
-                                        Text(
-                                            text = "Controller: Wii U GamePad Active",
-                                            color = Color(0xFF00E5FF),
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                        Text(
-                                            text = "Touch, Motion & Audio stream ready",
-                                            color = Color(0xFF8FA3BF),
-                                            fontSize = 11.sp
-                                        )
-                                    }
-                                }
-                            } else {
-                                Text(
-                                    text = "Wii U GamePad",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp
-                                )
-                                Text(
-                                    text = "Waiting for your PC…",
-                                    color = Color(0xFF8FA3BF),
-                                    fontSize = 13.sp
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = "1. Run CemuPadServer on your PC (it hooks Cemu itself)\n2. In Cemu, open View → Separate GamePad view\n3. Tap Connect below when your PC appears",
-                                    color = Color(0xFFC5D2E5),
-                                    fontSize = 12.sp,
-                                    textAlign = TextAlign.Center
-                                )
-                                Text(
-                                    text = ipAddress,
-                                    color = Color(0xFF00E5FF),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp
-                                )
-                                Text(
-                                    text = "Port: ${dsuServer?.port ?: 26760}",
-                                    color = Color(0xFF8FA3BF),
-                                    fontSize = 12.sp
-                                )
-
-                                if (discoveredServer != null) {
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Card(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1B2333)),
-                                        shape = RoundedCornerShape(10.dp)
-                                    ) {
-                                        Column(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(10.dp),
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            Text(
-                                                text = "Found ${discoveredServer.hostname} (${discoveredServer.ip})",
-                                                color = Color.White,
-                                                fontWeight = FontWeight.SemiBold,
-                                                fontSize = 14.sp
-                                            )
-                                            Button(
-                                                onClick = { onConnectToServer?.invoke(discoveredServer.ip) },
-                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF))
-                                            ) {
-                                                Text("Connect to Cemu", color = Color.Black, fontWeight = FontWeight.Bold)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
             // Virtual GamePad Overlay
-            if (displaySettings.showVirtualControls && gamepadHandler != null) {
+            if (displaySettings.showVirtualControls && gamepadHandler != null && (!isVideoStreaming || !showDashboardOverlay)) {
                 VirtualGamePadOverlay(
                     gamepadHandler = gamepadHandler,
                     onMicBlowChanged = { blowing -> onMicBlowChanged?.invoke(blowing) },
@@ -502,7 +412,7 @@ fun MainScreen(
                     opacity = displaySettings.virtualControlsOpacity,
                     modifier = Modifier.fillMaxSize()
                 )
-            } else if (isVideoStreaming && displaySettings.micEnabled) {
+            } else if (isVideoStreaming && displaySettings.micEnabled && !showDashboardOverlay) {
                 // Floating red dot indicator/button when mic is enabled
                 Box(
                     modifier = Modifier
