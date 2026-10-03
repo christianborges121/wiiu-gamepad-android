@@ -29,7 +29,8 @@ jobs:
           cd android-gamepad-app
           ./gradlew testDebugUnitTest assembleRelease
           mkdir -p dist
-          cp app/build/outputs/apk/release/*.apk dist/CemuPad-Android.apk
+          short_sha=$(git rev-parse --short HEAD)
+          cp app/build/outputs/apk/release/*.apk "dist/cemupad-1.1.5-${short_sha}.apk"
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
