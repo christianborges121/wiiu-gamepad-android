@@ -13,6 +13,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -237,7 +238,8 @@ fun GamepadDashboard(
                             onClick = onResumeStream,
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF)),
                             shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.height(28.dp)
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                            modifier = Modifier.height(32.dp)
                         ) {
                             Text("Game Stream", color = Color.Black, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
@@ -247,7 +249,8 @@ fun GamepadDashboard(
                         onClick = { onOpenSettings?.invoke() },
                         shape = RoundedCornerShape(8.dp),
                         border = BorderStroke(1.dp, Color(0xFF37474F)),
-                        modifier = Modifier.height(28.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                        modifier = Modifier.height(32.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC5D2E5))
                     ) {
                         Text("Settings ⚙", fontSize = 11.sp)
@@ -386,7 +389,9 @@ fun GamepadDashboard(
                                         Button(
                                             onClick = { onConnectToServer?.invoke(discoveredServer.ip) },
                                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF)),
-                                            modifier = Modifier.height(24.dp)
+                                            shape = RoundedCornerShape(6.dp),
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                            modifier = Modifier.height(28.dp)
                                         ) {
                                             Text("Connect", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                         }
@@ -509,6 +514,7 @@ fun GamepadDashboard(
                                 .height(32.dp),
                             shape = RoundedCornerShape(8.dp),
                             border = BorderStroke(1.dp, Color(0xFF00E5FF).copy(alpha = 0.6f)),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF00E5FF))
                         ) {
                             Text("🎮 Map Buttons", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
@@ -524,6 +530,7 @@ fun GamepadDashboard(
                                 1.dp,
                                 if (virtualControlsEnabled) Color(0xFF00E676) else Color(0xFF455A64)
                             ),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = if (virtualControlsEnabled) Color(0xFF00E676) else Color(0xFFB0BEC5)
                             )
@@ -542,6 +549,7 @@ fun GamepadDashboard(
                                 .height(32.dp),
                             shape = RoundedCornerShape(8.dp),
                             border = BorderStroke(1.dp, Color(0xFF455A64)),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFCFD8DC))
                         ) {
                             Text("🎯 Gyro Cal", fontSize = 11.sp)
