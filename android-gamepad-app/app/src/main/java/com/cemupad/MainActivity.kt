@@ -1086,21 +1086,19 @@ class MainActivity : ComponentActivity() {
                 }
                 val targetMime = resolveVideoMimeType(displaySettings.value.videoCodec)
                 videoClient?.sendCodec(targetMime == MediaFormat.MIMETYPE_VIDEO_HEVC)
-                val activeProfile = if (::gamepadHandler.isInitialized) gamepadHandler.profile else com.cemupad.input.ControllerProfile.DEFAULT
+                val activeProfile = getEffectiveControllerProfile()
                 val entries = pendingPushedEntries ?: com.cemupad.config.InputMappingCodec.toVpadEntries(activeProfile)
-                if (entries.hashCode() != lastPushedMappingsSig) {
-                    videoClient?.sendPushedMappings(entries)
-                    lastPushedMappingsSig = entries.hashCode()
-                } else {
-                    Logger.i("MainActivity", "Mappings unchanged; skipping re-push on reconnect")
-                }
+                videoClient?.sendPushedMappings(entries)
+                lastPushedMappingsSig = entries.hashCode()
                 pendingPushedEntries = null
+                Logger.i("MainActivity", "Sent ${entries.size} controller mappings to Cemu on connection")
                 startVoiceStream(host)
                 requestIDR()
             }
             onDisconnected = {
                 Logger.i("MainActivity", "Video stream disconnected")
                 videoConnectedSinceMs = 0L
+                lastPushedMappingsSig = null
                 lastDsuWarnMs = 0L
                 lastVideoFrameTimeMs.set(0L)
                 runOnUiThread {
@@ -1692,7 +1690,7 @@ class MainActivity : ComponentActivity() {
         },
         onRemap = { startCapture() },
         onSaveTest = {
-            val descriptor = activeGamepadDescriptor.value ?: return@MappingWizardActions
+            val descriptor = activeGamepadDescriptor.value ?: "default"
             val toSave = gamepadHandler.profile.copy(deviceDescriptor = descriptor)
             deviceProfileStore.save(toSave)
             pushCemuMappings(toSave)
@@ -1749,9 +1747,9 @@ class MainActivity : ComponentActivity() {
             refreshCaptureScreen()
         },
         onSaveCapture = {
-            val descriptor = activeGamepadDescriptor.value
+            val descriptor = activeGamepadDescriptor.value ?: "default"
             val built = captureEngine.buildProfile(gamepadHandler.profile)
-            if (descriptor != null && built != null) {
+            if (built != null) {
                 val bound = built.copy(deviceDescriptor = descriptor)
                 deviceProfileStore.save(bound)
                 gamepadHandler.profile = bound
@@ -1768,15 +1766,45 @@ class MainActivity : ComponentActivity() {
     // used to risk a reconnect, which re-pushed, looping forever.
     private var lastPushedMappingsSig: Int? = null
 
+    private fun getEffectiveControllerProfile(): com.cemupad.input.ControllerProfile {
+        val desc = activeGamepadDescriptor.value
+        if (desc != null && ::deviceProfileStore.isInitialized) {
+            val detected = lastDetectedProfile?.profile
+            return deviceProfileStore.activeFor(desc, detected)
+        }
+        if (::deviceProfileStore.isInitialized) {
+            val found = try {
+                com.cemupad.input.ControllerDetector.firstGamepad()
+            } catch (_: Exception) {
+                null
+            }
+            if (found != null) {
+                val d = found.first.descriptor ?: ""
+                if (d.isNotEmpty()) {
+                    activeGamepadDescriptor.value = d
+                    activeGamepadName.value = found.first.name ?: "Controller"
+                    lastDetectedProfile = found.second
+                    val profile = deviceProfileStore.activeFor(d, found.second?.profile)
+                    if (::gamepadHandler.isInitialized) {
+                        gamepadHandler.profile = profile
+                    }
+                    lastProfileDescriptor = d
+                    return profile
+                }
+            }
+        }
+        return if (::gamepadHandler.isInitialized) gamepadHandler.profile else com.cemupad.input.ControllerProfile.DEFAULT
+    }
+
     private fun pushCemuMappings(profile: com.cemupad.input.ControllerProfile) {
         val entries = com.cemupad.config.InputMappingCodec.toVpadEntries(profile)
+        pendingPushedEntries = entries
         val vc = videoClient
         if (vc != null && vc.isConnected) {
             vc.sendPushedMappings(entries)
             lastPushedMappingsSig = entries.hashCode()
             com.cemupad.util.Logger.i("MainActivity", "Pushed ${entries.size} mappings to Cemu")
         } else {
-            pendingPushedEntries = entries
             com.cemupad.util.Logger.i("MainActivity", "Queued ${entries.size} mappings for next Cemu connect")
         }
     }
