@@ -24,19 +24,15 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x android-gamepad-app/gradlew
 
-      - name: Build Debug & Release APK
+      - name: Build Release APK
         run: |
           cd android-gamepad-app
-          ./gradlew testDebugUnitTest assembleDebug assembleRelease
-
-      - name: Upload Debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: CemuPad-Android-Debug
-          path: android-gamepad-app/app/build/outputs/apk/debug/*.apk
+          ./gradlew testDebugUnitTest assembleRelease
+          mkdir -p dist
+          cp app/build/outputs/apk/release/*.apk dist/CemuPad-Android.apk
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
           name: CemuPad-Android-Release
-          path: android-gamepad-app/app/build/outputs/apk/release/*.apk
+          path: android-gamepad-app/dist/*.apk
